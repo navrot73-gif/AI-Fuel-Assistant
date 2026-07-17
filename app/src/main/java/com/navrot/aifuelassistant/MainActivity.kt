@@ -1,24 +1,19 @@
-package com.navrot.aifuelassistant
+package com.navrot.aifuelassistant.ui
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
-import androidx.compose.ui.Modifier
-import com.navrot.aifuelassistant.features.dashboard.DashboardScreen
-import com.navrot.aifuelassistant.ui.theme.AIFuelAssistantTheme
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import com.navrot.aifuelassistant.ui.vehicles.VehicleListScreen
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        enableEdgeToEdge()
         setContent {
-            AIFuelAssistantTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    DashboardScreen(modifier = Modifier.padding(innerPadding))
+            MaterialTheme {
+                Surface {
+                    VehicleListScreen()
                 }
             }
         }
