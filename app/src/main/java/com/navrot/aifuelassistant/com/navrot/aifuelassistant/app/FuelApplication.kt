@@ -21,7 +21,9 @@ class FuelApplication : Application() {
             applicationContext,
             AppDatabase::class.java,
             "fuel_database"
-        ).build()
+        )
+            .fallbackToDestructiveMigration() // Удалит старую БД и создаст новую (только для разработки!)
+            .build()
 
         // Добавляем тестовые данные при первом запуске
         addTestData()
@@ -31,13 +33,11 @@ class FuelApplication : Application() {
         CoroutineScope(Dispatchers.IO).launch {
             val existingVehicles = database.vehicleDao().getAll()
 
-            // Проверяем, пустая ли база
             val currentList = mutableListOf<VehicleEntity>()
             existingVehicles.collect { list ->
                 if (list.isEmpty() && currentList.isEmpty()) {
                     currentList.addAll(list)
 
-                    // Добавляем тестовые автомобили
                     database.vehicleDao().insert(
                         VehicleEntity(
                             name = "Моя Toyota",
