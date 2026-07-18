@@ -2,7 +2,7 @@ package com.navrot.aifuelassistant.ui.fuel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.navrot.aifuelassistant.app.FuelApplication
+import com.navrot.aifuelassistant.FuelApplication
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow

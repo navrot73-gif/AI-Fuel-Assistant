@@ -7,12 +7,9 @@ import com.navrot.aifuelassistant.data.database.dao.VehicleDao
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 
-@Database(
-    entities = [VehicleEntity::class, FuelRecordEntity::class],
-    version = 3,  // <-- Было 2, стало 3
-    exportSchema = false
-)
+@Database(entities = [VehicleEntity::class, FuelRecordEntity::class], version = 1)
 abstract class AppDatabase : RoomDatabase() {
-    abstract fun vehicleDao(): VehicleDao
-    abstract fun fuelRecordDao(): FuelRecordDao
+
+    abstract fun vehicleDao(): VehicleDao       // БЕЗ suspend!
+    abstract fun fuelRecordDao(): FuelRecordDao // БЕЗ suspend!
 }

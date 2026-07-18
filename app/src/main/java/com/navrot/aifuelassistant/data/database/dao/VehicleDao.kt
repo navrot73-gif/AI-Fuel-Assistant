@@ -8,19 +8,19 @@ import kotlinx.coroutines.flow.Flow
 interface VehicleDao {
 
     @Query("SELECT * FROM vehicles ORDER BY name ASC")
-    fun getAll(): Flow<List<VehicleEntity>>
+    fun getAllVehicles(): Flow<List<VehicleEntity>>
 
     @Query("SELECT * FROM vehicles WHERE id = :id")
-    suspend fun getById(id: Long): VehicleEntity?
+    suspend fun getVehicleById(id: Long): VehicleEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insert(vehicle: VehicleEntity): Long
+    suspend fun insertVehicle(vehicle: VehicleEntity): Long
 
     @Update
-    suspend fun update(vehicle: VehicleEntity)
+    suspend fun updateVehicle(vehicle: VehicleEntity)
 
     @Delete
-    suspend fun delete(vehicle: VehicleEntity)
+    suspend fun deleteVehicle(vehicle: VehicleEntity)
 
     @Query("DELETE FROM vehicles WHERE id = :id")
     suspend fun deleteById(id: Long)

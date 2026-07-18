@@ -1,8 +1,9 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
     id("com.google.devtools.ksp")
-    // Строку с compose plugin отсюда мы полностью убрали, чтобы не было дублирования расширения 'kotlin'
 }
 
 android {
@@ -19,11 +20,48 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+
+        ksp {
+            arg("room.schemaLocation", "$projectDir/schemas")
+            arg("room.generateKotlin", "true")
+        }
     }
 
+    // Загружаем ключи из local.properties, если они там есть. Если нет — ставим пустые строки.
+    val localProperties = Properties().apply {
+        val file = rootProject.file("local.properties")
+        if (file.exists()) {
+            file.inputStream().use { load(it) }
+        }
+    }
+
+    val gigaClientId = localProperties.getProperty("GIGACHAT_CLIENT_ID") ?: ""
+    val gigaClientSecret = localProperties.getProperty("GIGACHAT_CLIENT_SECRET") ?: ""
+    val yandexApiKey = localProperties.getProperty("YANDEX_API_KEY") ?: ""
+    val yandexFolderId = localProperties.getProperty("YANDEX_FOLDER_ID") ?: ""
+    val deepseekApiKey = localProperties.getProperty("DEEPSEEK_API_KEY") ?: ""
+    val qwenApiKey = localProperties.getProperty("QWEN_API_KEY") ?: ""
+
     buildTypes {
+        debug {
+            isMinifyEnabled = false
+
+            buildConfigField("String", "GIGACHAT_CLIENT_ID", "\"$gigaClientId\"")
+            buildConfigField("String", "GIGACHAT_CLIENT_SECRET", "\"$gigaClientSecret\"")
+            buildConfigField("String", "YANDEX_API_KEY", "\"$yandexApiKey\"")
+            buildConfigField("String", "YANDEX_FOLDER_ID", "\"$yandexFolderId\"")
+            buildConfigField("String", "DEEPSEEK_API_KEY", "\"$deepseekApiKey\"")
+            buildConfigField("String", "QWEN_API_KEY", "\"$qwenApiKey\"")
+        }
         release {
             isMinifyEnabled = false
+
+            buildConfigField("String", "GIGACHAT_CLIENT_ID", "\"$gigaClientId\"")
+            buildConfigField("String", "GIGACHAT_CLIENT_SECRET", "\"$gigaClientSecret\"")
+            buildConfigField("String", "YANDEX_API_KEY", "\"$yandexApiKey\"")
+            buildConfigField("String", "YANDEX_FOLDER_ID", "\"$yandexFolderId\"")
+            buildConfigField("String", "DEEPSEEK_API_KEY", "\"$deepseekApiKey\"")
+            buildConfigField("String", "QWEN_API_KEY", "\"$qwenApiKey\"")
         }
     }
 
@@ -38,6 +76,11 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.8"
     }
 }
 
@@ -53,7 +96,7 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3")
 
-    // Room (Совместимая версия)
+    // Room
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
     ksp("androidx.room:room-compiler:2.6.1")
@@ -75,6 +118,9 @@ dependencies {
 
     // GPS
     implementation("com.google.android.gms:play-services-location:21.1.0")
+
+    // Сеть (ДОБАВИЛИ СЮДА ОКHTTP)
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Debug
     debugImplementation("androidx.compose.ui:ui-tooling")
