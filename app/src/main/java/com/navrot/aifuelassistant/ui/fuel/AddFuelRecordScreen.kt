@@ -3,6 +3,7 @@ package com.navrot.aifuelassistant.ui.fuel
 import android.Manifest
 import android.content.pm.PackageManager
 import android.location.Location
+import android.os.Looper
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -14,11 +15,16 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.navrot.aifuelassistant.data.VehicleCatalog
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 
@@ -41,20 +47,23 @@ fun AddFuelRecordScreen(
     var stationName by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
 
-    // GPS координаты
     var latitude by remember { mutableStateOf<Double?>(null) }
     var longitude by remember { mutableStateOf<Double?>(null) }
     var gpsStatus by remember { mutableStateOf("Нажмите для определения местоположения") }
 
     var fuelTypeExpanded by remember { mutableStateOf(false) }
 
-    // Launcher для запроса разрешений
+    val totalCost = remember(fuelAmount, pricePerLiter) {
+        val amount = fuelAmount.toDoubleOrNull() ?: 0.0
+        val price = pricePerLiter.toDoubleOrNull() ?: 0.0
+        amount * price
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
         when {
             permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) -> {
-                // Точное местоположение разрешено
                 getLocation(context) { loc ->
                     latitude = loc.latitude
                     longitude = loc.longitude
@@ -62,7 +71,6 @@ fun AddFuelRecordScreen(
                 }
             }
             permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false) -> {
-                // Приблизительное местоположение разрешено
                 getLocation(context) { loc ->
                     latitude = loc.latitude
                     longitude = loc.longitude
@@ -73,13 +81,6 @@ fun AddFuelRecordScreen(
                 gpsStatus = "❌ Разрешение на геолокацию отклонено"
             }
         }
-    }
-
-    // Автоматический расчёт totalCost
-    val totalCost = remember(fuelAmount, pricePerLiter) {
-        val amount = fuelAmount.toDoubleOrNull() ?: 0.0
-        val price = pricePerLiter.toDoubleOrNull() ?: 0.0
-        amount * price
     }
 
     Scaffold(
@@ -102,7 +103,6 @@ fun AddFuelRecordScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Пробег
             OutlinedTextField(
                 value = mileage,
                 onValueChange = { mileage = it },
@@ -111,7 +111,6 @@ fun AddFuelRecordScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Количество литров
             OutlinedTextField(
                 value = fuelAmount,
                 onValueChange = { fuelAmount = it },
@@ -120,7 +119,6 @@ fun AddFuelRecordScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Цена за литр
             OutlinedTextField(
                 value = pricePerLiter,
                 onValueChange = { pricePerLiter = it },
@@ -129,7 +127,6 @@ fun AddFuelRecordScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Итоговая стоимость (автоматически)
             OutlinedTextField(
                 value = String.format("%.2f", totalCost),
                 onValueChange = {},
@@ -138,7 +135,6 @@ fun AddFuelRecordScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Тип топлива
             ExposedDropdownMenuBox(
                 expanded = fuelTypeExpanded,
                 onExpandedChange = { fuelTypeExpanded = !fuelTypeExpanded }
@@ -171,7 +167,6 @@ fun AddFuelRecordScreen(
                 }
             }
 
-            // Название АЗС
             OutlinedTextField(
                 value = stationName,
                 onValueChange = { stationName = it },
@@ -180,7 +175,6 @@ fun AddFuelRecordScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            // Кнопка определения GPS
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
@@ -214,7 +208,7 @@ fun AddFuelRecordScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(16.dp),
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Icon(
                         imageVector = Icons.Default.LocationOn,
@@ -229,7 +223,6 @@ fun AddFuelRecordScreen(
                 }
             }
 
-            // Примечания
             OutlinedTextField(
                 value = notes,
                 onValueChange = { notes = it },
@@ -271,7 +264,6 @@ fun AddFuelRecordScreen(
     }
 }
 
-// Функция получения местоположения
 private fun getLocation(context: android.content.Context, onLocation: (Location) -> Unit) {
     val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
 
@@ -280,11 +272,41 @@ private fun getLocation(context: android.content.Context, onLocation: (Location)
             .addOnSuccessListener { location: Location? ->
                 if (location != null) {
                     onLocation(location)
+                } else {
+                    requestCurrentLocation(context, fusedLocationClient, onLocation)
                 }
             }
             .addOnFailureListener {
-                // Можно показать Toast с ошибкой
+                requestCurrentLocation(context, fusedLocationClient, onLocation)
             }
+    } catch (e: SecurityException) {
+        // Разрешение не предоставлено
+    }
+}
+
+private fun requestCurrentLocation(
+    context: android.content.Context,
+    fusedLocationClient: com.google.android.gms.location.FusedLocationProviderClient,
+    onLocation: (Location) -> Unit
+) {
+    try {
+        val locationRequest = LocationRequest.Builder(
+            Priority.PRIORITY_HIGH_ACCURACY,
+            10000L
+        ).build()
+
+        val locationCallback = object : LocationCallback() {
+            override fun onLocationResult(result: LocationResult) {
+                result.lastLocation?.let { onLocation(it) }
+                fusedLocationClient.removeLocationUpdates(this)
+            }
+        }
+
+        fusedLocationClient.requestLocationUpdates(
+            locationRequest,
+            locationCallback,
+            Looper.getMainLooper()
+        )
     } catch (e: SecurityException) {
         // Разрешение не предоставлено
     }
