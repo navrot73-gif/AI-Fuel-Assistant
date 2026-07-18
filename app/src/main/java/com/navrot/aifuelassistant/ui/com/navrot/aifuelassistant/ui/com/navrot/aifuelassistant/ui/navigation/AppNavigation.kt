@@ -9,6 +9,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.navrot.aifuelassistant.ui.fuel.AddFuelRecordScreen
 import com.navrot.aifuelassistant.ui.fuel.FuelRecordListScreen
+import com.navrot.aifuelassistant.ui.fuel.MapScreen
 import com.navrot.aifuelassistant.ui.vehicles.AddVehicleScreen
 import com.navrot.aifuelassistant.ui.vehicles.VehicleListScreen
 
@@ -47,13 +48,35 @@ fun AppNavigation(
         ) { backStackEntry ->
             val vehicleId = backStackEntry.arguments?.getLong("vehicleId") ?: 0L
             val vehicleName = backStackEntry.arguments?.getString("vehicleName") ?: ""
+
             FuelRecordListScreen(
                 vehicleId = vehicleId,
                 vehicleName = vehicleName,
                 onBack = { navController.popBackStack() },
                 onAddClick = {
                     navController.navigate("add_fuel_record/$vehicleId")
+                },
+                onMapClick = {
+                    navController.navigate("map/$vehicleId/$vehicleName")
                 }
+            )
+        }
+
+        // Карта заправок
+        composable(
+            route = "map/{vehicleId}/{vehicleName}",
+            arguments = listOf(
+                navArgument("vehicleId") { type = NavType.LongType },
+                navArgument("vehicleName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val vehicleId = backStackEntry.arguments?.getLong("vehicleId") ?: 0L
+            val vehicleName = backStackEntry.arguments?.getString("vehicleName") ?: ""
+
+            MapScreen(
+                vehicleId = vehicleId,
+                vehicleName = vehicleName,
+                onBack = { navController.popBackStack() }
             )
         }
 
@@ -65,10 +88,9 @@ fun AppNavigation(
             )
         ) { backStackEntry ->
             val vehicleId = backStackEntry.arguments?.getLong("vehicleId") ?: 0L
-            // Получаем defaultFuelType из предыдущего экрана (упрощённо)
             AddFuelRecordScreen(
                 vehicleId = vehicleId,
-                defaultFuelType = "Бензин АИ-95", // Можно улучшить позже
+                defaultFuelType = "Бензин АИ-95",
                 onBack = { navController.popBackStack() }
             )
         }

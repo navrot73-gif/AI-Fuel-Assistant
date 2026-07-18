@@ -76,5 +76,9 @@ dependencies {
         androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
         androidTestImplementation(platform("androidx.compose:compose-bom:2024.02.00"))
         androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    }
+    }// OpenStreetMap
+    implementation("org.osmdroid:osmdroid-android:6.1.17")
+
+// Location (GPS)
+    implementation("com.google.android.gms:play-services-location:21.1.0")
 }

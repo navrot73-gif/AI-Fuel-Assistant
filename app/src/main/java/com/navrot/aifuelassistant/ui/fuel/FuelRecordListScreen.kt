@@ -7,6 +7,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -23,6 +24,7 @@ fun FuelRecordListScreen(
     vehicleName: String,
     onBack: () -> Unit,
     onAddClick: () -> Unit,
+    onMapClick: () -> Unit = {},
     viewModel: FuelRecordViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
         factory = FuelRecordViewModelFactory(vehicleId)
     )
@@ -36,6 +38,12 @@ fun FuelRecordListScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                    }
+                },
+                actions = {
+                    // Кнопка "Карта" в TopAppBar
+                    IconButton(onClick = onMapClick) {
+                        Icon(Icons.Default.LocationOn, contentDescription = "Карта")
                     }
                 }
             )
@@ -113,6 +121,14 @@ fun FuelRecordCard(
                     Text(
                         text = "Примечание: ${record.notes}",
                         style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                // Показываем иконку GPS, если есть координаты
+                if (record.latitude != null && record.longitude != null) {
+                    Text(
+                        text = "📍 GPS",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
