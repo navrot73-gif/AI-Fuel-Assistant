@@ -35,7 +35,10 @@ fun AddFuelRecordScreen(
     defaultFuelType: String,
     onBack: () -> Unit,
     viewModel: FuelRecordViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        factory = FuelRecordViewModelFactory(vehicleId)
+        factory = FuelRecordViewModelFactory(
+            vehicleId,
+            com.navrot.aifuelassistant.app.FuelApplication.instance.database.fuelRecordDao()
+        )
     )
 ) {
     val context = LocalContext.current

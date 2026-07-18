@@ -31,6 +31,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.google.android.gms.location.LocationServices
 import com.navrot.aifuelassistant.data.GasStationData
+import com.navrot.aifuelassistant.data.GasStationRepository
 import com.navrot.aifuelassistant.data.model.GasStation
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
@@ -50,6 +51,7 @@ fun MapScreen(
     viewModel: MapViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val context = LocalContext.current
+    val repository = GasStationRepository
 
     val stations by viewModel.stations.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -58,7 +60,8 @@ fun MapScreen(
     val sortMode by viewModel.sortMode.collectAsStateWithLifecycle()
     val cheapestStation by viewModel.cheapestStation.collectAsStateWithLifecycle()
 
-    val allStations = remember { GasStationData.stations }
+    // Используем кэш из репозитория для избежания повторной инициализации
+    val allStations by repository.cachedStations.collectAsStateWithLifecycle(initialValue = emptyList())
     val fuelTypes = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ", "Газ")
 
     var userLocation by remember { mutableStateOf<GeoPoint?>(null) }
@@ -100,6 +103,8 @@ fun MapScreen(
                     userLocation = GeoPoint(location.latitude, location.longitude)
                     locationStatus = "📍 Вы здесь"
                     currentCity = detectCity(location.latitude, location.longitude)
+                    // Сохраняем координаты в ViewModel для использования актуальных данных
+                    viewModel.setCurrentLocation(location.latitude, location.longitude)
                     viewModel.loadNearbyStations(location.latitude, location.longitude, 50.0)
                 }
             }
@@ -108,6 +113,7 @@ fun MapScreen(
                     userLocation = GeoPoint(location.latitude, location.longitude)
                     locationStatus = "📍 Вы здесь"
                     currentCity = detectCity(location.latitude, location.longitude)
+                    viewModel.setCurrentLocation(location.latitude, location.longitude)
                     viewModel.loadNearbyStations(location.latitude, location.longitude, 50.0)
                 }
             }
@@ -209,21 +215,16 @@ fun MapScreen(
                             userMarker.title = locationStatus
                             userMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                             overlays.add(userMarker)
-                            val displayStations = if (stations.isNotEmpty()) stations else allStations
-                            displayStations.forEach { station ->
-                                val marker = Marker(this)
-                                marker.position = GeoPoint(station.latitude, station.longitude)
-                                marker.title = station.name
-                                marker.snippet = "${station.brand} | ${station.address}"
-                                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                                overlays.add(marker)
-                            }
+                            // Используем key для оптимизации перерисовки маркеров
+                            tag = "map_initialized"
                         }
                     },
                     modifier = Modifier.fillMaxSize(),
                     update = { mapView ->
                         userLocation?.let { location ->
                             mapView.controller.setCenter(location)
+                            
+                            // Удаляем только маркер пользователя
                             mapView.overlays.removeAll {
                                 it is Marker && it.title?.contains("Вы здесь") == true
                             }
@@ -232,6 +233,22 @@ fun MapScreen(
                             userMarker.title = "📍 Вы здесь"
                             userMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
                             mapView.overlays.add(userMarker)
+                            
+                            // Обновляем маркеры АЗС только при изменении списка
+                            if (mapView.tag != stations.hashCode()) {
+                                mapView.overlays.removeAll { it is Marker && it.title != "📍 Вы здесь" }
+                                stations.forEach { station ->
+                                    val marker = Marker(mapView)
+                                    marker.position = GeoPoint(station.latitude, station.longitude)
+                                    marker.title = station.name
+                                    marker.snippet = "${station.brand} | ${station.address}"
+                                    marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                                    marker.id = station.id.toString() // key для отслеживания
+                                    mapView.overlays.add(marker)
+                                }
+                                mapView.tag = stations.hashCode()
+                            }
+                            
                             mapView.invalidate()
                         }
                     }

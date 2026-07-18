@@ -4,11 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.navrot.aifuelassistant.data.GasStationRepository
 import com.navrot.aifuelassistant.data.model.GasStation
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+@OptIn(FlowPreview::class)
 class MapViewModel : ViewModel() {
 
     private val repository = GasStationRepository
@@ -35,16 +38,33 @@ class MapViewModel : ViewModel() {
     private val _bestStation = MutableStateFlow<GasStation?>(null)
     val bestStation: StateFlow<GasStation?> = _bestStation.asStateFlow()
 
+    // Текущие координаты пользователя
+    private var currentLat: Double? = null
+    private var currentLon: Double? = null
+
+    // Debounce для поисковых запросов
+    private var searchJob: Job? = null
+    private val _searchQuery = MutableStateFlow("")
+    
     enum class SortMode {
         BEST, PRICE_ASC, PRICE_DESC, NEARBY, QUEUE
     }
 
+    fun setCurrentLocation(lat: Double, lon: Double) {
+        currentLat = lat
+        currentLon = lon
+    }
+
     fun loadNearbyStations(lat: Double, lon: Double, radiusKm: Double = 50.0) {
+        currentLat = lat
+        currentLon = lon
         viewModelScope.launch {
             _isLoading.value = true
             _error.value = null
             try {
-                _stations.value = repository.getNearbyStations(lat, lon, radiusKm)
+                // Объединяем запросы: загружаем станции и сразу обновляем лучшие/дешевые
+                val nearbyStations = repository.getNearbyStations(lat, lon, radiusKm)
+                _stations.value = nearbyStations
                 updateBestAndCheapest(lat, lon, radiusKm)
             } catch (e: Exception) {
                 _error.value = "Ошибка загрузки: ${e.message}"
@@ -69,10 +89,25 @@ class MapViewModel : ViewModel() {
     }
 
     fun searchStations(query: String) {
-        viewModelScope.launch {
+        _searchQuery.value = query
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
             _isLoading.value = true
             try {
-                _stations.value = repository.searchStations(query)
+                // Debounce 300ms для избежания частых запросов
+                kotlinx.coroutines.delay(300)
+                if (_searchQuery.value != query) return@launch
+                
+                _stations.value = if (query.length >= 2) {
+                    repository.searchStations(query)
+                } else {
+                    // Если запрос короткий, возвращаем ближайшие
+                    currentLat?.let { lat ->
+                        currentLon?.let { lon ->
+                            repository.getNearbyStations(lat, lon, 50.0)
+                        }
+                    } ?: emptyList()
+                }
             } catch (e: Exception) {
                 _error.value = "Ошибка поиска: ${e.message}"
             } finally {
@@ -93,25 +128,68 @@ class MapViewModel : ViewModel() {
             current.add(fuelType)
         }
         _selectedFuelTypes.value = current
-        viewModelScope.launch {
-            updateBestAndCheapest(55.1644, 61.4368, 50.0)
+        // Используем актуальные координаты
+        currentLat?.let { lat ->
+            currentLon?.let { lon ->
+                viewModelScope.launch {
+                    updateBestAndCheapest(lat, lon, 50.0)
+                    applyCurrentSortMode(lat, lon)
+                }
+            }
         }
     }
 
     // ===== УСТАНОВИТЬ ОДИН ТИП (для совместимости) =====
     fun setFuelType(fuelType: String) {
         _selectedFuelTypes.value = setOf(fuelType)
-        viewModelScope.launch {
-            updateBestAndCheapest(55.1644, 61.4368, 50.0)
+        currentLat?.let { lat ->
+            currentLon?.let { lon ->
+                viewModelScope.launch {
+                    updateBestAndCheapest(lat, lon, 50.0)
+                    applyCurrentSortMode(lat, lon)
+                }
+            }
         }
     }
 
     fun setSortMode(mode: SortMode, lat: Double? = null, lon: Double? = null) {
         _sortMode.value = mode
+        val actualLat = lat ?: currentLat
+        val actualLon = lon ?: currentLon
+        
         viewModelScope.launch {
             _isLoading.value = true
             try {
                 _stations.value = when (mode) {
+                    SortMode.BEST -> repository.getBestStations(
+                        _selectedFuelTypes.value.first(), actualLat, actualLon, 50.0
+                    )
+                    SortMode.PRICE_ASC -> repository.getStationsSortedByPriceAsc(
+                        _selectedFuelTypes.value.first(), actualLat, actualLon, 50.0
+                    )
+                    SortMode.PRICE_DESC -> repository.getStationsSortedByPriceDesc(
+                        _selectedFuelTypes.value.first(), actualLat, actualLon, 50.0
+                    )
+                    SortMode.NEARBY -> if (actualLat != null && actualLon != null) {
+                        repository.getNearbyStations(actualLat, actualLon, 50.0)
+                    } else _stations.value
+                    SortMode.QUEUE -> repository.getStationsByQueue(
+                        _selectedFuelTypes.value.first(), actualLat, actualLon, 50.0
+                    )
+                }
+            } catch (e: Exception) {
+                _error.value = "Ошибка сортировки: ${e.message}"
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
+    private fun applyCurrentSortMode(lat: Double, lon: Double) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                _stations.value = when (_sortMode.value) {
                     SortMode.BEST -> repository.getBestStations(
                         _selectedFuelTypes.value.first(), lat, lon, 50.0
                     )
@@ -121,9 +199,7 @@ class MapViewModel : ViewModel() {
                     SortMode.PRICE_DESC -> repository.getStationsSortedByPriceDesc(
                         _selectedFuelTypes.value.first(), lat, lon, 50.0
                     )
-                    SortMode.NEARBY -> if (lat != null && lon != null) {
-                        repository.getNearbyStations(lat, lon, 50.0)
-                    } else _stations.value
+                    SortMode.NEARBY -> repository.getNearbyStations(lat, lon, 50.0)
                     SortMode.QUEUE -> repository.getStationsByQueue(
                         _selectedFuelTypes.value.first(), lat, lon, 50.0
                     )
@@ -140,8 +216,10 @@ class MapViewModel : ViewModel() {
         viewModelScope.launch {
             _isLoading.value = true
             try {
+                val actualLat = lat ?: currentLat
+                val actualLon = lon ?: currentLon
                 _cheapestStation.value = repository.getCheapestStation(
-                    _selectedFuelTypes.value.first(), lat, lon, radiusKm
+                    _selectedFuelTypes.value.first(), actualLat, actualLon, radiusKm
                 )
             } catch (e: Exception) {
                 _error.value = "Ошибка: ${e.message}"
@@ -152,13 +230,20 @@ class MapViewModel : ViewModel() {
     }
 
     private fun updateBestAndCheapest(lat: Double, lon: Double, radiusKm: Double) {
+        val fuelType = _selectedFuelTypes.value.firstOrNull() ?: return
         _bestStation.value = repository.getBestStations(
-            _selectedFuelTypes.value.first(), lat, lon, radiusKm
+            fuelType, lat, lon, radiusKm
         ).firstOrNull()
         _cheapestStation.value = repository.getCheapestStation(
-            _selectedFuelTypes.value.first(), lat, lon, radiusKm
+            fuelType, lat, lon, radiusKm
         )
     }
 
     fun clearError() { _error.value = null }
+
+    override fun onCleared() {
+        super.onCleared()
+        searchJob?.cancel()
+        repository.clearCache()
+    }
 }

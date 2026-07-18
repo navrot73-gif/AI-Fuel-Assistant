@@ -2,16 +2,17 @@ package com.navrot.aifuelassistant.ui.fuel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.navrot.aifuelassistant.app.FuelApplication
+import com.navrot.aifuelassistant.data.database.dao.FuelRecordDao
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
-class FuelRecordViewModel(private val vehicleId: Long) : ViewModel() {
-
-    private val dao = FuelApplication.instance.database.fuelRecordDao()
+class FuelRecordViewModel(
+    private val vehicleId: Long,
+    private val dao: FuelRecordDao
+) : ViewModel() {
 
     val records: StateFlow<List<FuelRecordEntity>> = dao.getByVehicleId(vehicleId)
         .stateIn(

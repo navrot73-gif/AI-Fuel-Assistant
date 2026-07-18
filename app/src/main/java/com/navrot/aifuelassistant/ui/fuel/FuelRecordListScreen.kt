@@ -26,7 +26,10 @@ fun FuelRecordListScreen(
     onAddClick: () -> Unit,
     onMapClick: () -> Unit = {},
     viewModel: FuelRecordViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        factory = FuelRecordViewModelFactory(vehicleId)
+        factory = FuelRecordViewModelFactory(
+            vehicleId,
+            com.navrot.aifuelassistant.app.FuelApplication.instance.database.fuelRecordDao()
+        )
     )
 ) {
     val records by viewModel.records.collectAsState()
