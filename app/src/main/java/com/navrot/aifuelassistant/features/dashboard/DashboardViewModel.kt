@@ -8,6 +8,7 @@ import com.navrot.aifuelassistant.data.FuelRecordRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class DashboardViewModel(
@@ -32,14 +33,12 @@ class DashboardViewModel(
             _error.value = null
 
             try {
-                val records = repository.getAll().collect { fuelRecords ->
-                    val prompt = FuelAnalysisPromptBuilder.build(fuelRecords)
-                    _analysis.value = aiRouter.ask(prompt)
-                    _isAnalyzing.value = false
-                    this.cancel()
-                }
+                val records = repository.getAll().first()
+                val prompt = FuelAnalysisPromptBuilder.build(records)
+                _analysis.value = aiRouter.ask(prompt)
             } catch (error: Throwable) {
                 _error.value = error.message ?: "Не удалось получить AI-анализ"
+            } finally {
                 _isAnalyzing.value = false
             }
         }
