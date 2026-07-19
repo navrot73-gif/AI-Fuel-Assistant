@@ -27,7 +27,7 @@ android {
         }
     }
 
-    // Загружаем ключи из local.properties, если они там есть. Если нет — ставим пустые строки.
+    // Секреты берутся только из local.properties и не должны коммититься в Git.
     val localProperties = Properties().apply {
         val file = rootProject.file("local.properties")
         if (file.exists()) {
@@ -35,32 +35,36 @@ android {
         }
     }
 
-    val gigaClientId = localProperties.getProperty("GIGACHAT_CLIENT_ID") ?: ""
-    val gigaClientSecret = localProperties.getProperty("GIGACHAT_CLIENT_SECRET") ?: ""
-    val yandexApiKey = localProperties.getProperty("YANDEX_API_KEY") ?: ""
-    val yandexFolderId = localProperties.getProperty("YANDEX_FOLDER_ID") ?: ""
-    val deepseekApiKey = localProperties.getProperty("DEEPSEEK_API_KEY") ?: ""
-    val qwenApiKey = localProperties.getProperty("QWEN_API_KEY") ?: ""
+    fun secret(name: String): String =
+        localProperties.getProperty(name) ?: ""
+
+    val gigaAuthorizationKey = secret("GIGACHAT_AUTHORIZATION_KEY")
+    val gigaClientId = secret("GIGACHAT_CLIENT_ID")
+    val gigaClientSecret = secret("GIGACHAT_CLIENT_SECRET")
+    val yandexApiKey = secret("YANDEX_API_KEY")
+    val yandexFolderId = secret("YANDEX_FOLDER_ID")
+    val deepSeekApiKey = secret("DEEPSEEK_API_KEY")
+    val qwenApiKey = secret("QWEN_API_KEY")
 
     buildTypes {
         debug {
             isMinifyEnabled = false
-
+            buildConfigField("String", "GIGACHAT_AUTHORIZATION_KEY", "\"$gigaAuthorizationKey\"")
             buildConfigField("String", "GIGACHAT_CLIENT_ID", "\"$gigaClientId\"")
             buildConfigField("String", "GIGACHAT_CLIENT_SECRET", "\"$gigaClientSecret\"")
             buildConfigField("String", "YANDEX_API_KEY", "\"$yandexApiKey\"")
             buildConfigField("String", "YANDEX_FOLDER_ID", "\"$yandexFolderId\"")
-            buildConfigField("String", "DEEPSEEK_API_KEY", "\"$deepseekApiKey\"")
+            buildConfigField("String", "DEEPSEEK_API_KEY", "\"$deepSeekApiKey\"")
             buildConfigField("String", "QWEN_API_KEY", "\"$qwenApiKey\"")
         }
         release {
             isMinifyEnabled = false
-
+            buildConfigField("String", "GIGACHAT_AUTHORIZATION_KEY", "\"$gigaAuthorizationKey\"")
             buildConfigField("String", "GIGACHAT_CLIENT_ID", "\"$gigaClientId\"")
             buildConfigField("String", "GIGACHAT_CLIENT_SECRET", "\"$gigaClientSecret\"")
             buildConfigField("String", "YANDEX_API_KEY", "\"$yandexApiKey\"")
             buildConfigField("String", "YANDEX_FOLDER_ID", "\"$yandexFolderId\"")
-            buildConfigField("String", "DEEPSEEK_API_KEY", "\"$deepseekApiKey\"")
+            buildConfigField("String", "DEEPSEEK_API_KEY", "\"$deepSeekApiKey\"")
             buildConfigField("String", "QWEN_API_KEY", "\"$qwenApiKey\"")
         }
     }
@@ -119,7 +123,7 @@ dependencies {
     // GPS
     implementation("com.google.android.gms:play-services-location:21.1.0")
 
-    // Сеть (ДОБАВИЛИ СЮДА ОКHTTP)
+    // Network
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // Debug

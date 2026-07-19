@@ -1,0 +1,3 @@
+# Local-only secrets. Copy values to local.properties on your machine.
+# NEVER commit local.properties to Git.
+GIGACHAT_AUTHORIZATION_KEY=your_base64_authorization_key_here
