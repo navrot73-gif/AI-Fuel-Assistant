@@ -35,16 +35,37 @@ android {
         }
     }
 
-    val gigaAuthorizationKey = localProperties.getProperty("GIGACHAT_AUTHORIZATION_KEY") ?: ""
+    fun secret(name: String): String =
+        localProperties.getProperty(name) ?: ""
+
+    val gigaAuthorizationKey = secret("GIGACHAT_AUTHORIZATION_KEY")
+    val gigaClientId = secret("GIGACHAT_CLIENT_ID")
+    val gigaClientSecret = secret("GIGACHAT_CLIENT_SECRET")
+    val yandexApiKey = secret("YANDEX_API_KEY")
+    val yandexFolderId = secret("YANDEX_FOLDER_ID")
+    val deepSeekApiKey = secret("DEEPSEEK_API_KEY")
+    val qwenApiKey = secret("QWEN_API_KEY")
 
     buildTypes {
         debug {
             isMinifyEnabled = false
             buildConfigField("String", "GIGACHAT_AUTHORIZATION_KEY", "\"$gigaAuthorizationKey\"")
+            buildConfigField("String", "GIGACHAT_CLIENT_ID", "\"$gigaClientId\"")
+            buildConfigField("String", "GIGACHAT_CLIENT_SECRET", "\"$gigaClientSecret\"")
+            buildConfigField("String", "YANDEX_API_KEY", "\"$yandexApiKey\"")
+            buildConfigField("String", "YANDEX_FOLDER_ID", "\"$yandexFolderId\"")
+            buildConfigField("String", "DEEPSEEK_API_KEY", "\"$deepSeekApiKey\"")
+            buildConfigField("String", "QWEN_API_KEY", "\"$qwenApiKey\"")
         }
         release {
             isMinifyEnabled = false
             buildConfigField("String", "GIGACHAT_AUTHORIZATION_KEY", "\"$gigaAuthorizationKey\"")
+            buildConfigField("String", "GIGACHAT_CLIENT_ID", "\"$gigaClientId\"")
+            buildConfigField("String", "GIGACHAT_CLIENT_SECRET", "\"$gigaClientSecret\"")
+            buildConfigField("String", "YANDEX_API_KEY", "\"$yandexApiKey\"")
+            buildConfigField("String", "YANDEX_FOLDER_ID", "\"$yandexFolderId\"")
+            buildConfigField("String", "DEEPSEEK_API_KEY", "\"$deepSeekApiKey\"")
+            buildConfigField("String", "QWEN_API_KEY", "\"$qwenApiKey\"")
         }
     }
 
