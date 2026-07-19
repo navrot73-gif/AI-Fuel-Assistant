@@ -8,6 +8,9 @@ class FuelRecordRepositoryImpl(
     private val dao: FuelRecordDao
 ) : FuelRecordRepository {
 
+    override fun getAll(): Flow<List<FuelRecordEntity>> =
+        dao.getAll()
+
     override fun getByVehicleId(vehicleId: Long): Flow<List<FuelRecordEntity>> =
         dao.getByVehicleId(vehicleId)
 
