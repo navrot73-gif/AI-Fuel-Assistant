@@ -1,5 +1,6 @@
 package com.navrot.aifuelassistant.ui
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -44,7 +45,9 @@ fun AppNavigation() {
                 vehicleName = vehicleName,
                 onBack = { navController.popBackStack() },
                 onAddClick = {
-                    navController.navigate("add_fuel_record/$vehicleId/$vehicleName")
+                    navController.navigate(
+                        "add_fuel_record/$vehicleId/${Uri.encode(vehicleName)}"
+                    )
                 }
             )
         }
@@ -57,7 +60,6 @@ fun AppNavigation() {
             )
         ) { backStackEntry ->
             val vehicleId = backStackEntry.arguments?.getLong("vehicleId") ?: 0L
-            val vehicleName = backStackEntry.arguments?.getString("vehicleName") ?: ""
 
             AddFuelRecordScreen(
                 vehicleId = vehicleId,
