@@ -1,5 +1,7 @@
 package com.navrot.aifuelassistant.ai.router
 
-interface AiProvider {
+interface AIProvider {
+    val name: String
+
     suspend fun ask(prompt: String): String
 }

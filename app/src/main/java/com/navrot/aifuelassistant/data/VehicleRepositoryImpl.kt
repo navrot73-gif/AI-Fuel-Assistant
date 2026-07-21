@@ -5,26 +5,21 @@ import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import kotlinx.coroutines.flow.Flow
 
 class VehicleRepositoryImpl(
-    private val vehicleDao: VehicleDao
+    private val dao: VehicleDao
 ) : VehicleRepository {
 
-    override fun getAllVehicles(): Flow<List<VehicleEntity>> {
-        return vehicleDao.getAllVehicles()
-    }
+    override fun getAllVehicles(): Flow<List<VehicleEntity>> =
+        dao.getAllVehicles()
 
-    override suspend fun getVehicleById(id: Long): VehicleEntity? {
-        return vehicleDao.getVehicleById(id)
-    }
+    override suspend fun getVehicleById(id: Long): VehicleEntity? =
+        dao.getVehicleById(id)
 
-    override suspend fun insertVehicle(vehicle: VehicleEntity) {
-        vehicleDao.insertVehicle(vehicle)
-    }
+    override suspend fun insertVehicle(vehicle: VehicleEntity) =
+        dao.insertVehicle(vehicle)
 
-    override suspend fun updateVehicle(vehicle: VehicleEntity) {
-        vehicleDao.updateVehicle(vehicle)
-    }
+    override suspend fun updateVehicle(vehicle: VehicleEntity) =
+        dao.updateVehicle(vehicle)
 
-    override suspend fun deleteVehicle(vehicle: VehicleEntity) {
-        vehicleDao.deleteVehicle(vehicle)
-    }
+    override suspend fun deleteVehicle(vehicle: VehicleEntity) =
+        dao.deleteVehicle(vehicle)
 }

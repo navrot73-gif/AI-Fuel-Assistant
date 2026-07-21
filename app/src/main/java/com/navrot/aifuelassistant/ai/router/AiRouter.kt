@@ -1,5 +1,7 @@
 package com.navrot.aifuelassistant.ai.router
 
+import com.navrot.aifuelassistant.ai.AiProvider
+
 class AiRouter(private val providers: List<AiProvider>) {
 
     suspend fun ask(prompt: String): String {
@@ -10,6 +12,6 @@ class AiRouter(private val providers: List<AiProvider>) {
                 // пробуем следующий провайдер
             }
         }
-        return "AI временно недоступен"
+        throw IllegalStateException("AI providers unavailable")
     }
 }

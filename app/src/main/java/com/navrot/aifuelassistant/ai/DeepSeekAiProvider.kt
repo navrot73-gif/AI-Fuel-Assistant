@@ -1,7 +1,6 @@
-package com.navrot.aifuelassistant.ai.router
+package com.navrot.aifuelassistant.ai
 
-import com.navrot.aifuelassistant.ai.AiConfig
-import com.navrot.aifuelassistant.ai.AiProvider
+import com.navrot.aifuelassistant.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -10,26 +9,16 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.concurrent.TimeUnit
 
-class DeepSeekProvider : AiProvider {
+class DeepSeekAiProvider : AiProvider {
     override val name: String = "DeepSeek"
 
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(20, TimeUnit.SECONDS)
-        .readTimeout(30, TimeUnit.SECONDS)
-        .build()
-
+    private val client = OkHttpClient()
     private val apiUrl = "https://api.deepseek.com/chat/completions"
     private val model = "deepseek-chat"
 
     override suspend fun ask(prompt: String): String = withContext(Dispatchers.IO) {
         try {
-            val apiKey = AiConfig.deepSeekApiKey
-            if (apiKey.isBlank()) {
-                throw IllegalStateException("DeepSeek API key not configured")
-            }
-
             val messages = JSONArray().apply {
                 put(JSONObject().apply {
                     put("role", "system")
@@ -49,7 +38,7 @@ class DeepSeekProvider : AiProvider {
 
             val request = Request.Builder()
                 .url(apiUrl)
-                .addHeader("Authorization", "Bearer $apiKey")
+                .addHeader("Authorization", "Bearer ${BuildConfig.DEEPSEEK_API_KEY}")
                 .addHeader("Content-Type", "application/json")
                 .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
                 .build()

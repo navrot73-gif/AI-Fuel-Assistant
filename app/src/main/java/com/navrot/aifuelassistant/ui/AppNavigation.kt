@@ -10,6 +10,7 @@ import com.navrot.aifuelassistant.features.dashboard.DashboardScreen
 import com.navrot.aifuelassistant.ui.fuel.AddFuelRecordScreen
 import com.navrot.aifuelassistant.ui.fuel.FuelRecordListScreen
 import com.navrot.aifuelassistant.ui.vehicles.AddVehicleScreen
+import com.navrot.aifuelassistant.ui.vehicles.VehicleListScreen
 
 @Composable
 fun AppNavigation() {
@@ -21,6 +22,15 @@ fun AppNavigation() {
     ) {
         composable(route = "dashboard") {
             DashboardScreen()
+        }
+
+        composable(route = "vehicles") {
+            VehicleListScreen(
+                onAddClick = { navController.navigate("add_vehicle") },
+                onVehicleClick = { vehicleId, vehicleName ->
+                    navController.navigate("fuel_records/$vehicleId/$vehicleName")
+                }
+            )
         }
 
         composable(route = "add_vehicle") {
@@ -57,7 +67,6 @@ fun AppNavigation() {
             )
         ) { backStackEntry ->
             val vehicleId = backStackEntry.arguments?.getLong("vehicleId") ?: 0L
-            val vehicleName = backStackEntry.arguments?.getString("vehicleName") ?: ""
 
             AddFuelRecordScreen(
                 vehicleId = vehicleId,

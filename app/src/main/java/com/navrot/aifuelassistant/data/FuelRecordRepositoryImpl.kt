@@ -14,15 +14,12 @@ class FuelRecordRepositoryImpl(
     override fun getByVehicleId(vehicleId: Long): Flow<List<FuelRecordEntity>> =
         dao.getByVehicleId(vehicleId)
 
-    override suspend fun insert(record: FuelRecordEntity) {
+    override suspend fun insert(record: FuelRecordEntity) =
         dao.insert(record)
-    }
 
-    override suspend fun update(record: FuelRecordEntity) {
+    override suspend fun update(record: FuelRecordEntity) =
         dao.update(record)
-    }
 
-    override suspend fun delete(record: FuelRecordEntity) {
+    override suspend fun delete(record: FuelRecordEntity) =
         dao.delete(record)
-    }
 }

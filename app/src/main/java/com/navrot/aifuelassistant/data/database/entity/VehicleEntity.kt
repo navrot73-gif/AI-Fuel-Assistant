@@ -6,12 +6,12 @@ import androidx.room.PrimaryKey
 @Entity(tableName = "vehicles")
 data class VehicleEntity(
     @PrimaryKey(autoGenerate = true)
-    val id: Long = 0,
-    val name: String,           // Название авто, например "Моя Toyota"
-    val brand: String,          // Марка
-    val model: String,          // Модель
-    val year: Int,              // Год выпуска
-    val fuelType: String,       // Тип топлива: Бензин, Дизель, Газ и т.д.
-    val tankCapacity: Double,   // Объём бака в литрах
-    val currentMileage: Double  // Текущий пробег в км
+    val id: Long = 0L,
+    val name: String = "",
+    val brand: String = "",
+    val model: String = "",
+    val year: Int = 2026,
+    val fuelType: String = "Бензин",
+    val tankCapacity: Double = 50.0,
+    val currentMileage: Double = 0.0
 )
