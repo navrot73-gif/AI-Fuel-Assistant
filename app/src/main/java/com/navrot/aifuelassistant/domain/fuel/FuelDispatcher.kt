@@ -17,18 +17,16 @@ object FuelDispatcher {
     ): List<FuelStation> {
         return stations
             .filter { station ->
-                station.fuel[fuelType]?.status == FuelAvailabilityStatus.AVAILABLE ||
-                    station.fuel[fuelType]?.status == FuelAvailabilityStatus.LIMITED
+                val fuelInfo = station.fuel[fuelType]
+                fuelInfo?.status == FuelAvailabilityStatus.AVAILABLE ||
+                        fuelInfo?.status == FuelAvailabilityStatus.LIMITED
             }
             .sortedWith(
-                compareBy<FuelStation> {
-                    station ->
+                compareBy<FuelStation> { station ->
                     station.fuel[fuelType]?.estimatedWaitMinutes ?: Int.MAX_VALUE
-                }.thenBy {
-                    station ->
+                }.thenBy { station ->
                     station.driveTimeMinutes ?: Int.MAX_VALUE
-                }.thenBy {
-                    station ->
+                }.thenBy { station ->
                     station.fuel[fuelType]?.pricePerLiter ?: Double.MAX_VALUE
                 }
             )
