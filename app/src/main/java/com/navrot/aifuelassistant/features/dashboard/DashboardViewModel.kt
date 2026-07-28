@@ -6,6 +6,7 @@ import com.navrot.aifuelassistant.FuelApplication
 import com.navrot.aifuelassistant.ai.AiRouterFactory
 import com.navrot.aifuelassistant.ai.FuelAnalysisPromptBuilder
 import com.navrot.aifuelassistant.data.FuelRecordRepositoryImpl
+import com.navrot.aifuelassistant.data.VehicleRepositoryImpl
 import com.navrot.aifuelassistant.domain.fuel.DemoFuelStations
 import com.navrot.aifuelassistant.domain.fuel.FuelDispatcher
 import com.navrot.aifuelassistant.domain.fuel.FuelStation
@@ -17,48 +18,71 @@ import kotlinx.coroutines.launch
 
 class DashboardViewModel : ViewModel() {
 
-    private val repository = FuelRecordRepositoryImpl(
+    // Репозитории
+    private val fuelRecordRepository = FuelRecordRepositoryImpl(
         FuelApplication.instance.database.fuelRecordDao()
     )
+
+    private val vehicleRepository = VehicleRepositoryImpl(
+        FuelApplication.instance.database.vehicleDao()
+    )
+
     private val aiRouter = AiRouterFactory.create()
 
-    private val _selectedFuelType = MutableStateFlow("АИ-95")
-    val selectedFuelType: StateFlow<String> = _selectedFuelType.asStateFlow()
+    // =========================
+    // FUEL DISPATCHER (выбор топлива и АЗС)
+    // =========================
 
-    private val _stations = MutableStateFlow(DemoFuelStations.stations)
-    val stations: StateFlow<List<FuelStation>> = _stations.asStateFlow()
+    private val _selectedFuelType = MutableStateFlow("АИ-95")
+    val selectedFuelType: StateFlow<String> =
+        _selectedFuelType.asStateFlow()
+
+    private val _stations = MutableStateFlow<List<FuelStation>>(emptyList())
+    val stations: StateFlow<List<FuelStation>> =
+        _stations.asStateFlow()
 
     private val _bestStation = MutableStateFlow<FuelStation?>(null)
-    val bestStation: StateFlow<FuelStation?> = _bestStation.asStateFlow()
-
-    private val _analysis = MutableStateFlow<String?>(null)
-    val analysis: StateFlow<String?> = _analysis.asStateFlow()
-
-    private val _isAnalyzing = MutableStateFlow(false)
-    val isAnalyzing: StateFlow<Boolean> = _isAnalyzing.asStateFlow()
-
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> = _error.asStateFlow()
+    val bestStation: StateFlow<FuelStation?> =
+        _bestStation.asStateFlow()
 
     init {
-        updateDispatcherResult("АИ-95")
+        loadStations()
     }
 
     fun selectFuelType(fuelType: String) {
         _selectedFuelType.value = fuelType
-        updateDispatcherResult(fuelType)
+        updateRecommendation()
     }
 
-    private fun updateDispatcherResult(fuelType: String) {
-        _stations.value = FuelDispatcher.rank(
-            stations = DemoFuelStations.stations,
-            fuelType = fuelType
-        )
-        _bestStation.value = FuelDispatcher.best(
-            stations = DemoFuelStations.stations,
-            fuelType = fuelType
-        )
+    private fun loadStations() {
+        _stations.value = DemoFuelStations.stations
+        updateRecommendation()
     }
+
+    private fun updateRecommendation() {
+        val fuelType = _selectedFuelType.value
+        val ranked = FuelDispatcher.rank(
+            stations = _stations.value,
+            fuelType = fuelType
+        )
+        _bestStation.value = ranked.firstOrNull()
+    }
+
+    // =========================
+    // AI ANALYSIS
+    // =========================
+
+    private val _analysis = MutableStateFlow<String?>(null)
+    val analysis: StateFlow<String?> =
+        _analysis.asStateFlow()
+
+    private val _isAnalyzing = MutableStateFlow(false)
+    val isAnalyzing: StateFlow<Boolean> =
+        _isAnalyzing.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> =
+        _error.asStateFlow()
 
     fun askAi() {
         if (_isAnalyzing.value) return
@@ -68,9 +92,22 @@ class DashboardViewModel : ViewModel() {
             _error.value = null
 
             try {
-                val records = repository.getAll().first()
-                val prompt = FuelAnalysisPromptBuilder.build(records)
+                val records = fuelRecordRepository
+                    .getAll()
+                    .first()
+
+                val vehicle = vehicleRepository
+                    .getAllVehicles()
+                    .first()
+                    .firstOrNull()
+
+                val prompt = FuelAnalysisPromptBuilder.build(
+                    vehicle = vehicle,
+                    records = records
+                )
+
                 _analysis.value = aiRouter.ask(prompt)
+
             } catch (e: Throwable) {
                 _error.value = e.message ?: "Не удалось получить AI-анализ"
             } finally {
