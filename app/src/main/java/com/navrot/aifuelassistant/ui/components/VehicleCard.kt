@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
@@ -44,8 +45,7 @@ import androidx.compose.ui.unit.sp
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
 
-/** UI-состояние карточки гаража. Вечером обёртка соберёт его из
- *  VehicleEntity + агрегации FuelRecordEntity и передаст сюда. */
+/** UI-состояние карточки гаража. */
 data class VehicleCardUiState(
     val name: String,
     val modelLine: String,
@@ -296,21 +296,24 @@ private fun CarSilhouette(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .drawBehind {
-                val sx = size.width / 240f
-                val sy = size.height / 96f
-                scale(sx, sy, pivot = Offset.Zero) {
-                    drawOval(Color(0x66000000), topLeft = Offset(70f, 80f), size = Size(108f, 12f))
-                    val grad = Brush.linearGradient(
-                        listOf(FueldeckColors.Teal, FueldeckColors.Amber),
-                        start = Offset.Zero, end = Offset(240f, 0f),
-                    )
-                    drawPath(bodyPath(), grad, style = Stroke(3f, cap = StrokeCap.Round, join = StrokeJoin.Round))
-                    drawPath(winFront(), FueldeckColors.Teal.copy(alpha = 0.10f))
-                    drawPath(winFront(), FueldeckColors.Teal.copy(alpha = 0.5f), style = Stroke(1.5f))
-                    drawPath(winRear(), FueldeckColors.Amber.copy(alpha = 0.08f))
-                    drawPath(winRear(), FueldeckColors.Amber.copy(alpha = 0.4f), style = Stroke(1.5f))
-                    wheel(62f, 72f, ring)
-                    wheel(172f, 72f, ring)
+                val us = minOf(size.width / 240f, size.height / 96f)
+                val dx = (size.width - 240f * us) / 2f
+                val dy = (size.height - 96f * us) / 2f
+                translate(dx, dy) {
+                    scale(us, us, pivot = Offset.Zero) {
+                        drawOval(Color(0x66000000), topLeft = Offset(70f, 80f), size = Size(108f, 12f))
+                        val grad = Brush.linearGradient(
+                            listOf(FueldeckColors.Teal, FueldeckColors.Amber),
+                            start = Offset.Zero, end = Offset(240f, 0f),
+                        )
+                        drawPath(bodyPath(), grad, style = Stroke(3f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                        drawPath(winFront(), FueldeckColors.Teal.copy(alpha = 0.10f))
+                        drawPath(winFront(), FueldeckColors.Teal.copy(alpha = 0.5f), style = Stroke(1.5f))
+                        drawPath(winRear(), FueldeckColors.Amber.copy(alpha = 0.08f))
+                        drawPath(winRear(), FueldeckColors.Amber.copy(alpha = 0.4f), style = Stroke(1.5f))
+                        wheel(62f, 72f, ring)
+                        wheel(172f, 72f, ring)
+                    }
                 }
             }
             .drawBehind {
@@ -380,25 +383,5 @@ private fun winRear(): Path {
         lineTo(122f, 38f)
         lineTo(122f, 22f)
         close()
-    }
-}
-
-@Preview(showBackground = true, backgroundColor = 0xFF0E1418)
-@Composable
-private fun VehicleCardPreview() {
-    Box(Modifier.background(FueldeckColors.Bg1).padding(20.dp)) {
-        VehicleCard(
-            state = VehicleCardUiState(
-                name = "Пенс",
-                modelLine = "Datsun ON‑DO · 2015",
-                fuelGrade = "АИ‑92",
-                tankLiters = 50, fillPercent = 64, rangeKm = 320,
-                mileageText = "142.3", consumptionText = "7.4", fillCount = 38,
-                bars = listOf(7.9f, 7.2f, 8.1f, 7.4f, 6.9f, 7.6f, 7.4f),
-                toKmLeft = 3200, toPercent = 68,
-                lastFillDate = "24.07", lastFillLiters = "31.2",
-                lastFillBrand = "Лукойл", lastFillPrice = "1 619",
-            ),
-        )
     }
 }
