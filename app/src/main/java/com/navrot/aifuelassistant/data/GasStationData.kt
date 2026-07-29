@@ -5,14 +5,14 @@ import com.navrot.aifuelassistant.data.model.GasStation
 
 object GasStationData {
     val stations = listOf(
-        // ===== МОСКВА (тестовые) =====
+        // ===== МОСКВА =====
         GasStation(
             id = 1,
             name = "АЗС ТТК",
             brand = "Татнефть",
             address = "Москва, ш. Энтузиастов, 86А",
-            latitude = 55.7558,
-            longitude = 37.6173,
+            latitude = 55.7761,
+            longitude = 37.8419,
             fuelTypes = listOf(
                 FuelPrice("АИ-92", 59.89, true),
                 FuelPrice("АИ-95", 66.23, true),
@@ -28,8 +28,8 @@ object GasStationData {
             name = "АЗС №45",
             brand = "Лукойл",
             address = "Москва, Ленинградский пр-т, 62",
-            latitude = 55.7904,
-            longitude = 37.5317,
+            latitude = 55.8072,
+            longitude = 37.5394,
             fuelTypes = listOf(
                 FuelPrice("АИ-92", 62.50, true),
                 FuelPrice("АИ-95", 69.10, true),
@@ -92,8 +92,8 @@ object GasStationData {
             name = "АЗС №1",
             brand = "Лукойл",
             address = "Челябинск, ул. Мира, 65 ст1",
-            latitude = 55.1644,
-            longitude = 61.4368,
+            latitude = 55.25349,
+            longitude = 61.37002,
             fuelTypes = listOf(
                 FuelPrice("АИ-92", 62.94, true),
                 FuelPrice("АИ-95", 69.73, true),
@@ -107,8 +107,8 @@ object GasStationData {
             name = "Свердловский тракт, 16/3",
             brand = "Татнефть",
             address = "Челябинск, Свердловский тракт, 16/3",
-            latitude = 55.1780,
-            longitude = 61.4200,
+            latitude = 55.1778,
+            longitude = 61.4194,
             fuelTypes = listOf(
                 FuelPrice("АИ-92", 59.89, true),
                 FuelPrice("АИ-95", 66.23, true),
@@ -124,8 +124,8 @@ object GasStationData {
             name = "Свердловский тракт, 40/1",
             brand = "Татнефть",
             address = "Челябинск, Свердловский тракт, 40/1",
-            latitude = 55.1850,
-            longitude = 61.4100,
+            latitude = 55.1847,
+            longitude = 61.4098,
             fuelTypes = listOf(
                 FuelPrice("АИ-92", 59.89, true),
                 FuelPrice("АИ-95", 66.23, true),
@@ -141,8 +141,8 @@ object GasStationData {
             name = "ул. Курчатова, 2/1",
             brand = "Газпромнефть",
             address = "Челябинск, ул. Курчатова, 2/1",
-            latitude = 55.1600,
-            longitude = 61.4000,
+            latitude = 55.1603,
+            longitude = 61.4007,
             fuelTypes = listOf(
                 FuelPrice("АИ-92", 61.50, true),
                 FuelPrice("АИ-95", 68.20, true),
@@ -157,8 +157,8 @@ object GasStationData {
             name = "Троицкий тракт, 9640",
             brand = "Газпромнефть",
             address = "Челябинск, Троицкий тракт, 9640",
-            latitude = 55.1200,
-            longitude = 61.3500,
+            latitude = 55.1194,
+            longitude = 61.3512,
             fuelTypes = listOf(
                 FuelPrice("АИ-92", 61.50, true),
                 FuelPrice("АИ-95", 68.20, true),
@@ -172,8 +172,8 @@ object GasStationData {
             name = "ул. Артиллерийская, 138",
             brand = "Лукойл",
             address = "Челябинск, ул. Артиллерийская, 138 к. 1",
-            latitude = 55.1900,
-            longitude = 61.4500,
+            latitude = 55.1895,
+            longitude = 61.4498,
             fuelTypes = listOf(
                 FuelPrice("АИ-92", 62.50, true),
                 FuelPrice("АИ-95", 69.10, true)
@@ -186,8 +186,8 @@ object GasStationData {
             name = "Копейское шоссе, 56в",
             brand = "РегионUno",
             address = "Челябинск, Копейское шоссе, 56в",
-            latitude = 55.1500,
-            longitude = 61.5000,
+            latitude = 55.1498,
+            longitude = 61.4995,
             fuelTypes = listOf(
                 FuelPrice("АИ-92", 60.00, true),
                 FuelPrice("АИ-95", 67.00, true),
@@ -202,8 +202,8 @@ object GasStationData {
             name = "Копейское шоссе, 1П/1",
             brand = "Get petrol",
             address = "Челябинск, Копейское шоссе, 1П/1",
-            latitude = 55.1450,
-            longitude = 61.5200,
+            latitude = 55.1452,
+            longitude = 61.5198,
             fuelTypes = listOf(
                 FuelPrice("АИ-92", 59.50, true),
                 FuelPrice("АИ-95", 66.00, true),
@@ -218,8 +218,8 @@ object GasStationData {
             name = "ул. Механическая, 105/1",
             brand = "Get petrol",
             address = "Челябинск, ул. Механическая, 105/1",
-            latitude = 55.2100,
-            longitude = 61.3800,
+            latitude = 55.192317,
+            longitude = 61.421625,
             fuelTypes = listOf(
                 FuelPrice("АИ-92", 59.50, true),
                 FuelPrice("АИ-95", 66.00, true),
@@ -233,8 +233,8 @@ object GasStationData {
             name = "ул. Игуменка, 119",
             brand = "Челябнефтепродукт",
             address = "Челябинск, ул. Игуменка, 119",
-            latitude = 55.2300,
-            longitude = 61.3000,
+            latitude = 55.2298,
+            longitude = 61.2995,
             fuelTypes = listOf(
                 FuelPrice("АИ-92", 58.50, true),
                 FuelPrice("АИ-95", 65.00, true),
@@ -248,8 +248,8 @@ object GasStationData {
             name = "пр. Победы, 290/1",
             brand = "Мега",
             address = "Челябинск, пр. Победы, 290/1",
-            latitude = 55.1700,
-            longitude = 61.2800,
+            latitude = 55.1695,
+            longitude = 61.2798,
             fuelTypes = listOf(
                 FuelPrice("АИ-92", 61.00, true),
                 FuelPrice("АИ-95", 68.00, true),
@@ -263,8 +263,8 @@ object GasStationData {
             name = "пер. Бажова и Комарова",
             brand = "Смарт",
             address = "Челябинск, перекрёсток ул. Бажова и ул. Комарова",
-            latitude = 55.2000,
-            longitude = 61.4200,
+            latitude = 55.1995,
+            longitude = 61.4198,
             fuelTypes = listOf(
                 FuelPrice("Газ", 31.00, true)
             ),
@@ -276,8 +276,8 @@ object GasStationData {
             name = "ул. Энгельса, 21/1",
             brand = "АЗС 74-026",
             address = "Челябинск, ул. Энгельса, 21/1",
-            latitude = 55.1800,
-            longitude = 61.4600,
+            latitude = 55.1798,
+            longitude = 61.4595,
             fuelTypes = listOf(
                 FuelPrice("АИ-92", 59.00, true),
                 FuelPrice("АИ-95", 65.50, true)
@@ -290,8 +290,8 @@ object GasStationData {
             name = "ул. Первой пятилетки, 18",
             brand = "Price",
             address = "Челябинск, ул. Первой пятилетки, 18 к. 1",
-            latitude = 55.1650,
-            longitude = 61.3900,
+            latitude = 55.1648,
+            longitude = 61.3895,
             fuelTypes = listOf(
                 FuelPrice("АИ-95", 67.50, true),
                 FuelPrice("Газ", 33.00, true)
@@ -304,8 +304,8 @@ object GasStationData {
             name = "ул. Городская, 1/4",
             brand = "Price",
             address = "Челябинск, ул. Городская, 1/4",
-            latitude = 55.1550,
-            longitude = 61.4400,
+            latitude = 55.1545,
+            longitude = 61.4398,
             fuelTypes = listOf(
                 FuelPrice("АИ-95", 67.50, true),
                 FuelPrice("Газ", 33.00, true)
@@ -320,8 +320,8 @@ object GasStationData {
             name = "М-5 Урал, 1882 км",
             brand = "Газпромнефть",
             address = "Челябинская обл., М-5 Урал, 1882 км",
-            latitude = 54.9000,
-            longitude = 61.5000,
+            latitude = 54.8995,
+            longitude = 61.4998,
             fuelTypes = listOf(
                 FuelPrice("АИ-92", 62.00, true),
                 FuelPrice("АИ-95", 69.00, true),
@@ -335,8 +335,8 @@ object GasStationData {
             name = "М-5 Урал, 1890 км",
             brand = "Татнефть",
             address = "Челябинская обл., М-5 Урал, 1890 км",
-            latitude = 54.8500,
-            longitude = 61.5500,
+            latitude = 54.8495,
+            longitude = 61.5498,
             fuelTypes = listOf(
                 FuelPrice("АИ-92", 59.50, true),
                 FuelPrice("АИ-95", 66.00, true),
@@ -484,6 +484,15 @@ object GasStationData {
         )
     )
 
+    fun searchStations(query: String): List<GasStation> {
+        val q = query.lowercase()
+        return stations.filter {
+            it.name.lowercase().contains(q) ||
+                    it.brand.lowercase().contains(q) ||
+                    it.address.lowercase().contains(q)
+        }
+    }
+
     fun getBestStation(fuelType: String): GasStation? {
         return stations
             .filter { station ->
@@ -495,6 +504,51 @@ object GasStationData {
                 val reliabilityBonus = (100 - station.reliability) * 0.2
                 (fuel?.price ?: Double.MAX_VALUE) + queuePenalty - reliabilityBonus
             }
+    }
+
+    fun getBestStations(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): List<GasStation> {
+        val nearby = if (lat != null && lon != null) {
+            getStationsNearLocation(lat, lon, radiusKm)
+        } else stations
+
+        return nearby.filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
+            .sortedBy { s ->
+                val fuel = s.fuelTypes.find { it.type == fuelType }!!
+                val queuePenalty = s.queueTime * 0.5
+                val reliabilityBonus = (100 - s.reliability) * 0.2
+                fuel.price + queuePenalty - reliabilityBonus
+            }
+    }
+
+    fun getStationsSortedByPriceAsc(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): List<GasStation> {
+        val nearby = if (lat != null && lon != null) {
+            getStationsNearLocation(lat, lon, radiusKm)
+        } else stations
+
+        return nearby.filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
+            .sortedBy { s -> s.fuelTypes.find { it.type == fuelType }?.price ?: Double.MAX_VALUE }
+    }
+
+    fun getStationsSortedByPriceDesc(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): List<GasStation> {
+        val nearby = if (lat != null && lon != null) {
+            getStationsNearLocation(lat, lon, radiusKm)
+        } else stations
+
+        return nearby.filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
+            .sortedByDescending { s -> s.fuelTypes.find { it.type == fuelType }?.price ?: 0.0 }
+    }
+
+    fun getStationsByQueue(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): List<GasStation> {
+        val nearby = if (lat != null && lon != null) {
+            getStationsNearLocation(lat, lon, radiusKm)
+        } else stations
+
+        return nearby.filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
+            .sortedBy { it.queueTime }
+    }
+
+    fun getCheapestStation(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): GasStation? {
+        return getStationsSortedByPriceAsc(fuelType, lat, lon, radiusKm).firstOrNull()
     }
 
     fun getStationsByCity(city: String): List<GasStation> {

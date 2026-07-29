@@ -2,7 +2,7 @@ package com.navrot.aifuelassistant.ui.fuel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.navrot.aifuelassistant.data.GasStationRepository
+import com.navrot.aifuelassistant.data.model.GasStationRepository
 import com.navrot.aifuelassistant.data.model.GasStation
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,7 +22,6 @@ class MapViewModel : ViewModel() {
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
-    // ===== МНОЖЕСТВЕННЫЙ ВЫБОР ТОПЛИВА =====
     private val _selectedFuelTypes = MutableStateFlow<Set<String>>(setOf("АИ-95"))
     val selectedFuelTypes: StateFlow<Set<String>> = _selectedFuelTypes.asStateFlow()
 
@@ -81,11 +80,9 @@ class MapViewModel : ViewModel() {
         }
     }
 
-    // ===== ПЕРЕКЛЮЧЕНИЕ ТИПА ТОПЛИВА (множественный выбор) =====
     fun toggleFuelType(fuelType: String) {
         val current = _selectedFuelTypes.value.toMutableSet()
         if (current.contains(fuelType)) {
-            // Не удаляем последний элемент — должен быть хоть один выбран
             if (current.size > 1) {
                 current.remove(fuelType)
             }
@@ -98,7 +95,6 @@ class MapViewModel : ViewModel() {
         }
     }
 
-    // ===== УСТАНОВИТЬ ОДИН ТИП (для совместимости) =====
     fun setFuelType(fuelType: String) {
         _selectedFuelTypes.value = setOf(fuelType)
         viewModelScope.launch {

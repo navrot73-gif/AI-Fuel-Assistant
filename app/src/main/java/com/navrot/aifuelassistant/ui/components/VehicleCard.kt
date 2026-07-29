@@ -114,7 +114,7 @@ fun VehicleCard(state: VehicleCardUiState, modifier: Modifier = Modifier) {
                             }
                         }
 
-                        CarSilhouette(modifier = Modifier.fillMaxWidth().height(120.dp))
+                        CarSilhouette(modifier = Modifier.fillMaxWidth().height(100.dp))
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("бак ${state.tankLiters} л", fontSize = 11.sp, color = FueldeckColors.InkFaint,
@@ -306,13 +306,13 @@ private fun CarSilhouette(modifier: Modifier = Modifier) {
                             listOf(FueldeckColors.Teal, FueldeckColors.Amber),
                             start = Offset.Zero, end = Offset(240f, 0f),
                         )
-                        drawPath(bodyPath(), grad, style = Stroke(3f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                        drawPath(bodyPath(), grad, style = Stroke(2.5f, cap = StrokeCap.Round, join = StrokeJoin.Round))
                         drawPath(winFront(), FueldeckColors.Teal.copy(alpha = 0.10f))
                         drawPath(winFront(), FueldeckColors.Teal.copy(alpha = 0.5f), style = Stroke(1.5f))
                         drawPath(winRear(), FueldeckColors.Amber.copy(alpha = 0.08f))
                         drawPath(winRear(), FueldeckColors.Amber.copy(alpha = 0.4f), style = Stroke(1.5f))
-                        wheel(62f, 72f, ring)
-                        wheel(172f, 72f, ring)
+                        wheel(62f, 74f, ring, radius = 12f)
+                        wheel(172f, 74f, ring, radius = 12f)
                     }
                 }
             }
@@ -332,10 +332,10 @@ private fun CarSilhouette(modifier: Modifier = Modifier) {
     )
 }
 
-private fun DrawScope.wheel(cx: Float, cy: Float, ring: Color) {
-    drawCircle(Color(0xFF0A0E11), 15f, Offset(cx, cy))
-    drawCircle(ring, 15f, Offset(cx, cy), style = Stroke(3f))
-    drawCircle(ring, 6f, Offset(cx, cy))
+private fun DrawScope.wheel(cx: Float, cy: Float, ring: Color, radius: Float = 12f) {
+    drawCircle(Color(0xFF0A0E11), radius, Offset(cx, cy))
+    drawCircle(ring, radius, Offset(cx, cy), style = Stroke(2.5f))
+    drawCircle(ring, radius * 0.4f, Offset(cx, cy))
 }
 
 private fun bodyPath(): Path {

@@ -31,7 +31,7 @@ fun GasStationDetailScreen(
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("Информация", "Цены", "Отзывы")
-    val reviews = remember { generateSampleReviews(station.id) }
+    val reviews = remember { generateSampleReviews(stationId = station.id.toLong()) }
 
     Scaffold(
         topBar = {
