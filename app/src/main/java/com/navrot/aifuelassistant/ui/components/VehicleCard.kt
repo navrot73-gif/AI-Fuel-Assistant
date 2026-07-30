@@ -45,7 +45,8 @@ import androidx.compose.ui.unit.sp
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
 
-/** UI-состояние карточки гаража. */
+/** UI-состояние карточки гаража. Телеметрия расхода (помечена TODO в обёртке
+ *  VehicleListScreen) подключится из FuelRecordEntity следующим шагом. */
 data class VehicleCardUiState(
     val name: String,
     val modelLine: String,
@@ -114,7 +115,7 @@ fun VehicleCard(state: VehicleCardUiState, modifier: Modifier = Modifier) {
                             }
                         }
 
-                        CarSilhouette(modifier = Modifier.fillMaxWidth().height(100.dp))
+                        CarSilhouette(modifier = Modifier.fillMaxWidth().height(120.dp))
 
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("бак ${state.tankLiters} л", fontSize = 11.sp, color = FueldeckColors.InkFaint,
@@ -282,7 +283,10 @@ private fun ConsumptionBars(values: List<Float>) {
     }
 }
 
-/** Силуэт авто — перенос SVG из HTML на Canvas (viewBox 240x96). */
+/** Силуэт авто — перенос SVG из HTML на Canvas (viewBox 240x96).
+ *  ВАЖНО: единый масштаб + центрирование сохраняют пропорции (как
+ *  preserveAspectRatio у SVG). Разные коэффициенты по осям растягивали
+ *  кузов и «разъезжали» окошки — отсюда был дефект. */
 @Composable
 private fun CarSilhouette(modifier: Modifier = Modifier) {
     val shimmer = rememberInfiniteTransition(label = "sheen").animateFloat(
@@ -299,24 +303,24 @@ private fun CarSilhouette(modifier: Modifier = Modifier) {
                 val us = minOf(size.width / 240f, size.height / 96f)
                 val dx = (size.width - 240f * us) / 2f
                 val dy = (size.height - 96f * us) / 2f
-                translate(dx, dy) {
+                translate(left = dx, top = dy) {
                     scale(us, us, pivot = Offset.Zero) {
                         drawOval(Color(0x66000000), topLeft = Offset(70f, 80f), size = Size(108f, 12f))
                         val grad = Brush.linearGradient(
                             listOf(FueldeckColors.Teal, FueldeckColors.Amber),
                             start = Offset.Zero, end = Offset(240f, 0f),
                         )
-                        drawPath(bodyPath(), grad, style = Stroke(2.5f, cap = StrokeCap.Round, join = StrokeJoin.Round))
+                        drawPath(bodyPath(), grad, style = Stroke(3f, cap = StrokeCap.Round, join = StrokeJoin.Round))
                         drawPath(winFront(), FueldeckColors.Teal.copy(alpha = 0.10f))
                         drawPath(winFront(), FueldeckColors.Teal.copy(alpha = 0.5f), style = Stroke(1.5f))
                         drawPath(winRear(), FueldeckColors.Amber.copy(alpha = 0.08f))
                         drawPath(winRear(), FueldeckColors.Amber.copy(alpha = 0.4f), style = Stroke(1.5f))
-                        wheel(62f, 74f, ring, radius = 12f)
-                        wheel(172f, 74f, ring, radius = 12f)
+                        wheel(62f, 72f, ring)
+                        wheel(172f, 72f, ring)
                     }
                 }
             }
-            .drawBehind {
+            .drawBehind { // бегущий блик по кузову — поверх, не клипнут
                 val w = size.width
                 val band = w * 0.4f
                 val x = -band + sh * (w + band)
@@ -332,10 +336,10 @@ private fun CarSilhouette(modifier: Modifier = Modifier) {
     )
 }
 
-private fun DrawScope.wheel(cx: Float, cy: Float, ring: Color, radius: Float = 12f) {
-    drawCircle(Color(0xFF0A0E11), radius, Offset(cx, cy))
-    drawCircle(ring, radius, Offset(cx, cy), style = Stroke(2.5f))
-    drawCircle(ring, radius * 0.4f, Offset(cx, cy))
+private fun DrawScope.wheel(cx: Float, cy: Float, ring: Color) {
+    drawCircle(Color(0xFF0A0E11), 15f, Offset(cx, cy))
+    drawCircle(ring, 15f, Offset(cx, cy), style = Stroke(3f))
+    drawCircle(ring, 6f, Offset(cx, cy))
 }
 
 private fun bodyPath(): Path {
@@ -383,5 +387,25 @@ private fun winRear(): Path {
         lineTo(122f, 38f)
         lineTo(122f, 22f)
         close()
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFF0E1418)
+@Composable
+private fun VehicleCardPreview() {
+    Box(Modifier.background(FueldeckColors.Bg1).padding(20.dp)) {
+        VehicleCard(
+            state = VehicleCardUiState(
+                name = "Пенс",
+                modelLine = "Datsun ON‑DO · 2015",
+                fuelGrade = "АИ‑92",
+                tankLiters = 50, fillPercent = 64, rangeKm = 320,
+                mileageText = "142.3", consumptionText = "7.4", fillCount = 38,
+                bars = listOf(7.9f, 7.2f, 8.1f, 7.4f, 6.9f, 7.6f, 7.4f),
+                toKmLeft = 3200, toPercent = 68,
+                lastFillDate = "24.07", lastFillLiters = "31.2",
+                lastFillBrand = "Лукойл", lastFillPrice = "1 619",
+            ),
+        )
     }
 }

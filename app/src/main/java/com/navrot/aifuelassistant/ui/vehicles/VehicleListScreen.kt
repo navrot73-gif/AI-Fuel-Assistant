@@ -70,6 +70,8 @@ fun VehicleListScreen(
         } else {
             LazyColumn(
                 modifier = modifier.padding(padding).fillMaxSize().background(FueldeckColors.Bg1),
+                // bottom = 96.dp даёт запас под янтарный FAB, чтобы он не
+                // перекрывал последнюю карточку («последняя заправка»).
                 contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
