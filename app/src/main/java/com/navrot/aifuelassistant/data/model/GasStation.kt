@@ -9,5 +9,9 @@ data class GasStation(
     val longitude: Double,
     val fuelTypes: List<FuelPrice>,
     val queueTime: Int,
-    val reliability: Int
+    val reliability: Int,
+    val dataSources: Set<FuelDataSource> = emptySet(),
+    val updatedAt: Long = 0L,
+    val confidence: Int = 0,
+    val photoEvidence: List<PhotoEvidence> = emptyList()
 )
