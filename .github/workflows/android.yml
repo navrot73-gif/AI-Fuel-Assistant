@@ -35,11 +35,26 @@ jobs:
         run: chmod +x ./gradlew
 
       - name: Build debug APK
-        run: ./gradlew assembleDebug --stacktrace
+        id: build
+        continue-on-error: true
+        run: ./gradlew assembleDebug --stacktrace --info 2>&1 | tee gradle-build.log
+
+      - name: Upload Gradle diagnostic log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gradle-build-diagnostic
+          path: gradle-build.log
+          if-no-files-found: error
 
       - name: Upload debug APK
+        if: steps.build.outcome == 'success'
         uses: actions/upload-artifact@v4
         with:
           name: ai-fuel-assistant-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      - name: Fail job if Gradle build failed
+        if: steps.build.outcome != 'success'
+        run: exit 1
