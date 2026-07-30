@@ -3,10 +3,10 @@ name: Android Build
 on:
   push:
     branches:
-      - feature/fuel-dispatcher-v1
+      - develop
   pull_request:
     branches:
-      - feature/fuel-dispatcher-v1
+      - develop
 
 jobs:
   build:
