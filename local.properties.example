@@ -1,3 +1,5 @@
 # Local-only secrets. Copy values to local.properties on your machine.
 # NEVER commit local.properties to Git.
 GIGACHAT_AUTHORIZATION_KEY=your_base64_authorization_key_here
+# Бесплатный ключ: https://openrouteservice.org/dev/#/signup
+ORS_API_KEY=your_openrouteservice_api_key_here

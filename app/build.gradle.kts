@@ -32,6 +32,7 @@ android {
         buildConfigField("String", "GIGACHAT_AUTHORIZATION_KEY", "\"${localProperties.getProperty("GIGACHAT_AUTHORIZATION_KEY", "")}\"")
         buildConfigField("String", "YANDEX_API_KEY", "\"${localProperties.getProperty("YANDEX_API_KEY", "")}\"")
         buildConfigField("String", "YANDEX_FOLDER_ID", "\"${localProperties.getProperty("YANDEX_FOLDER_ID", "")}\"")
+        buildConfigField("String", "ORS_API_KEY", "\"${localProperties.getProperty("ORS_API_KEY", "")}\"")
     }
 
     buildTypes {
