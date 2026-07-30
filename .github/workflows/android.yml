@@ -37,7 +37,10 @@ jobs:
       - name: Build debug APK
         id: build
         continue-on-error: true
-        run: ./gradlew assembleDebug --stacktrace --info 2>&1 | tee gradle-build.log
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --stacktrace --info 2>&1 | tee gradle-build.log
 
       - name: Upload Gradle diagnostic log
         if: always()
