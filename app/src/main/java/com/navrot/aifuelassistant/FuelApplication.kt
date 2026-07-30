@@ -1,7 +1,6 @@
 package com.navrot.aifuelassistant
 
 import android.app.Application
-import androidx.room.Room
 import com.navrot.aifuelassistant.data.database.AppDatabase
 
 class FuelApplication : Application() {
