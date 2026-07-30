@@ -6,19 +6,14 @@ import com.navrot.aifuelassistant.data.database.AppDatabase
 
 class FuelApplication : Application() {
 
-    // Делаем базу данных публичной (val вместо private val)
+    // Единый экземпляр базы данных для всего приложения.
     lateinit var database: AppDatabase
         private set
 
     override fun onCreate() {
         super.onCreate()
         instance = this
-
-        database = Room.databaseBuilder(
-            applicationContext,
-            AppDatabase::class.java,
-            "ai_fuel_assistant_db"
-        ).build()
+        database = AppDatabase.getInstance(this)
     }
 
     companion object {
