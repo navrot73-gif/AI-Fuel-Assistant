@@ -166,8 +166,8 @@ data class OpeningHours(
             val start = java.time.LocalTime.parse(parts[0])
             val end = java.time.LocalTime.parse(parts[1])
 
-            return time >= start && time <= end
-        } catch (e: Exception) {
+            return time in start..end
+        } catch (_: Exception) {
             return false
         }
     }
