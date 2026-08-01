@@ -45,8 +45,6 @@ import androidx.compose.ui.unit.sp
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
 
-/** UI-состояние карточки гаража. Телеметрия расхода (помечена TODO в обёртке
- *  VehicleListScreen) подключится из FuelRecordEntity следующим шагом. */
 data class VehicleCardUiState(
     val name: String,
     val modelLine: String,
@@ -70,7 +68,6 @@ data class VehicleCardUiState(
 fun VehicleCard(state: VehicleCardUiState, modifier: Modifier = Modifier) {
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(14.dp)) {
 
-        // ---------- карточка машины ----------
         Surface(
             color = FueldeckColors.Surface,
             shape = FueldeckShapes.Lg,
@@ -141,7 +138,6 @@ fun VehicleCard(state: VehicleCardUiState, modifier: Modifier = Modifier) {
             }
         }
 
-        // ---------- расход по заправкам + ТО ----------
         Surface(
             color = FueldeckColors.Surface,
             shape = FueldeckShapes.Lg,
@@ -173,7 +169,6 @@ fun VehicleCard(state: VehicleCardUiState, modifier: Modifier = Modifier) {
             }
         }
 
-        // ---------- последняя заправка ----------
         Surface(
             color = FueldeckColors.Surface,
             shape = FueldeckShapes.Md,
@@ -197,8 +192,6 @@ fun VehicleCard(state: VehicleCardUiState, modifier: Modifier = Modifier) {
         }
     }
 }
-
-// ---------- внутренние блоки ----------
 
 @Composable
 private fun Tile(key: String, value: String, unit: String?, modifier: Modifier = Modifier) {
@@ -283,10 +276,6 @@ private fun ConsumptionBars(values: List<Float>) {
     }
 }
 
-/** Силуэт авто — перенос SVG из HTML на Canvas (viewBox 240x96).
- *  ВАЖНО: единый масштаб + центрирование сохраняют пропорции (как
- *  preserveAspectRatio у SVG). Разные коэффициенты по осям растягивали
- *  кузов и «разъезжали» окошки — отсюда был дефект. */
 @Composable
 private fun CarSilhouette(modifier: Modifier = Modifier) {
     val shimmer = rememberInfiniteTransition(label = "sheen").animateFloat(
@@ -304,7 +293,7 @@ private fun CarSilhouette(modifier: Modifier = Modifier) {
                 val dx = (size.width - 240f * us) / 2f
                 val dy = (size.height - 96f * us) / 2f
                 translate(left = dx, top = dy) {
-                    scale(us, us, pivot = Offset.Zero) {
+                    scale(scaleX = us, scaleY = us, pivot = Offset.Zero) {
                         drawOval(Color(0x66000000), topLeft = Offset(70f, 80f), size = Size(108f, 12f))
                         val grad = Brush.linearGradient(
                             listOf(FueldeckColors.Teal, FueldeckColors.Amber),
@@ -320,7 +309,7 @@ private fun CarSilhouette(modifier: Modifier = Modifier) {
                     }
                 }
             }
-            .drawBehind { // бегущий блик по кузову — поверх, не клипнут
+            .drawBehind {
                 val w = size.width
                 val band = w * 0.4f
                 val x = -band + sh * (w + band)
@@ -361,31 +350,27 @@ private fun bodyPath(): Path {
         moveTo(86f, 70f)
         lineTo(148f, 70f)
         moveTo(196f, 70f)
-        lineTo(218f, 70f)
-        cubicTo(224f, 70f, 227f, 66f, 226f, 61f)
+        lineTo(202f, 70f)
+        lineTo(202f, 78f)
     }
 }
 
 private fun winFront(): Path {
     return Path().apply {
-        moveTo(70f, 38f)
-        lineTo(84f, 26f)
-        cubicTo(87f, 23f, 92f, 22f, 97f, 22f)
-        lineTo(119f, 22f)
-        lineTo(117f, 38f)
-        lineTo(70f, 38f)
+        moveTo(70f, 55f)
+        lineTo(84f, 40f)
+        lineTo(113f, 40f)
+        lineTo(113f, 55f)
         close()
     }
 }
 
 private fun winRear(): Path {
     return Path().apply {
-        moveTo(122f, 22f)
-        lineTo(136f, 22f)
-        cubicTo(142f, 22f, 147f, 24f, 152f, 28f)
-        lineTo(162f, 38f)
-        lineTo(122f, 38f)
-        lineTo(122f, 22f)
+        moveTo(117f, 55f)
+        lineTo(117f, 40f)
+        lineTo(133f, 41f)
+        lineTo(152f, 54f)
         close()
     }
 }

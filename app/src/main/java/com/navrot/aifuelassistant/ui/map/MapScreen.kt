@@ -86,7 +86,7 @@ fun MapScreen(
     var currentCity by remember { mutableStateOf("Рядом с вами") }
     var showSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
-    var showStationList by remember { mutableStateOf(true) }
+    var showStationList by remember { mutableStateOf(false) }
     var selectedStation by remember { mutableStateOf<GasStation?>(null) }
 
     val displayStations = if (stations.isNotEmpty()) stations else allStations
@@ -224,6 +224,37 @@ fun MapScreen(
 
             // ===== КАРТА (на весь экран, список поверх) =====
             Box(modifier = Modifier.fillMaxSize()) {
+                // Плашка-открывалка списка (видна, когда панель свёрнута)
+                if (!showStationList) {
+                    val arrowPulse = rememberInfiniteTransition(label = "pl").animateFloat(
+                        0f, 1f, infiniteRepeatable(tween(1100), RepeatMode.Reverse), label = "pl"
+                    )
+                    Surface(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(16.dp),
+                        shape = RoundedCornerShape(20.dp),
+                        color = FueldeckColors.Surface,
+                        border = BorderStroke(1.dp, FueldeckColors.Line),
+                        shadowElevation = 6.dp
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .clickable { showStationList = true }
+                                .padding(horizontal = 20.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                "▲",
+                                color = FueldeckColors.Amber.copy(alpha = 0.5f + 0.5f * arrowPulse.value),
+                                fontWeight = FontWeight.Bold, fontSize = 13.sp
+                            )
+                            Text("АЗС рядом", color = FueldeckColors.Ink, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                        }
+                    }
+                }
+
                 // Карта на фоне
                 AndroidView(
                     factory = { ctx ->
@@ -309,6 +340,134 @@ fun MapScreen(
                         contentDescription = "Моё местоположение",
                         tint = MaterialTheme.colorScheme.primary
                     )
+                }
+                // ===== AI-РЕКОМЕНДАЦИЯ ближайшей АЗС с топливом (свёрнутое состояние) =====
+                val recommendation = remember(displayStations, selectedFuelTypes, userLocation) {
+                    displayStations
+                        .mapNotNull { st ->
+                            val fuel = st.fuelTypes.firstOrNull {
+                                (selectedFuelTypes.isEmpty() || selectedFuelTypes.contains(it.type)) && it.available
+                            } ?: return@mapNotNull null
+                            val dist = userLocation?.let {
+                                calculateDistance(it.latitude, it.longitude, st.latitude, st.longitude)
+                            } ?: Double.MAX_VALUE
+                            Triple(st, fuel, dist)
+                        }
+                        .sortedWith(compareBy<Triple<GasStation, *, Double>> { it.first.queueTime }.thenBy { it.third })
+                        .firstOrNull()
+                }
+
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = !showStationList && recommendation != null,
+                    modifier = Modifier.align(Alignment.BottomCenter),
+                    enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
+                    exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 })
+                ) {
+                    recommendation?.let { rec ->
+                        val st = rec.first
+                        val fuel = rec.second
+                        val dist = rec.third
+                        val brandColors = listOf(
+                            FueldeckColors.Teal, FueldeckColors.Amber, FueldeckColors.Coral,
+                            Color(0xFF2F7FD1), Color(0xFF7A6BD1), Color(0xFF2FAA55)
+                        )
+                        val brandColor = brandColors[Math.floorMod(st.brand.hashCode(), brandColors.size)]
+                        val spark = rememberInfiniteTransition(label = "rec").animateFloat(
+                            0f, 1f, infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "rec"
+                        )
+                        val reason = buildString {
+                            append("ближайшая с ${fuel.type} в наличии")
+                            if (st.queueTime <= 0) append(", без очереди")
+                            else append(", очередь ${st.queueTime} мин")
+                        }
+
+                        Surface(
+                            modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 16.dp),
+                            shape = RoundedCornerShape(22.dp),
+                            color = FueldeckColors.Surface,
+                            border = BorderStroke(1.dp, FueldeckColors.Teal.copy(alpha = 0.35f)),
+                            shadowElevation = 10.dp
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .clickable { showStationList = true }
+                                    .drawBehind { // ambient-блик в цвете бренда
+                                        drawRect(
+                                            brush = Brush.radialGradient(
+                                                listOf(brandColor.copy(alpha = 0.16f), Color.Transparent),
+                                                center = Offset(size.width * 0.85f, size.height * 0.2f),
+                                                radius = size.width * 0.6f
+                                            )
+                                        )
+                                    }
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                // логотип сети с бегущим бликом
+                                val logoSheen = rememberInfiniteTransition(label = "rlogo").animateFloat(
+                                    0f, 1f, infiniteRepeatable(tween(4200), RepeatMode.Restart), label = "rlogo"
+                                ).value
+                                Box(
+                                    modifier = Modifier
+                                        .size(46.dp)
+                                        .background(brandColor, RoundedCornerShape(13.dp))
+                                        .drawBehind {
+                                            val w = size.width; val band = w * 0.5f
+                                            val x = -band + logoSheen * (w + band)
+                                            drawRect(
+                                                brush = Brush.linearGradient(
+                                                    listOf(Color.Transparent, Color.White.copy(alpha = 0.28f), Color.Transparent),
+                                                    start = Offset(x, 0f), end = Offset(x + band, 0f)
+                                                ),
+                                                topLeft = Offset(x, 0f), size = Size(band, size.height)
+                                            )
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(st.brand.first().toString().uppercase(), color = Color.White,
+                                        fontWeight = FontWeight.Bold, fontSize = 19.sp)
+                                }
+
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Row(verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Text("✨", color = FueldeckColors.Teal.copy(alpha = 0.5f + 0.5f * spark.value), fontSize = 13.sp)
+                                        Text("AI‑подбор", color = FueldeckColors.Teal, fontWeight = FontWeight.Bold,
+                                            fontSize = 11.sp, letterSpacing = 0.6.sp)
+                                    }
+                                    Text(st.brand, color = FueldeckColors.Ink, fontWeight = FontWeight.SemiBold,
+                                        fontSize = 15.sp, maxLines = 1)
+                                    Text(reason, color = FueldeckColors.InkFaint, fontSize = 11.sp, maxLines = 1)
+                                }
+
+                                Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                                    Text("${String.format("%.0f", fuel.price)} ₽", color = FueldeckColors.Amber,
+                                        fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                    Text(if (dist == Double.MAX_VALUE) "—" else "${String.format("%.1f", dist)} км",
+                                        color = FueldeckColors.InkDim, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                                }
+
+                                // кнопка маршрута с press-feedback
+                                var pressed by remember { mutableStateOf(false) }
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .background(
+                                            FueldeckColors.TealSoft.copy(alpha = if (pressed) 0.4f else 1f),
+                                            CircleShape
+                                        )
+                                        .clickable {
+                                            openMapsRoute(context, st.latitude, st.longitude, st.brand)
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Default.LocationOn, contentDescription = "Маршрут",
+                                        tint = FueldeckColors.Teal, modifier = Modifier.size(22.dp))
+                                }
+                            }
+                        }
+                    }
                 }
 
                 // ===== НИЖНЯЯ ПАНЕЛЬ =====
