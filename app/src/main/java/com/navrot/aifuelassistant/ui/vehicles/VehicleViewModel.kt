@@ -87,14 +87,15 @@ private fun VehicleEntity.toUiState(records: List<FuelRecordEntity>): VehicleCar
 
     val avgConsumption = if (consumptions.isNotEmpty()) consumptions.average().toFloat() else 0f
 
-    // Запас хода: (бак / средний расход) * 100
-    val rangeKm = if (avgConsumption > 0 && tankCapacity > 0) {
-        (tankCapacity / avgConsumption * 100).toInt()
-    } else 0
-
     // % бака: по последней заправке относительно объёма бака
     val fillPercent = if (lastFill != null && tankCapacity > 0) {
         (lastFill.fuelAmount / tankCapacity * 100).toInt().coerceIn(0, 100)
+    } else 0
+
+    // Запас хода: по ТОКУ в баке (не полный бак!)
+    val currentFuel = tankCapacity * fillPercent / 100.0
+    val rangeKm = if (avgConsumption > 0 && currentFuel > 0) {
+        (currentFuel / avgConsumption * 100).toInt()
     } else 0
 
     // Бары: последние 7 расходов
@@ -102,8 +103,9 @@ private fun VehicleEntity.toUiState(records: List<FuelRecordEntity>): VehicleCar
 
     // ТО: интервал 15 000 км
     val toInterval = 15_000.0
-    val toKmLeft = (toInterval - (currentMileage % toInterval)).toInt().coerceAtLeast(0)
-    val toPercent = ((toKmLeft / toInterval) * 100).toInt()
+    val kmSinceLastTo = currentMileage % toInterval
+    val toKmLeft = (toInterval - kmSinceLastTo).toInt().coerceAtLeast(0)
+    val toPercent = (kmSinceLastTo / toInterval * 100).toInt()
 
     val dateFormat = SimpleDateFormat("dd.MM", Locale.getDefault())
 

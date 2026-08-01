@@ -41,7 +41,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.navrot.aifuelassistant.ui.components.ConsumptionGauge
 import com.navrot.aifuelassistant.ui.components.Sparkline
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
@@ -49,11 +49,22 @@ import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
 
 @Composable
 fun DashboardScreen(modifier: Modifier = Modifier) {
-    val viewModel: DashboardViewModel = hiltViewModel()
+    val viewModel: DashboardViewModel = viewModel()
     val analysis by viewModel.analysis.collectAsStateWithLifecycle()
     val isAnalyzing by viewModel.isAnalyzing.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val metrics by viewModel.metrics.collectAsStateWithLifecycle()
+
+    val hasData = metrics.fillCount > 0
+
+    val consumption = if (hasData) metrics.avgConsumption else 0f
+    val efficiency = if (hasData) metrics.efficiency else 0
+    val rubPerKm = if (hasData) metrics.rubPerKm else 0f
+    val spark = if (metrics.sparklineData.isNotEmpty()) {
+        metrics.sparklineData
+    } else {
+        listOf(0f)
+    }
 
     Column(
         modifier = modifier
@@ -64,7 +75,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // ---------- topbar ----------
+        // ---------- topbar: заголовок + чип авто ----------
         Row(verticalAlignment = Alignment.CenterVertically) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
@@ -92,90 +103,89 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                     horizontalArrangement = Arrangement.spacedBy(7.dp),
                 ) {
                     Box(Modifier.size(7.dp).background(FueldeckColors.Amber, CircleShape))
-                    Text(
-                        if (metrics.hasData) "${metrics.fillCount} заправок"
-                        else "нет данных",
-                        fontSize = 13.sp, color = FueldeckColors.Ink
-                    )
+                    Text("Пенс", fontSize = 13.sp, color = FueldeckColors.Ink)
                 }
             }
         }
 
-        // ---------- приборы: расход + эффективность + руб/км ----------
-        Row(
-            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Panel(modifier = Modifier.weight(1.15f)) {
-                ConsumptionGauge(
-                    value = if (metrics.hasData) metrics.consumption else 0f
+        if (!hasData) {
+            // ---------- пустое состояние ----------
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .border(1.dp, FueldeckColors.Line2, FueldeckShapes.Md)
+                    .padding(32.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "Добавьте заправки, чтобы увидеть телеметрию.",
+                    fontSize = 14.sp,
+                    color = FueldeckColors.InkDim,
+                    textAlign = TextAlign.Center,
                 )
             }
-            Column(
-                modifier = Modifier.weight(0.85f),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+        } else {
+            // ---------- приборы: расход + эффективность + руб/км ----------
+            Row(
+                modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Panel(modifier = Modifier.weight(1f)) {
-                    Text("эффективность", fontSize = 11.sp, color = FueldeckColors.InkFaint,
-                        letterSpacing = 1.2.sp, textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth())
-                    Spacer(Modifier.height(6.dp))
-                    MiniRing(value = metrics.efficiency)
+                Panel(modifier = Modifier.weight(1.15f)) {
+                    ConsumptionGauge(value = consumption)
                 }
-                Panel(modifier = Modifier.weight(1f)) {
-                    Text("расход руб/км", fontSize = 11.sp, color = FueldeckColors.InkFaint,
-                        letterSpacing = 1.2.sp)
-                    Spacer(Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            if (metrics.hasData) String.format("%.2f", metrics.rubPerKm) else "—",
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 19.sp,
-                            color = FueldeckColors.Ink,
-                        )
-                        Text(" руб", fontSize = 11.sp, color = FueldeckColors.InkFaint)
+                Column(
+                    modifier = Modifier.weight(0.85f),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    Panel(modifier = Modifier.weight(1f)) {
+                        Text("эффективность", fontSize = 11.sp, color = FueldeckColors.InkFaint,
+                            letterSpacing = 1.2.sp, textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth())
+                        Spacer(Modifier.height(6.dp))
+                        MiniRing(value = efficiency)
+                    }
+                    Panel(modifier = Modifier.weight(1f)) {
+                        Text("расход руб/км", fontSize = 11.sp, color = FueldeckColors.InkFaint,
+                            letterSpacing = 1.2.sp)
+                        Spacer(Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                String.format("%.2f", rubPerKm),
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 19.sp,
+                                color = FueldeckColors.Ink,
+                            )
+                            Text(" руб", fontSize = 11.sp, color = FueldeckColors.InkFaint)
+                        }
                     }
                 }
             }
-        }
 
-        // ---------- спарклайн ----------
-        Panel(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("расход по заправкам", fontSize = 11.sp, color = FueldeckColors.InkFaint,
-                    letterSpacing = 1.2.sp)
-                Text("${metrics.sparkline.size} значений", fontSize = 11.sp, color = FueldeckColors.InkDim)
-            }
-            Spacer(Modifier.height(10.dp))
-            if (metrics.sparkline.isNotEmpty()) {
-                Sparkline(data = metrics.sparkline)
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text("мин ${String.format("%.1f", metrics.sparkline.min())}",
-                        fontSize = 11.5.sp, color = FueldeckColors.InkFaint)
-                    Text("средн ${String.format("%.1f", metrics.sparkline.average().toFloat())}",
-                        fontSize = 11.5.sp, color = FueldeckColors.InkFaint)
-                    Text("макс ${String.format("%.1f", metrics.sparkline.max())}",
-                        fontSize = 11.5.sp, color = FueldeckColors.InkFaint)
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(60.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text("Добавьте 2+ заправок для расчёта расхода",
-                        fontSize = 13.sp, color = FueldeckColors.InkDim,
-                        textAlign = TextAlign.Center)
+            // ---------- спарклайн расхода ----------
+            if (spark.size >= 2) {
+                Panel(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("расход л/100км", fontSize = 11.sp, color = FueldeckColors.InkFaint,
+                            letterSpacing = 1.2.sp)
+                        Text("${metrics.fillCount} заправок", fontSize = 11.sp, color = FueldeckColors.InkDim)
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Sparkline(data = spark)
+                    Spacer(Modifier.height(8.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text("мин ${String.format("%.1f", spark.min())}", fontSize = 11.5.sp, color = FueldeckColors.InkFaint)
+                        Text("средн ${String.format("%.1f", spark.average())}",
+                            fontSize = 11.5.sp, color = FueldeckColors.InkFaint)
+                        Text("макс ${String.format("%.1f", spark.max())}", fontSize = 11.5.sp, color = FueldeckColors.InkFaint)
+                    }
                 }
             }
         }
@@ -190,7 +200,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    "Нажмите ниже — проанализирую последние заправки и стиль вождения за месяц.",
+                    "Нажмите ниже - проанализирую последние заправки и стиль вождения за месяц.",
                     fontSize = 13.5.sp,
                     color = FueldeckColors.InkDim,
                     textAlign = TextAlign.Center,
@@ -226,7 +236,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
             Text(it, color = FueldeckColors.Coral, fontSize = 13.sp)
         }
 
-        // ---------- кнопка анализа ----------
+        // ---------- янтарная кнопка анализа ----------
         Button(
             onClick = { viewModel.askAi() },
             enabled = !isAnalyzing,
@@ -253,6 +263,8 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
         }
     }
 }
+
+// ---------- локальные строительные блоки ----------
 
 @Composable
 private fun Panel(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
