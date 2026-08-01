@@ -3,8 +3,9 @@ package com.navrot.aifuelassistant.data
 import com.navrot.aifuelassistant.data.database.dao.FuelRecordDao
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
 
-class FuelRecordRepositoryImpl(
+class FuelRecordRepositoryImpl @Inject constructor(
     private val dao: FuelRecordDao
 ) : FuelRecordRepository {
 

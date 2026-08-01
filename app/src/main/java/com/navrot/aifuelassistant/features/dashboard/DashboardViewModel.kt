@@ -2,32 +2,27 @@ package com.navrot.aifuelassistant.features.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.navrot.aifuelassistant.FuelApplication
-import com.navrot.aifuelassistant.ai.AiRouterFactory
 import com.navrot.aifuelassistant.ai.FuelAnalysisPromptBuilder
-import com.navrot.aifuelassistant.data.FuelRecordRepositoryImpl
-import com.navrot.aifuelassistant.data.VehicleRepositoryImpl
+import com.navrot.aifuelassistant.ai.router.AiRouter
+import com.navrot.aifuelassistant.data.FuelRecordRepository
+import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.domain.fuel.DemoFuelStations
 import com.navrot.aifuelassistant.domain.fuel.FuelDispatcher
 import com.navrot.aifuelassistant.domain.fuel.FuelStation
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class DashboardViewModel : ViewModel() {
-
-    // Репозитории
-    private val fuelRecordRepository = FuelRecordRepositoryImpl(
-        FuelApplication.instance.database.fuelRecordDao()
-    )
-
-    private val vehicleRepository = VehicleRepositoryImpl(
-        FuelApplication.instance.database.vehicleDao()
-    )
-
-    private val aiRouter = AiRouterFactory.create()
+@HiltViewModel
+class DashboardViewModel @Inject constructor(
+    private val fuelRecordRepository: FuelRecordRepository,
+    private val vehicleRepository: VehicleRepository,
+    private val aiRouter: AiRouter
+) : ViewModel() {
 
     // =========================
     // FUEL DISPATCHER (выбор топлива и АЗС)

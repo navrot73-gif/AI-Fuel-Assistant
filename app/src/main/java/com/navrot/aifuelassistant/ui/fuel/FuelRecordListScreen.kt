@@ -13,9 +13,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -25,11 +27,9 @@ fun FuelRecordListScreen(
     onBack: () -> Unit,
     onAddClick: () -> Unit,
     onMapClick: () -> Unit = {},
-    viewModel: FuelRecordViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        factory = FuelRecordViewModelFactory(vehicleId)
-    )
+    viewModel: FuelRecordViewModel = hiltViewModel()
 ) {
-    val records by viewModel.records.collectAsState()
+    val records by viewModel.records.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -41,7 +41,6 @@ fun FuelRecordListScreen(
                     }
                 },
                 actions = {
-                    // Кнопка "Карта" в TopAppBar
                     IconButton(onClick = onMapClick) {
                         Icon(Icons.Default.LocationOn, contentDescription = "Карта")
                     }
@@ -123,10 +122,9 @@ fun FuelRecordCard(
                         style = MaterialTheme.typography.bodySmall
                     )
                 }
-                // Показываем иконку GPS, если есть координаты
                 if (record.latitude != null && record.longitude != null) {
                     Text(
-                        text = "📍 GPS",
+                        text = "GPS",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.primary
                     )

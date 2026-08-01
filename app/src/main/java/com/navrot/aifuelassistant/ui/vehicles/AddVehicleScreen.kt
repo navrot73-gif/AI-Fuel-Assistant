@@ -28,10 +28,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.navrot.aifuelassistant.FuelApplication
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.navrot.aifuelassistant.data.VehicleCatalog
-import com.navrot.aifuelassistant.data.VehicleRepositoryImpl
 
 private val YEARS: List<String> = (2026 downTo 1990).map { it.toString() }
 
@@ -39,14 +37,9 @@ private val YEARS: List<String> = (2026 downTo 1990).map { it.toString() }
 @Composable
 fun AddVehicleScreen(
     onNavigateBack: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: VehicleViewModel = hiltViewModel()
 ) {
-    val viewModel: VehicleViewModel = viewModel(
-        factory = VehicleViewModelFactory(
-            repository = VehicleRepositoryImpl(FuelApplication.instance.database.vehicleDao())
-        )
-    )
-
     var name by remember { mutableStateOf("") }
     var brand by remember { mutableStateOf("") }
     var model by remember { mutableStateOf("") }

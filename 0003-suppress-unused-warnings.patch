@@ -1,0 +1,33 @@
+From 59aa0533e2ee18c91734de0d2fc58ae732dfae6e Mon Sep 17 00:00:00 2001
+From: Claude <noreply@anthropic.com>
+Date: Sat, 1 Aug 2026 14:26:02 +0000
+Subject: [PATCH] chore: suppress unused-code warnings in FuelStation.kt
+
+Amenities/PaymentMethod enums, ratings, and several helper methods on
+FuelStation aren't wired into the UI yet (only price/status/wait-time are
+used by FuelDispatcher today). This is an intentional MVP domain-model
+surface for planned features (station detail card, map filters), not dead
+code from a refactor -- so suppress rather than delete, to avoid losing the
+scoped-out functionality and to keep IDE inspection signal focused on real
+issues elsewhere in the project.
+---
+ .../com/navrot/aifuelassistant/domain/fuel/FuelStation.kt   | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/app/src/main/java/com/navrot/aifuelassistant/domain/fuel/FuelStation.kt b/app/src/main/java/com/navrot/aifuelassistant/domain/fuel/FuelStation.kt
+index d31ab1b..bb54e79 100644
+--- a/app/src/main/java/com/navrot/aifuelassistant/domain/fuel/FuelStation.kt
++++ b/app/src/main/java/com/navrot/aifuelassistant/domain/fuel/FuelStation.kt
+@@ -1,3 +1,9 @@
++// Часть этой модели (amenities, способы оплаты, ряд методов) пока не подключена
++// к UI — это осознанно оставленный задел на будущее (карточка АЗС, фильтры на карте),
++// а не мёртвый код после рефакторинга. Подавляем лишний шум от IDE-инспекции "unused",
++// чтобы не терять сигнал по реальным проблемам в остальном проекте.
++@file:Suppress("unused")
++
+ package com.navrot.aifuelassistant.domain.fuel
+ 
+ import java.time.Instant
+-- 
+2.43.0
+

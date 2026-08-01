@@ -20,6 +20,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
@@ -34,9 +35,7 @@ fun AddFuelRecordScreen(
     vehicleId: Long,
     defaultFuelType: String,
     onBack: () -> Unit,
-    viewModel: FuelRecordViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
-        factory = FuelRecordViewModelFactory(vehicleId)
-    )
+    viewModel: FuelRecordViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
 
@@ -67,18 +66,18 @@ fun AddFuelRecordScreen(
                 getLocation(context) { loc ->
                     latitude = loc.latitude
                     longitude = loc.longitude
-                    gpsStatus = "📍 GPS: ${String.format("%.5f", latitude)}, ${String.format("%.5f", longitude)}"
+                    gpsStatus = "GPS: ${String.format("%.5f", latitude)}, ${String.format("%.5f", longitude)}"
                 }
             }
             permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false) -> {
                 getLocation(context) { loc ->
                     latitude = loc.latitude
                     longitude = loc.longitude
-                    gpsStatus = "📍 GPS (приблизительно): ${String.format("%.5f", latitude)}, ${String.format("%.5f", longitude)}"
+                    gpsStatus = "GPS (приблизительно): ${String.format("%.5f", latitude)}, ${String.format("%.5f", longitude)}"
                 }
             }
             else -> {
-                gpsStatus = "❌ Разрешение на геолокацию отклонено"
+                gpsStatus = "Разрешение на геолокацию отклонено"
             }
         }
     }
@@ -122,7 +121,7 @@ fun AddFuelRecordScreen(
             OutlinedTextField(
                 value = pricePerLiter,
                 onValueChange = { pricePerLiter = it },
-                label = { Text("Цена за литр (₽)") },
+                label = { Text("Цена за литр (руб)") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -131,7 +130,7 @@ fun AddFuelRecordScreen(
                 value = String.format("%.2f", totalCost),
                 onValueChange = {},
                 readOnly = true,
-                label = { Text("Итого (₽)") },
+                label = { Text("Итого (руб)") },
                 modifier = Modifier.fillMaxWidth()
             )
 
@@ -183,14 +182,14 @@ fun AddFuelRecordScreen(
                             getLocation(context) { loc ->
                                 latitude = loc.latitude
                                 longitude = loc.longitude
-                                gpsStatus = "📍 GPS: ${String.format("%.5f", latitude)}, ${String.format("%.5f", longitude)}"
+                                gpsStatus = "GPS: ${String.format("%.5f", latitude)}, ${String.format("%.5f", longitude)}"
                             }
                         }
                         context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED -> {
                             getLocation(context) { loc ->
                                 latitude = loc.latitude
                                 longitude = loc.longitude
-                                gpsStatus = "📍 GPS (приблизительно): ${String.format("%.5f", latitude)}, ${String.format("%.5f", longitude)}"
+                                gpsStatus = "GPS (приблизительно): ${String.format("%.5f", latitude)}, ${String.format("%.5f", longitude)}"
                             }
                         }
                         else -> {

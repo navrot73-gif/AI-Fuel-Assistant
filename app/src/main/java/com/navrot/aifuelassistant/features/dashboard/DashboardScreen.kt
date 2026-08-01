@@ -1,5 +1,5 @@
 package com.navrot.aifuelassistant.features.dashboard
-
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -42,7 +42,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.lifecycle.viewmodel.compose.viewModel
 import com.navrot.aifuelassistant.ui.components.ConsumptionGauge
 import com.navrot.aifuelassistant.ui.components.Sparkline
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
@@ -50,7 +49,7 @@ import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
 
 @Composable
 fun DashboardScreen(modifier: Modifier = Modifier) {
-    val viewModel: DashboardViewModel = viewModel()
+    val viewModel: DashboardViewModel = hiltViewModel()
     val analysis by viewModel.analysis.collectAsStateWithLifecycle()
     val isAnalyzing by viewModel.isAnalyzing.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()

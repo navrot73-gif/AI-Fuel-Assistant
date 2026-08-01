@@ -4,16 +4,18 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class VehicleViewModel(
+@HiltViewModel
+class VehicleViewModel @Inject constructor(
     private val repository: VehicleRepository
 ) : ViewModel() {
 
-    // Стрим данных из БД преобразуем в StateFlow для Jetpack Compose
     val vehiclesState: StateFlow<List<VehicleEntity>> = repository.getAllVehicles()
         .stateIn(
             scope = viewModelScope,
@@ -21,7 +23,6 @@ class VehicleViewModel(
             initialValue = emptyList()
         )
 
-    // Добавление автомобиля с вызовом корректного метода репозитория
     fun addVehicle(
         name: String,
         brand: String,
@@ -45,7 +46,6 @@ class VehicleViewModel(
         }
     }
 
-    // Удаление автомобиля с вызовом корректного метода репозитория
     fun deleteVehicle(vehicle: VehicleEntity) {
         viewModelScope.launch {
             repository.deleteVehicle(vehicle)

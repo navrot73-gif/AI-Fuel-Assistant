@@ -3,8 +3,9 @@ package com.navrot.aifuelassistant.data
 import com.navrot.aifuelassistant.data.database.dao.VehicleDao
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import kotlinx.coroutines.flow.Flow
+import javax.inject.Inject
 
-class VehicleRepositoryImpl(
+class VehicleRepositoryImpl @Inject constructor(
     private val dao: VehicleDao
 ) : VehicleRepository {
 

@@ -1,18 +1,26 @@
 package com.navrot.aifuelassistant.ui.fuel
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.navrot.aifuelassistant.data.FuelRecordRepository
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class FuelRecordViewModel(
-    private val vehicleId: Long,
+@HiltViewModel
+class FuelRecordViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val repository: FuelRecordRepository
 ) : ViewModel() {
+
+    private val vehicleId: Long = checkNotNull(savedStateHandle["vehicleId"]) {
+        "vehicleId is required as a navigation argument"
+    }
 
     val records: StateFlow<List<FuelRecordEntity>> =
         repository.getByVehicleId(vehicleId)

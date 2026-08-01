@@ -1,18 +1,21 @@
 package com.navrot.aifuelassistant
 
 import android.app.Application
-import com.navrot.aifuelassistant.data.database.AppDatabase
+import dagger.hilt.android.HiltAndroidApp
 
+@HiltAndroidApp
 class FuelApplication : Application() {
 
     // Единый экземпляр базы данных для всего приложения.
-    lateinit var database: AppDatabase
+    // Сейчас используется в AppDatabase.getInstance() — Hilt его не трогает.
+    // Оставляем поле для обратной совместимости, но ViewModel'ы получают DAO через Hilt.
+    lateinit var database: com.navrot.aifuelassistant.data.database.AppDatabase
         private set
 
     override fun onCreate() {
         super.onCreate()
         instance = this
-        database = AppDatabase.getInstance(this)
+        database = com.navrot.aifuelassistant.data.database.AppDatabase.getInstance(this)
     }
 
     companion object {

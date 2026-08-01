@@ -19,15 +19,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.navrot.aifuelassistant.FuelApplication
-import com.navrot.aifuelassistant.data.VehicleRepositoryImpl
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.ui.components.VehicleCard
 import com.navrot.aifuelassistant.ui.components.VehicleCardUiState
@@ -38,14 +36,10 @@ import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 fun VehicleListScreen(
     onAddClick: () -> Unit,
     onVehicleClick: (Long, String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    viewModel: VehicleViewModel = hiltViewModel()
 ) {
-    val viewModel: VehicleViewModel = viewModel(
-        factory = VehicleViewModelFactory(
-            repository = VehicleRepositoryImpl(FuelApplication.instance.database.vehicleDao())
-        )
-    )
-    val vehicles by viewModel.vehiclesState.collectAsState()
+    val vehicles by viewModel.vehiclesState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Мои автомобили") }) },
@@ -70,8 +64,6 @@ fun VehicleListScreen(
         } else {
             LazyColumn(
                 modifier = modifier.padding(padding).fillMaxSize().background(FueldeckColors.Bg1),
-                // bottom = 96.dp даёт запас под янтарный FAB, чтобы он не
-                // перекрывал последнюю карточку («последняя заправка»).
                 contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
@@ -88,8 +80,6 @@ fun VehicleListScreen(
     }
 }
 
-/** Реальные данные авто — из VehicleEntity. Телеметрия расхода (помечена TODO)
- *  подключится из FuelRecordEntity следующим шагом. */
 private fun VehicleEntity.toUiState(): VehicleCardUiState {
     val modelLine = listOf(brand, model)
         .filter { it.isNotBlank() }
@@ -102,18 +92,16 @@ private fun VehicleEntity.toUiState(): VehicleCardUiState {
         fuelGrade = fuelType.ifBlank { "—" },
         tankLiters = tankCapacity.toInt(),
         mileageText = String.format("%.1f", currentMileage / 1000.0),
-
-        // --- телеметрия расхода: подключим из FuelRecordEntity ---
-        fillPercent = 0,            // TODO: уровень бака по последней заправке
-        rangeKm = 0,                // TODO: запас хода (fillPercent × средний расход)
-        consumptionText = "—",      // TODO: средний расход л/100км
-        fillCount = 0,              // TODO: число заправок (count по vehicleId)
-        bars = emptyList(),         // TODO: расход по последним заправкам
-        toKmLeft = 0,               // TODO: пробег до ТО
-        toPercent = 0,              // TODO: прогресс до ТО
-        lastFillDate = "—",         // TODO: дата последней заправки
-        lastFillLiters = "—",       // TODO: литры последней заправки
-        lastFillBrand = "—",        // TODO: сеть последней заправки
-        lastFillPrice = "—",        // TODO: сумма последней заправки
+        fillPercent = 0,
+        rangeKm = 0,
+        consumptionText = "—",
+        fillCount = 0,
+        bars = emptyList(),
+        toKmLeft = 0,
+        toPercent = 0,
+        lastFillDate = "—",
+        lastFillLiters = "—",
+        lastFillBrand = "—",
+        lastFillPrice = "—",
     )
 }

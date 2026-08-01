@@ -1,5 +1,6 @@
 package com.navrot.aifuelassistant.ui
 
+import android.net.Uri
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -27,7 +28,6 @@ import com.navrot.aifuelassistant.ui.map.MapScreen
 import com.navrot.aifuelassistant.ui.vehicles.AddVehicleScreen
 import com.navrot.aifuelassistant.ui.vehicles.VehicleListScreen
 
-// Три корневых таба оболочки
 private data class Tab(val route: String, val glyph: String, val title: String)
 
 private val TABS = listOf(
@@ -69,7 +69,6 @@ fun AppNavigation() {
                                 Text(
                                     text = tab.glyph,
                                     fontSize = 22.sp,
-                                    // лёгкий «подъём» активной вкладки
                                     letterSpacing = 0.sp
                                 )
                             },
@@ -101,7 +100,8 @@ fun AppNavigation() {
                 VehicleListScreen(
                     onAddClick = { navController.navigate("add_vehicle") },
                     onVehicleClick = { vehicleId, vehicleName ->
-                        navController.navigate("fuel_records/$vehicleId/$vehicleName")
+                        val encoded = Uri.encode(vehicleName)
+                        navController.navigate("fuel_records/$vehicleId/$encoded")
                     }
                 )
             }
@@ -118,12 +118,15 @@ fun AppNavigation() {
                 )
             ) { entry ->
                 val vehicleId = entry.arguments?.getLong("vehicleId") ?: 0L
-                val vehicleName = entry.arguments?.getString("vehicleName") ?: ""
+                val vehicleName = Uri.decode(entry.arguments?.getString("vehicleName") ?: "")
                 FuelRecordListScreen(
                     vehicleId = vehicleId,
                     vehicleName = vehicleName,
                     onBack = { navController.popBackStack() },
-                    onAddClick = { navController.navigate("add_fuel_record/$vehicleId/$vehicleName") }
+                    onAddClick = {
+                        val encoded = Uri.encode(vehicleName)
+                        navController.navigate("add_fuel_record/$vehicleId/$encoded")
+                    }
                 )
             }
 
