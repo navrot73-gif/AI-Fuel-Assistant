@@ -46,6 +46,7 @@ import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
 
 data class VehicleCardUiState(
+    val id: Long = 0L,
     val name: String,
     val modelLine: String,
     val fuelGrade: String,
@@ -381,9 +382,10 @@ private fun VehicleCardPreview() {
     Box(Modifier.background(FueldeckColors.Bg1).padding(20.dp)) {
         VehicleCard(
             state = VehicleCardUiState(
+                id = 1L,
                 name = "Пенс",
-                modelLine = "Datsun ON‑DO · 2015",
-                fuelGrade = "АИ‑92",
+                modelLine = "Datsun ON-DO · 2015",
+                fuelGrade = "АИ-92",
                 tankLiters = 50, fillPercent = 64, rangeKm = 320,
                 mileageText = "142.3", consumptionText = "7.4", fillCount = 38,
                 bars = listOf(7.9f, 7.2f, 8.1f, 7.4f, 6.9f, 7.6f, 7.4f),

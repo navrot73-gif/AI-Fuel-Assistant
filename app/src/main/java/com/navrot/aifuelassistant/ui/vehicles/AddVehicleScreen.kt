@@ -47,8 +47,19 @@ fun AddVehicleScreen(
     var fuelType by remember { mutableStateOf(VehicleCatalog.fuelTypes.first()) }
     var tankCapacity by remember { mutableStateOf("") }
     var currentMileage by remember { mutableStateOf("") }
+    var attemptedSave by remember { mutableStateOf(false) }
 
     val modelOptions = if (brand.isBlank()) emptyList() else VehicleCatalog.getModels(brand)
+
+    // Валидация
+    val nameError = attemptedSave && name.isBlank()
+    val brandError = attemptedSave && brand.isBlank()
+    val yearError = attemptedSave && year.isBlank()
+    val tankError = attemptedSave && (tankCapacity.isBlank() || (tankCapacity.toDoubleOrNull() ?: 0.0) <= 0)
+    val mileageError = attemptedSave && (currentMileage.isBlank() || (currentMileage.toDoubleOrNull() ?: 0.0) < 0)
+    val isFormValid = name.isNotBlank() && brand.isNotBlank() && year.isNotBlank()
+            && (tankCapacity.toDoubleOrNull() ?: 0.0) > 0
+            && (currentMileage.toDoubleOrNull() ?: 0.0) >= 0
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Добавить автомобиль") }) }
@@ -61,22 +72,23 @@ fun AddVehicleScreen(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            TextField(
+            OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
                 label = { Text("Название") },
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                isError = nameError,
+                supportingText = if (nameError) {{ Text("Укажите название") }} else null
             )
 
             EditableDropdownField(
                 label = "Марка",
                 value = brand,
                 options = VehicleCatalog.brands,
-                onValueChange = {
-                    brand = it
-                    model = ""
-                }
+                onValueChange = { brand = it; model = "" },
+                isError = brandError,
+                errorText = "Выберите марку"
             )
 
             EditableDropdownField(
@@ -90,7 +102,9 @@ fun AddVehicleScreen(
                 label = "Год выпуска",
                 value = year,
                 options = YEARS,
-                onValueChange = { year = it }
+                onValueChange = { year = it },
+                isError = yearError,
+                errorText = "Выберите год"
             )
 
             EditableDropdownField(
@@ -100,39 +114,47 @@ fun AddVehicleScreen(
                 onValueChange = { fuelType = it }
             )
 
-            TextField(
+            OutlinedTextField(
                 value = tankCapacity,
                 onValueChange = { tankCapacity = it },
                 label = { Text("Объём бака (л)") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                isError = tankError,
+                supportingText = if (tankError) {{ Text("Укажите объём больше 0") }} else null
             )
 
-            TextField(
+            OutlinedTextField(
                 value = currentMileage,
                 onValueChange = { currentMileage = it },
                 label = { Text("Пробег (км)") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                isError = mileageError,
+                supportingText = if (mileageError) {{ Text("Укажите корректный пробег") }} else null
             )
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Button(
                 modifier = Modifier.fillMaxWidth(),
+                enabled = !attemptedSave || isFormValid,
                 onClick = {
-                    viewModel.addVehicle(
-                        name = name,
-                        brand = brand,
-                        model = model,
-                        year = year.toIntOrNull() ?: 2026,
-                        fuelType = fuelType.ifBlank { VehicleCatalog.fuelTypes.first() },
-                        tankCapacity = tankCapacity.toDoubleOrNull() ?: 50.0,
-                        currentMileage = currentMileage.toDoubleOrNull() ?: 0.0
-                    )
-                    onNavigateBack()
+                    attemptedSave = true
+                    if (isFormValid) {
+                        viewModel.addVehicle(
+                            name = name,
+                            brand = brand,
+                            model = model,
+                            year = year.toIntOrNull() ?: 2026,
+                            fuelType = fuelType.ifBlank { VehicleCatalog.fuelTypes.first() },
+                            tankCapacity = tankCapacity.toDoubleOrNull() ?: 50.0,
+                            currentMileage = currentMileage.toDoubleOrNull() ?: 0.0
+                        )
+                        onNavigateBack()
+                    }
                 }
             ) {
                 Text("Сохранить")
@@ -147,7 +169,9 @@ private fun EditableDropdownField(
     label: String,
     value: String,
     options: List<String>,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    isError: Boolean = false,
+    errorText: String = ""
 ) {
     var expanded by remember { mutableStateOf(false) }
     val filtered = remember(value, options) {
@@ -167,6 +191,8 @@ private fun EditableDropdownField(
             label = { Text(label) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             singleLine = true,
+            isError = isError,
+            supportingText = if (isError) {{ Text(errorText) }} else null,
             modifier = Modifier.fillMaxWidth().menuAnchor()
         )
         ExposedDropdownMenu(
@@ -192,7 +218,9 @@ private fun ReadOnlyDropdownField(
     label: String,
     value: String,
     options: List<String>,
-    onValueChange: (String) -> Unit
+    onValueChange: (String) -> Unit,
+    isError: Boolean = false,
+    errorText: String = ""
 ) {
     var expanded by remember { mutableStateOf(false) }
     ExposedDropdownMenuBox(
@@ -206,6 +234,8 @@ private fun ReadOnlyDropdownField(
             label = { Text(label) },
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
             singleLine = true,
+            isError = isError,
+            supportingText = if (isError) {{ Text(errorText) }} else null,
             modifier = Modifier.fillMaxWidth().menuAnchor()
         )
         ExposedDropdownMenu(

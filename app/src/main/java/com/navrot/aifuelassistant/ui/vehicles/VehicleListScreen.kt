@@ -1,5 +1,5 @@
 package com.navrot.aifuelassistant.ui.vehicles
-
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -26,9 +26,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.navrot.aifuelassistant.ui.components.VehicleCard
-import com.navrot.aifuelassistant.ui.components.VehicleCardUiState
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -39,7 +38,7 @@ fun VehicleListScreen(
     modifier: Modifier = Modifier,
     viewModel: VehicleViewModel = hiltViewModel()
 ) {
-    val vehicles by viewModel.vehiclesState.collectAsStateWithLifecycle()
+    val vehicles by viewModel.vehiclesWithStats.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = { TopAppBar(title = { Text("Мои автомобили") }) },
@@ -67,9 +66,9 @@ fun VehicleListScreen(
                 contentPadding = PaddingValues(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 96.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                items(vehicles) { vehicle ->
+                items(vehicles, key = { it.id }) { vehicle ->
                     VehicleCard(
-                        state = vehicle.toUiState(),
+                        state = vehicle,
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable { onVehicleClick(vehicle.id, vehicle.name) },
@@ -78,30 +77,4 @@ fun VehicleListScreen(
             }
         }
     }
-}
-
-private fun VehicleEntity.toUiState(): VehicleCardUiState {
-    val modelLine = listOf(brand, model)
-        .filter { it.isNotBlank() }
-        .joinToString(" ")
-        .let { if (it.isBlank()) "—" else "$it · $year" }
-
-    return VehicleCardUiState(
-        name = name.ifBlank { "Без названия" },
-        modelLine = modelLine,
-        fuelGrade = fuelType.ifBlank { "—" },
-        tankLiters = tankCapacity.toInt(),
-        mileageText = String.format("%.1f", currentMileage / 1000.0),
-        fillPercent = 0,
-        rangeKm = 0,
-        consumptionText = "—",
-        fillCount = 0,
-        bars = emptyList(),
-        toKmLeft = 0,
-        toPercent = 0,
-        lastFillDate = "—",
-        lastFillLiters = "—",
-        lastFillBrand = "—",
-        lastFillPrice = "—",
-    )
 }

@@ -17,6 +17,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -51,12 +53,22 @@ fun AddFuelRecordScreen(
     var gpsStatus by remember { mutableStateOf("Нажмите для определения местоположения") }
 
     var fuelTypeExpanded by remember { mutableStateOf(false) }
+    var attemptedSave by remember { mutableStateOf(false) }
 
     val totalCost = remember(fuelAmount, pricePerLiter) {
         val amount = fuelAmount.toDoubleOrNull() ?: 0.0
         val price = pricePerLiter.toDoubleOrNull() ?: 0.0
         amount * price
     }
+
+    // Валидация
+    val mileageError = attemptedSave && (mileage.isBlank() || (mileage.toDoubleOrNull() ?: 0.0) <= 0)
+    val fuelAmountError = attemptedSave && (fuelAmount.isBlank() || (fuelAmount.toDoubleOrNull() ?: 0.0) <= 0)
+    val priceError = attemptedSave && (pricePerLiter.isBlank() || (pricePerLiter.toDoubleOrNull() ?: 0.0) <= 0)
+    val isFormValid = mileage.isNotBlank() && fuelAmount.isNotBlank() && pricePerLiter.isNotBlank()
+            && (mileage.toDoubleOrNull() ?: 0.0) > 0
+            && (fuelAmount.toDoubleOrNull() ?: 0.0) > 0
+            && (pricePerLiter.toDoubleOrNull() ?: 0.0) > 0
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -107,7 +119,9 @@ fun AddFuelRecordScreen(
                 onValueChange = { mileage = it },
                 label = { Text("Пробег (км)") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                isError = mileageError,
+                supportingText = if (mileageError) {{ Text("Укажите пробег больше 0") }} else null
             )
 
             OutlinedTextField(
@@ -115,7 +129,9 @@ fun AddFuelRecordScreen(
                 onValueChange = { fuelAmount = it },
                 label = { Text("Количество литров") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                isError = fuelAmountError,
+                supportingText = if (fuelAmountError) {{ Text("Укажите количество больше 0") }} else null
             )
 
             OutlinedTextField(
@@ -123,7 +139,9 @@ fun AddFuelRecordScreen(
                 onValueChange = { pricePerLiter = it },
                 label = { Text("Цена за литр (руб)") },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                isError = priceError,
+                supportingText = if (priceError) {{ Text("Укажите цену больше 0") }} else null
             )
 
             OutlinedTextField(
@@ -215,10 +233,7 @@ fun AddFuelRecordScreen(
                         tint = if (latitude != null) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = gpsStatus,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                    Text(text = gpsStatus, style = MaterialTheme.typography.bodyMedium)
                 }
             }
 
@@ -235,7 +250,8 @@ fun AddFuelRecordScreen(
 
             Button(
                 onClick = {
-                    if (mileage.isNotBlank() && fuelAmount.isNotBlank() && pricePerLiter.isNotBlank()) {
+                    attemptedSave = true
+                    if (isFormValid) {
                         viewModel.addRecord(
                             FuelRecordEntity(
                                 vehicleId = vehicleId,
@@ -255,7 +271,7 @@ fun AddFuelRecordScreen(
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = mileage.isNotBlank() && fuelAmount.isNotBlank() && pricePerLiter.isNotBlank()
+                enabled = !attemptedSave || isFormValid
             ) {
                 Text("Сохранить")
             }
@@ -265,22 +281,16 @@ fun AddFuelRecordScreen(
 
 private fun getLocation(context: android.content.Context, onLocation: (Location) -> Unit) {
     val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
-
     try {
         fusedLocationClient.lastLocation
             .addOnSuccessListener { location: Location? ->
-                if (location != null) {
-                    onLocation(location)
-                } else {
-                    requestCurrentLocation(context, fusedLocationClient, onLocation)
-                }
+                if (location != null) onLocation(location)
+                else requestCurrentLocation(context, fusedLocationClient, onLocation)
             }
             .addOnFailureListener {
                 requestCurrentLocation(context, fusedLocationClient, onLocation)
             }
-    } catch (e: SecurityException) {
-        // Разрешение не предоставлено
-    }
+    } catch (e: SecurityException) { }
 }
 
 private fun requestCurrentLocation(
@@ -289,24 +299,13 @@ private fun requestCurrentLocation(
     onLocation: (Location) -> Unit
 ) {
     try {
-        val locationRequest = LocationRequest.Builder(
-            Priority.PRIORITY_HIGH_ACCURACY,
-            10000L
-        ).build()
-
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000L).build()
         val locationCallback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
                 result.lastLocation?.let { onLocation(it) }
                 fusedLocationClient.removeLocationUpdates(this)
             }
         }
-
-        fusedLocationClient.requestLocationUpdates(
-            locationRequest,
-            locationCallback,
-            Looper.getMainLooper()
-        )
-    } catch (e: SecurityException) {
-        // Разрешение не предоставлено
-    }
+        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
+    } catch (e: SecurityException) { }
 }
