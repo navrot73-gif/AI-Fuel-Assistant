@@ -7,10 +7,16 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -29,8 +35,14 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -40,6 +52,7 @@ import com.google.android.gms.location.LocationServices
 import com.navrot.aifuelassistant.data.GasStationData
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.ui.fuel.MapViewModel
+import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
@@ -425,7 +438,7 @@ fun MapScreen(
     }
 }
 
-// ===== ФИЛЬТРЫ ТОПЛИВА =====
+// ===== ФИЛЬТРЫ ТОПЛИВА (единый янтарь вместо синего хардкода по маркам) =====
 @Composable
 fun MultiFuelTypeFilter(
     fuelTypes: List<String>,
@@ -441,31 +454,16 @@ fun MultiFuelTypeFilter(
     ) {
         fuelTypes.forEach { type ->
             val isSelected = selectedFuelTypes.contains(type)
-            val backgroundColor = if (isSelected) {
-                when (type) {
-                    "АИ-92" -> Color(0xFF4CAF50)
-                    "АИ-95" -> Color(0xFF2196F3)
-                    "АИ-98" -> Color(0xFF9C27B0)
-                    "АИ-100" -> Color(0xFFFF9800)
-                    "ДТ" -> Color(0xFF795548)
-                    "Газ" -> Color(0xFF00BCD4)
-                    else -> MaterialTheme.colorScheme.primary
-                }
-            } else {
-                MaterialTheme.colorScheme.surfaceVariant
-            }
-
-            val textColor = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurfaceVariant
-
             Surface(
                 shape = RoundedCornerShape(20.dp),
-                color = backgroundColor,
+                color = if (isSelected) FueldeckColors.Amber else FueldeckColors.Surface,
+                border = if (isSelected) null else BorderStroke(1.dp, FueldeckColors.Line),
                 modifier = Modifier.clickable { onFuelTypeToggled(type) }
             ) {
                 Text(
                     text = type,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    color = textColor,
+                    color = if (isSelected) Color(0xFF1A1205) else FueldeckColors.InkDim,
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
                     fontSize = 13.sp
                 )
@@ -474,7 +472,7 @@ fun MultiFuelTypeFilter(
     }
 }
 
-// ===== ПАНЕЛЬ СОРТИРОВКИ =====
+// ===== ПАНЕЛЬ СОРТИРОВКИ (активная = янтарь) =====
 @Composable
 fun SortBar(
     currentSort: MapViewModel.SortMode,
@@ -498,15 +496,14 @@ fun SortBar(
             val isSelected = currentSort == mode
             Surface(
                 shape = RoundedCornerShape(16.dp),
-                color = if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                color = if (isSelected) FueldeckColors.Amber else FueldeckColors.Surface,
+                border = if (isSelected) null else BorderStroke(1.dp, FueldeckColors.Line),
                 modifier = Modifier.clickable { onSortChange(mode) }
             ) {
                 Text(
                     text = label,
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (isSelected) Color(0xFF1A1205) else FueldeckColors.InkDim,
                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                     fontSize = 12.sp
                 )
@@ -515,7 +512,7 @@ fun SortBar(
     }
 }
 
-// ===== ЭЛЕМЕНТ СПИСКА АЗС =====
+// ===== ЭЛЕМЕНТ СПИСКА АЗС (цветной логотип с бликом + чипы/очередь в палитре) =====
 @Composable
 fun StationListItem(
     station: GasStation,
@@ -524,10 +521,21 @@ fun StationListItem(
     onClick: () -> Unit
 ) {
     val primaryFuel = station.fuelTypes.find { selectedFuelTypes.contains(it.type) && it.available }
-    val hasFuel = primaryFuel != null
     val distance = userLocation?.let {
         calculateDistance(it.latitude, it.longitude, station.latitude, station.longitude)
     }
+
+    // Стабильный цвет бренда из палитры Fueldeck (детерминированно по имени)
+    val brandColors = listOf(
+        FueldeckColors.Teal, FueldeckColors.Amber, FueldeckColors.Coral,
+        Color(0xFF2F7FD1), Color(0xFF7A6BD1), Color(0xFF2FAA55)
+    )
+    val brandColor = brandColors[Math.floorMod(station.brand.hashCode(), brandColors.size)]
+    // Блик читаем в compose-фазе, иначе внутри drawBehind он не анимируется
+    val logoShimmer = rememberInfiniteTransition(label = "logo").animateFloat(
+        0f, 1f, infiniteRepeatable(tween(4200), RepeatMode.Restart), label = "logo"
+    )
+    val logoSheen = logoShimmer.value
 
     Card(
         modifier = Modifier
@@ -535,9 +543,10 @@ fun StationListItem(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = FueldeckColors.Surface
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        border = BorderStroke(1.dp, FueldeckColors.Line),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -546,21 +555,32 @@ fun StationListItem(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            // Иконка бренда с цветовым статусом
+            // Логотип сети: цветной фон + белая буква + бегущий блик
             Box(
                 modifier = Modifier
                     .size(48.dp)
-                    .background(
-                        if (hasFuel) Color(0xFFE8F5E9) else Color(0xFFFFEBEE),
-                        RoundedCornerShape(12.dp)
-                    ),
+                    .background(brandColor, RoundedCornerShape(12.dp))
+                    .drawBehind {
+                        val w = size.width
+                        val band = w * 0.5f
+                        val x = -band + logoSheen * (w + band)
+                        drawRect(
+                            brush = Brush.linearGradient(
+                                listOf(Color.Transparent, Color.White.copy(alpha = 0.28f), Color.Transparent),
+                                start = Offset(x, 0f),
+                                end = Offset(x + band, 0f)
+                            ),
+                            topLeft = Offset(x, 0f),
+                            size = Size(band, size.height)
+                        )
+                    },
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = station.brand.first().toString(),
+                    text = station.brand.first().toString().uppercase(),
                     fontWeight = FontWeight.Bold,
                     fontSize = 20.sp,
-                    color = if (hasFuel) Color(0xFF2E7D32) else Color(0xFFC62828)
+                    color = Color.White
                 )
             }
 
@@ -569,42 +589,37 @@ fun StationListItem(
                     text = station.brand,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 15.sp,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = FueldeckColors.Ink
                 )
                 Text(
                     text = station.address,
                     fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = FueldeckColors.InkDim,
                     maxLines = 1
                 )
 
-                // Доступность топлива
+                // Чипы цен по маркам: в наличии = бирюза, нет = серый
                 Row(
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                    modifier = Modifier.padding(top = 4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(top = 6.dp)
                 ) {
                     station.fuelTypes.filter { selectedFuelTypes.contains(it.type) }.forEach { fuel ->
-                        val color = if (fuel.available) {
-                            when (fuel.type) {
-                                "АИ-92" -> Color(0xFF4CAF50)
-                                "АИ-95" -> Color(0xFF2196F3)
-                                "АИ-98" -> Color(0xFF9C27B0)
-                                "АИ-100" -> Color(0xFFFF9800)
-                                "ДТ" -> Color(0xFF795548)
-                                "Газ" -> Color(0xFF00BCD4)
-                                else -> Color.Gray
-                            }
-                        } else Color(0xFFBDBDBD)
-
+                        val hot = fuel.available
                         Surface(
-                            shape = RoundedCornerShape(4.dp),
-                            color = color.copy(alpha = 0.15f)
+                            shape = RoundedCornerShape(6.dp),
+                            color = if (hot) FueldeckColors.TealSoft else Color(0x0AFFFFFF),
+                            border = BorderStroke(
+                                1.dp,
+                                if (hot) FueldeckColors.Teal.copy(alpha = 0.35f) else FueldeckColors.Line
+                            )
                         ) {
                             Text(
-                                text = "${fuel.type} ${String.format("%.0f", fuel.price)}",
+                                text = if (hot) "${fuel.type} ${String.format("%.0f", fuel.price)}"
+                                else "${fuel.type} нет",
                                 fontSize = 10.sp,
-                                color = color,
+                                color = if (hot) FueldeckColors.Teal else FueldeckColors.InkFaint,
                                 fontWeight = FontWeight.Medium,
+                                fontFamily = if (hot) FontFamily.Monospace else FontFamily.SansSerif,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                             )
                         }
@@ -612,35 +627,36 @@ fun StationListItem(
                 }
             }
 
-            // Цена и расстояние
-            Column(horizontalAlignment = Alignment.End) {
+            // Цена / расстояние / очередь
+            Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 primaryFuel?.let { fuel ->
                     Text(
                         text = "${String.format("%.0f", fuel.price)} ₽",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        color = MaterialTheme.colorScheme.primary
+                        fontFamily = FontFamily.Monospace,
+                        color = FueldeckColors.Amber
                     )
                 } ?: Text(
                     text = "Нет топлива",
                     fontSize = 12.sp,
-                    color = Color(0xFFC62828)
+                    color = FueldeckColors.Coral
                 )
 
                 distance?.let { dist ->
                     Text(
                         text = "${String.format("%.1f", dist)} км",
                         fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        fontFamily = FontFamily.Monospace,
+                        color = FueldeckColors.InkDim
                     )
                 }
 
-                // Очередь
                 if (station.queueTime > 0) {
                     val queueColor = when {
-                        station.queueTime <= 5 -> Color(0xFF4CAF50)
-                        station.queueTime <= 15 -> Color(0xFFFF9800)
-                        else -> Color(0xFFF44336)
+                        station.queueTime <= 5 -> FueldeckColors.Teal
+                        station.queueTime <= 15 -> FueldeckColors.Amber
+                        else -> FueldeckColors.Coral
                     }
                     Text(
                         text = "${station.queueTime} мин",
@@ -654,7 +670,7 @@ fun StationListItem(
     }
 }
 
-// ===== КАРТОЧКА ДЕТАЛЕЙ АЗС =====
+// ===== КАРТОЧКА ДЕТАЛЕЙ АЗС (пока как была — оденем в палитру следующим шагом) =====
 @Composable
 fun StationDetailCard(
     station: GasStation,
@@ -772,7 +788,7 @@ fun StationDetailCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Кнопка маршрута — ТЕПЕРЬ РАБОТАЕТ!
+            // Кнопка маршрута
             Button(
                 onClick = { openMapsRoute(context, station.latitude, station.longitude, station.brand) },
                 modifier = Modifier.fillMaxWidth(),
@@ -794,24 +810,21 @@ private fun openMapsRoute(context: android.content.Context, lat: Double, lon: Do
     if (intent.resolveActivity(context.packageManager) != null) {
         context.startActivity(intent)
     } else {
-        // Fallback: открыть в браузере
         val browserUri = android.net.Uri.parse("https://maps.google.com/maps?daddr=$lat,$lon")
         context.startActivity(android.content.Intent(android.content.Intent.ACTION_VIEW, browserUri))
     }
 }
 
-// ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
+// ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ (хвост, дописать в конец файла) =====
 
 private fun getMarkerColor(station: GasStation, selectedFuelTypes: Set<String>): Color {
-    val availableFuels = station.fuelTypes.filter {
-        selectedFuelTypes.contains(it.type) && it.available
-    }
-
+    val relevant = station.fuelTypes.filter { selectedFuelTypes.contains(it.type) }
+    val available = relevant.filter { it.available }
     return when {
-        availableFuels.isEmpty() -> Color(0xFF9E9E9E) // Серый — нет топлива
-        station.queueTime <= 5 -> Color(0xFF4CAF50)   // Зелёный — всё ок
-        station.queueTime <= 15 -> Color(0xFFFF9800)  // Жёлтый — небольшая очередь
-        else -> Color(0xFFF44336)                      // Красный — большая очередь
+        relevant.isEmpty() -> FueldeckColors.InkFaint
+        available.isEmpty() -> FueldeckColors.Coral
+        station.queueTime > 15 -> FueldeckColors.Amber
+        else -> FueldeckColors.Teal
     }
 }
 
@@ -819,7 +832,6 @@ private fun buildStationSnippet(station: GasStation, selectedFuelTypes: Set<Stri
     val fuels = station.fuelTypes
         .filter { selectedFuelTypes.contains(it.type) && it.available }
         .joinToString(" | ") { "${it.type}: ${String.format("%.0f", it.price)}₽" }
-
     return if (fuels.isNotEmpty()) {
         "$fuels | Очередь: ${station.queueTime} мин"
     } else {
@@ -828,10 +840,14 @@ private fun buildStationSnippet(station: GasStation, selectedFuelTypes: Set<Stri
 }
 
 private fun createColoredMarker(context: android.content.Context, color: Color): android.graphics.drawable.Drawable {
+    val density = context.resources.displayMetrics.density
+    val sizePx = (28 * density).toInt()
+    val strokePx = (3 * density).toInt()
     val drawable = android.graphics.drawable.GradientDrawable()
     drawable.shape = android.graphics.drawable.GradientDrawable.OVAL
-    drawable.setColor(color.hashCode())
-    drawable.setSize(24, 24)
+    drawable.setColor(color.toArgb())
+    drawable.setStroke(strokePx, android.graphics.Color.WHITE)
+    drawable.setSize(sizePx, sizePx)
     return drawable
 }
 
