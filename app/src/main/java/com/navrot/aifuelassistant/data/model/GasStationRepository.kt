@@ -1,46 +1,125 @@
-package com.navrot.aifuelassistant.data.model
+package com.navrot.aifuelassistant.data
 
-import com.navrot.aifuelassistant.data.GasStationData
+import android.content.Context
+import com.navrot.aifuelassistant.data.model.FuelPrice
+import com.navrot.aifuelassistant.data.model.GasStation
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 
-object GasStationRepository {
+class GasStationRepository(private val context: Context) {
 
-    fun getAllStations(): List<GasStation> = GasStationData.stations
+    private var cachedStations: List<GasStation>? = null
 
-    fun getStationById(id: Int): GasStation? = GasStationData.stations.find { it.id == id }
-
-    fun getNearbyStations(lat: Double, lon: Double, radiusKm: Double = 10.0): List<GasStation> {
-        return GasStationData.getStationsNearLocation(lat, lon, radiusKm)
+    suspend fun getAllStations(): List<GasStation> = withContext(Dispatchers.IO) {
+        cachedStations ?: loadFromAssets().also { cachedStations = it }
     }
 
-    fun getStationsByCity(city: String): List<GasStation> {
-        return GasStationData.getStationsByCity(city)
+    fun searchStations(query: String, stations: List<GasStation>): List<GasStation> {
+        val q = query.lowercase()
+        return stations.filter {
+            it.name.lowercase().contains(q) ||
+                    it.brand.lowercase().contains(q) ||
+                    it.address.lowercase().contains(q)
+        }
     }
 
-    fun searchStations(query: String): List<GasStation> {
-        return GasStationData.searchStations(query)
+    fun getBestStation(fuelType: String, stations: List<GasStation>): GasStation? {
+        return stations
+            .filter { station ->
+                station.fuelTypes.any { it.type == fuelType && it.available }
+            }
+            .minByOrNull { station ->
+                val fuel = station.fuelTypes.find { it.type == fuelType }
+                val queuePenalty = station.queueTime * 0.5
+                val reliabilityBonus = (100 - station.reliability) * 0.2
+                (fuel?.price ?: Double.MAX_VALUE) + queuePenalty - reliabilityBonus
+            }
     }
 
-    fun getBestStations(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): List<GasStation> {
-        return GasStationData.getBestStations(fuelType, lat, lon, radiusKm)
+    fun getBestStations(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double, stations: List<GasStation>): List<GasStation> {
+        val nearby = if (lat != null && lon != null) {
+            getStationsNearLocation(lat, lon, radiusKm, stations)
+        } else stations
+
+        return nearby.filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
+            .sortedBy { s ->
+                val fuel = s.fuelTypes.find { it.type == fuelType }!!
+                val queuePenalty = s.queueTime * 0.5
+                val reliabilityBonus = (100 - s.reliability) * 0.2
+                fuel.price + queuePenalty - reliabilityBonus
+            }
     }
 
-    fun getStationsSortedByPriceAsc(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): List<GasStation> {
-        return GasStationData.getStationsSortedByPriceAsc(fuelType, lat, lon, radiusKm)
+    fun getStationsSortedByPriceAsc(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double, stations: List<GasStation>): List<GasStation> {
+        val nearby = if (lat != null && lon != null) {
+            getStationsNearLocation(lat, lon, radiusKm, stations)
+        } else stations
+
+        return nearby.filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
+            .sortedBy { s -> s.fuelTypes.find { it.type == fuelType }?.price ?: Double.MAX_VALUE }
     }
 
-    fun getStationsSortedByPriceDesc(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): List<GasStation> {
-        return GasStationData.getStationsSortedByPriceDesc(fuelType, lat, lon, radiusKm)
+    fun getStationsByQueue(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double, stations: List<GasStation>): List<GasStation> {
+        val nearby = if (lat != null && lon != null) {
+            getStationsNearLocation(lat, lon, radiusKm, stations)
+        } else stations
+
+        return nearby.filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
+            .sortedBy { it.queueTime }
     }
 
-    fun getStationsByQueue(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): List<GasStation> {
-        return GasStationData.getStationsByQueue(fuelType, lat, lon, radiusKm)
+    fun getStationsNearLocation(lat: Double, lon: Double, radiusKm: Double, stations: List<GasStation>): List<GasStation> {
+        return stations.filter { station ->
+            val distance = calculateDistance(lat, lon, station.latitude, station.longitude)
+            distance <= radiusKm
+        }.sortedBy { station ->
+            calculateDistance(lat, lon, station.latitude, station.longitude)
+        }
     }
 
-    fun getCheapestStation(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): GasStation? {
-        return GasStationData.getCheapestStation(fuelType, lat, lon, radiusKm)
+    private fun loadFromAssets(): List<GasStation> {
+        val jsonString = context.assets.open("stations.json").bufferedReader().use { it.readText() }
+        val jsonArray = JSONArray(jsonString)
+        return (0 until jsonArray.length()).map { i ->
+            parseStation(jsonArray.getJSONObject(i))
+        }
     }
 
-    fun getBestStation(fuelType: String): GasStation? {
-        return GasStationData.getBestStation(fuelType)
+    private fun parseStation(json: JSONObject): GasStation {
+        val fuelArray = json.getJSONArray("fuelTypes")
+        val fuelTypes = (0 until fuelArray.length()).map { j ->
+            val fuel = fuelArray.getJSONObject(j)
+            FuelPrice(
+                type = fuel.getString("type"),
+                price = fuel.getDouble("price"),
+                available = fuel.getBoolean("available")
+            )
+        }
+        return GasStation(
+            id = json.getInt("id"),
+            name = json.getString("name"),
+            brand = json.getString("brand"),
+            address = json.getString("address"),
+            latitude = json.getDouble("latitude"),
+            longitude = json.getDouble("longitude"),
+            fuelTypes = fuelTypes,
+            queueTime = json.getInt("queueTime"),
+            reliability = json.getInt("reliability")
+        )
+    }
+
+    companion object {
+        fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+            val R = 6371.0
+            val dLat = Math.toRadians(lat2 - lat1)
+            val dLon = Math.toRadians(lon2 - lon1)
+            val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                    Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                    Math.sin(dLon / 2) * Math.sin(dLon / 2)
+            val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+            return R * c
+        }
     }
 }
