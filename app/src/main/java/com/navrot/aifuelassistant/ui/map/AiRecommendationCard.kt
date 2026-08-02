@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -30,7 +31,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
-import org.osmdroid.util.GeoPoint
 
 @Composable
 fun AiRecommendationCard(
@@ -49,9 +49,6 @@ fun AiRecommendationCard(
     val spark = rememberInfiniteTransition(label = "rec").animateFloat(
         0f, 1f, infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "rec"
     )
-    val logoSheen = rememberInfiniteTransition(label = "rlogo").animateFloat(
-        0f, 1f, infiniteRepeatable(tween(4200), RepeatMode.Restart), label = "rlogo"
-    ).value
 
     val reason = buildString {
         append("ближайшая с ${fuel.type} в наличии")
@@ -124,6 +121,7 @@ fun AiRecommendationCard(
                         CircleShape
                     )
                     .clickable {
+                        pressed = !pressed
                         openMapsRoute(context, station.latitude, station.longitude, station.brand)
                     },
                 contentAlignment = Alignment.Center

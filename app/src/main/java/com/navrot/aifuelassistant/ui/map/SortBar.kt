@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.navrot.aifuelassistant.ui.fuel.MapViewModel
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
+import androidx.compose.foundation.layout.fillMaxWidth
 
 @Composable
 fun SortBar(
