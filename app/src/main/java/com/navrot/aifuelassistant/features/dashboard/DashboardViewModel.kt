@@ -2,11 +2,10 @@ package com.navrot.aifuelassistant.features.dashboard
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.navrot.aifuelassistant.ai.AiRouterFactory
 import com.navrot.aifuelassistant.ai.FuelAnalysisPromptBuilder
+import com.navrot.aifuelassistant.ai.router.AiRouter
 import com.navrot.aifuelassistant.data.FuelRecordRepository
 import com.navrot.aifuelassistant.data.VehicleRepository
-import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.domain.fuel.DemoFuelStations
 import com.navrot.aifuelassistant.domain.fuel.FuelDispatcher
 import com.navrot.aifuelassistant.domain.fuel.FuelStation
@@ -27,24 +26,29 @@ data class DashboardMetrics(
 class DashboardViewModel @Inject constructor(
     private val fuelRecordRepository: FuelRecordRepository,
     private val vehicleRepository: VehicleRepository,
+    private val aiRouter: AiRouter,
 ) : ViewModel() {
-
-    private val aiRouter = AiRouterFactory.create()
 
     private val _metrics = MutableStateFlow(DashboardMetrics())
     val metrics: StateFlow<DashboardMetrics> = _metrics.asStateFlow()
 
     private val _selectedFuelType = MutableStateFlow("АИ-95")
-    val selectedFuelType: StateFlow<String> =
-        _selectedFuelType.asStateFlow()
+    val selectedFuelType: StateFlow<String> = _selectedFuelType.asStateFlow()
 
     private val _stations = MutableStateFlow<List<FuelStation>>(emptyList())
-    val stations: StateFlow<List<FuelStation>> =
-        _stations.asStateFlow()
+    val stations: StateFlow<List<FuelStation>> = _stations.asStateFlow()
 
     private val _bestStation = MutableStateFlow<FuelStation?>(null)
-    val bestStation: StateFlow<FuelStation?> =
-        _bestStation.asStateFlow()
+    val bestStation: StateFlow<FuelStation?> = _bestStation.asStateFlow()
+
+    private val _analysis = MutableStateFlow<String?>(null)
+    val analysis: StateFlow<String?> = _analysis.asStateFlow()
+
+    private val _isAnalyzing = MutableStateFlow(false)
+    val isAnalyzing: StateFlow<Boolean> = _isAnalyzing.asStateFlow()
+
+    private val _error = MutableStateFlow<String?>(null)
+    val error: StateFlow<String?> = _error.asStateFlow()
 
     init {
         loadStations()
@@ -78,33 +82,31 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    private fun computeMetrics(records: List<FuelRecordEntity>): DashboardMetrics {
+    private fun computeMetrics(
+        records: List<com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity>
+    ): DashboardMetrics {
         if (records.isEmpty()) return DashboardMetrics()
 
-        val consumption = if (records.size >= 2) {
-            val sorted = records.sortedByDescending { it.date }
-            var totalLiters = 0.0
-            var totalKm = 0.0
-            for (i in 0 until sorted.size - 1) {
-                val curr = sorted[i]
-                val prev = sorted[i + 1]
-                val km = curr.mileage - prev.mileage
-                if (km > 0) {
-                    totalLiters += curr.fuelAmount
-                    totalKm += km
-                }
+        val sorted = records.sortedByDescending { it.date }
+        var totalLiters = 0.0
+        var totalKm = 0.0
+        for (i in 0 until sorted.size - 1) {
+            val curr = sorted[i]
+            val prev = sorted[i + 1]
+            val km = curr.mileage - prev.mileage
+            if (km > 0) {
+                totalLiters += curr.fuelAmount
+                totalKm += km
             }
-            if (totalKm > 0) (totalLiters / totalKm * 100).toFloat() else 0f
-        } else {
-            0f
         }
+        val consumption = if (totalKm > 0) (totalLiters / totalKm * 100).toFloat() else 0f
 
         val efficiency = (100f - (consumption - 6f) * 10f).coerceIn(0f, 100f).toInt()
 
         val totalCost = records.sumOf { it.totalCost }
-        val sorted = records.sortedBy { it.date }
-        val totalKmAll = if (sorted.size >= 2) {
-            (sorted.last().mileage - sorted.first().mileage).coerceAtLeast(0.0)
+        val sortedByDate = records.sortedBy { it.date }
+        val totalKmAll = if (sortedByDate.size >= 2) {
+            (sortedByDate.last().mileage - sortedByDate.first().mileage).coerceAtLeast(0.0)
         } else 0.0
         val rubPerKm = if (totalKmAll > 0) (totalCost / totalKmAll).toFloat() else 0f
 
@@ -119,7 +121,7 @@ class DashboardViewModel @Inject constructor(
         )
     }
 
-    private fun computeSparkline(records: List<FuelRecordEntity>): List<Float> {
+    private fun computeSparkline(records: List<com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity>): List<Float> {
         if (records.size < 2) return emptyList()
         val sorted = records.sortedByDescending { it.date }
         val result = mutableListOf<Float>()
@@ -134,18 +136,6 @@ class DashboardViewModel @Inject constructor(
         return result.reversed()
     }
 
-    private val _analysis = MutableStateFlow<String?>(null)
-    val analysis: StateFlow<String?> =
-        _analysis.asStateFlow()
-
-    private val _isAnalyzing = MutableStateFlow(false)
-    val isAnalyzing: StateFlow<Boolean> =
-        _isAnalyzing.asStateFlow()
-
-    private val _error = MutableStateFlow<String?>(null)
-    val error: StateFlow<String?> =
-        _error.asStateFlow()
-
     fun askAi() {
         if (_isAnalyzing.value) return
 
@@ -154,14 +144,8 @@ class DashboardViewModel @Inject constructor(
             _error.value = null
 
             try {
-                val records = fuelRecordRepository
-                    .getAll()
-                    .first()
-
-                val vehicle = vehicleRepository
-                    .getAllVehicles()
-                    .first()
-                    .firstOrNull()
+                val records = fuelRecordRepository.getAll().first()
+                val vehicle = vehicleRepository.getAllVehicles().first().firstOrNull()
 
                 val prompt = FuelAnalysisPromptBuilder.build(
                     vehicle = vehicle,
@@ -169,7 +153,6 @@ class DashboardViewModel @Inject constructor(
                 )
 
                 _analysis.value = aiRouter.ask(prompt)
-
             } catch (e: Throwable) {
                 _error.value = e.message ?: "Не удалось получить AI-анализ"
             } finally {

@@ -1,2 +1,37 @@
-/build
+# Gradle
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# Local configuration file (sdk path, etc)
 local.properties
+
+# IntelliJ / Android Studio
+.idea/
+*.iws
+*.iml
+*.ipr
+misc.xml
+deploymentTargetDropDown.xml
+render.experimental.xml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Patch files
+*.patch
+
+# CI service files
+CI_TRIGGER_CHECK.md
+
+# Kotlin
+*.class
+*.log
+
+# Android
+/captures
+.externalNativeBuild
+.cxx
