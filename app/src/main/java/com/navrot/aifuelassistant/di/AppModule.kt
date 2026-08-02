@@ -1,9 +1,6 @@
 package com.navrot.aifuelassistant.di
 
 import android.content.Context
-import androidx.room.Room
-import com.navrot.aifuelassistant.ai.AiRouterFactory
-import com.navrot.aifuelassistant.ai.router.AiRouter
 import com.navrot.aifuelassistant.data.FuelRecordRepository
 import com.navrot.aifuelassistant.data.FuelRecordRepositoryImpl
 import com.navrot.aifuelassistant.data.VehicleRepository
@@ -11,7 +8,6 @@ import com.navrot.aifuelassistant.data.VehicleRepositoryImpl
 import com.navrot.aifuelassistant.data.database.AppDatabase
 import com.navrot.aifuelassistant.data.database.dao.FuelRecordDao
 import com.navrot.aifuelassistant.data.database.dao.VehicleDao
-import dagger.Binds
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -21,40 +17,29 @@ import javax.inject.Singleton
 
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class AppModule {
+object AppModule {
 
-    @Binds
+    @Provides
     @Singleton
-    abstract fun bindVehicleRepository(impl: VehicleRepositoryImpl): VehicleRepository
+    fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
+        return AppDatabase.getInstance(context)
+    }
 
-    @Binds
+    @Provides
+    fun provideVehicleDao(db: AppDatabase): VehicleDao = db.vehicleDao()
+
+    @Provides
+    fun provideFuelRecordDao(db: AppDatabase): FuelRecordDao = db.fuelRecordDao()
+
+    @Provides
     @Singleton
-    abstract fun bindFuelRecordRepository(impl: FuelRecordRepositoryImpl): FuelRecordRepository
+    fun provideVehicleRepository(dao: VehicleDao): VehicleRepository {
+        return VehicleRepositoryImpl(dao)
+    }
 
-    companion object {
-
-        @Provides
-        @Singleton
-        fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
-            return Room.databaseBuilder(
-                context.applicationContext,
-                AppDatabase::class.java,
-                "ai_fuel_assistant_db"
-            )
-                .fallbackToDestructiveMigration()
-                .build()
-        }
-
-        @Provides
-        fun provideVehicleDao(database: AppDatabase): VehicleDao =
-            database.vehicleDao()
-
-        @Provides
-        fun provideFuelRecordDao(database: AppDatabase): FuelRecordDao =
-            database.fuelRecordDao()
-
-        @Provides
-        @Singleton
-        fun provideAiRouter(): AiRouter = AiRouterFactory.create()
+    @Provides
+    @Singleton
+    fun provideFuelRecordRepository(dao: FuelRecordDao): FuelRecordRepository {
+        return FuelRecordRepositoryImpl(dao)
     }
 }
