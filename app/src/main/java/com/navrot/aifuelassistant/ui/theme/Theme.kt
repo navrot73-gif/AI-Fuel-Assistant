@@ -1,58 +1,53 @@
 package com.navrot.aifuelassistant.ui.theme
 
-import android.app.Activity
-import android.os.Build
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
 
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
+/**
+ * Приборная панель Fueldeck: фиксированная тёмная палитра.
+ * Material You отключён намеренно — дизайн не должен перекрашиваться под обои.
+ * ВАЖНО: контейнерные цвета заданы явно, иначе material3 подставит свои
+ * дефолтные фиолетовые (и FAB / индикатор вкладок станут фиолетовыми).
+ */
+private val FueldeckDarkScheme = darkColorScheme(
+    primary = FueldeckColors.Amber,
+    onPrimary = Color(0xFF1A1205),
+    primaryContainer = Color(0xFF3A2A08),
+    onPrimaryContainer = FueldeckColors.Amber,
 
-private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    secondary = FueldeckColors.Teal,
+    onSecondary = Color(0xFF06201C),
+    secondaryContainer = Color(0xFF0C2A26),
+    onSecondaryContainer = FueldeckColors.Teal,
 
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    tertiary = FueldeckColors.Coral,
+    onTertiary = Color(0xFF2A0B08),
+    tertiaryContainer = Color(0xFF341310),
+    onTertiaryContainer = FueldeckColors.Coral,
+
+    background = FueldeckColors.Bg0,
+    onBackground = FueldeckColors.Ink,
+    surface = FueldeckColors.Surface,
+    onSurface = FueldeckColors.Ink,
+    surfaceVariant = FueldeckColors.Surface2,
+    onSurfaceVariant = FueldeckColors.InkDim,
+    outline = FueldeckColors.Line2,
+    outlineVariant = FueldeckColors.Line,
+    error = FueldeckColors.Coral,
+    onError = Color(0xFF2A0B08),
 )
 
 @Composable
 fun AIFuelAssistantTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    darkTheme: Boolean = true,
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
-
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
-    }
-
     MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content
+        colorScheme = FueldeckDarkScheme,
+        typography = FueldeckTypography,
+        content = content,
     )
 }
