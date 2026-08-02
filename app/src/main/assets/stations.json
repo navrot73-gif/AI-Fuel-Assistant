@@ -1,0 +1,874 @@
+[
+  {
+    "id": 1,
+    "name": "АЗС ТТК",
+    "brand": "Татнефть",
+    "address": "Москва, ш. Энтузиастов, 86А",
+    "latitude": 55.7761,
+    "longitude": 37.8419,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 59.89,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 66.23,
+        "available": true
+      },
+      {
+        "type": "АИ-98",
+        "price": 78.5,
+        "available": true
+      },
+      {
+        "type": "АИ-100",
+        "price": 99.99,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 77.34,
+        "available": true
+      }
+    ],
+    "queueTime": 5,
+    "reliability": 90
+  },
+  {
+    "id": 2,
+    "name": "АЗС №45",
+    "brand": "Лукойл",
+    "address": "Москва, Ленинградский пр-т, 62",
+    "latitude": 55.8072,
+    "longitude": 37.5394,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 62.5,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 69.1,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 79.0,
+        "available": true
+      }
+    ],
+    "queueTime": 12,
+    "reliability": 85
+  },
+  {
+    "id": 3,
+    "name": "АЗС Север",
+    "brand": "Газпромнефть",
+    "address": "Москва, Дмитровское ш., 100",
+    "latitude": 55.8742,
+    "longitude": 37.5408,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 60.5,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 67.2,
+        "available": true
+      },
+      {
+        "type": "АИ-98",
+        "price": 79.8,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 78.1,
+        "available": true
+      },
+      {
+        "type": "Газ",
+        "price": 34.5,
+        "available": true
+      }
+    ],
+    "queueTime": 8,
+    "reliability": 92
+  },
+  {
+    "id": 4,
+    "name": "АЗС Юг",
+    "brand": "Роснефть",
+    "address": "Москва, Варшавское ш., 152",
+    "latitude": 55.5832,
+    "longitude": 37.5965,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 61.0,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 68.5,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 78.5,
+        "available": true
+      }
+    ],
+    "queueTime": 15,
+    "reliability": 80
+  },
+  {
+    "id": 5,
+    "name": "АЗС Восток",
+    "brand": "Shell",
+    "address": "Москва, МКАД, 32 км",
+    "latitude": 55.7013,
+    "longitude": 37.85,
+    "fuelTypes": [
+      {
+        "type": "АИ-95",
+        "price": 70.5,
+        "available": true
+      },
+      {
+        "type": "АИ-98",
+        "price": 82.0,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 80.0,
+        "available": true
+      }
+    ],
+    "queueTime": 3,
+    "reliability": 95
+  },
+  {
+    "id": 10,
+    "name": "АЗС №1",
+    "brand": "Лукойл",
+    "address": "Челябинск, ул. Мира, 65 ст1",
+    "latitude": 55.25349,
+    "longitude": 61.37002,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 62.94,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 69.73,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 80.1,
+        "available": true
+      }
+    ],
+    "queueTime": 5,
+    "reliability": 90
+  },
+  {
+    "id": 11,
+    "name": "Свердловский тракт, 16/3",
+    "brand": "Татнефть",
+    "address": "Челябинск, Свердловский тракт, 16/3",
+    "latitude": 55.1778,
+    "longitude": 61.4194,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 59.89,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 66.23,
+        "available": true
+      },
+      {
+        "type": "АИ-98",
+        "price": 78.5,
+        "available": true
+      },
+      {
+        "type": "АИ-100",
+        "price": 99.99,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 77.34,
+        "available": true
+      }
+    ],
+    "queueTime": 15,
+    "reliability": 85
+  },
+  {
+    "id": 12,
+    "name": "Свердловский тракт, 40/1",
+    "brand": "Татнефть",
+    "address": "Челябинск, Свердловский тракт, 40/1",
+    "latitude": 55.1847,
+    "longitude": 61.4098,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 59.89,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 66.23,
+        "available": true
+      },
+      {
+        "type": "АИ-98",
+        "price": 78.5,
+        "available": true
+      },
+      {
+        "type": "АИ-100",
+        "price": 99.99,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 77.34,
+        "available": true
+      }
+    ],
+    "queueTime": 20,
+    "reliability": 82
+  },
+  {
+    "id": 13,
+    "name": "ул. Курчатова, 2/1",
+    "brand": "Газпромнефть",
+    "address": "Челябинск, ул. Курчатова, 2/1",
+    "latitude": 55.1603,
+    "longitude": 61.4007,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 61.5,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 68.2,
+        "available": true
+      },
+      {
+        "type": "АИ-98",
+        "price": 80.0,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 79.0,
+        "available": true
+      }
+    ],
+    "queueTime": 8,
+    "reliability": 93
+  },
+  {
+    "id": 14,
+    "name": "Троицкий тракт, 9640",
+    "brand": "Газпромнефть",
+    "address": "Челябинск, Троицкий тракт, 9640",
+    "latitude": 55.1194,
+    "longitude": 61.3512,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 61.5,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 68.2,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 79.0,
+        "available": true
+      }
+    ],
+    "queueTime": 10,
+    "reliability": 91
+  },
+  {
+    "id": 15,
+    "name": "ул. Артиллерийская, 138",
+    "brand": "Лукойл",
+    "address": "Челябинск, ул. Артиллерийская, 138 к. 1",
+    "latitude": 55.1895,
+    "longitude": 61.4498,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 62.5,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 69.1,
+        "available": true
+      }
+    ],
+    "queueTime": 6,
+    "reliability": 88
+  },
+  {
+    "id": 16,
+    "name": "Копейское шоссе, 56в",
+    "brand": "РегионUno",
+    "address": "Челябинск, Копейское шоссе, 56в",
+    "latitude": 55.1498,
+    "longitude": 61.4995,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 60.0,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 67.0,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 78.0,
+        "available": true
+      },
+      {
+        "type": "Газ",
+        "price": 33.5,
+        "available": true
+      }
+    ],
+    "queueTime": 12,
+    "reliability": 84
+  },
+  {
+    "id": 17,
+    "name": "Копейское шоссе, 1П/1",
+    "brand": "Get petrol",
+    "address": "Челябинск, Копейское шоссе, 1П/1",
+    "latitude": 55.1452,
+    "longitude": 61.5198,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 59.5,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 66.0,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 76.5,
+        "available": true
+      },
+      {
+        "type": "Газ",
+        "price": 32.0,
+        "available": true
+      }
+    ],
+    "queueTime": 18,
+    "reliability": 79
+  },
+  {
+    "id": 18,
+    "name": "ул. Механическая, 105/1",
+    "brand": "Get petrol",
+    "address": "Челябинск, ул. Механическая, 105/1",
+    "latitude": 55.192317,
+    "longitude": 61.421625,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 59.5,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 66.0,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 76.5,
+        "available": true
+      }
+    ],
+    "queueTime": 7,
+    "reliability": 81
+  },
+  {
+    "id": 19,
+    "name": "ул. Игуменка, 119",
+    "brand": "Челябнефтепродукт",
+    "address": "Челябинск, ул. Игуменка, 119",
+    "latitude": 55.2298,
+    "longitude": 61.2995,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 58.5,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 65.0,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 75.0,
+        "available": true
+      }
+    ],
+    "queueTime": 25,
+    "reliability": 75
+  },
+  {
+    "id": 20,
+    "name": "пр. Победы, 290/1",
+    "brand": "Мега",
+    "address": "Челябинск, пр. Победы, 290/1",
+    "latitude": 55.1695,
+    "longitude": 61.2798,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 61.0,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 68.0,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 78.5,
+        "available": true
+      }
+    ],
+    "queueTime": 9,
+    "reliability": 87
+  },
+  {
+    "id": 21,
+    "name": "пер. Бажова и Комарова",
+    "brand": "Смарт",
+    "address": "Челябинск, перекрёсток ул. Бажова и ул. Комарова",
+    "latitude": 55.1995,
+    "longitude": 61.4198,
+    "fuelTypes": [
+      {
+        "type": "Газ",
+        "price": 31.0,
+        "available": true
+      }
+    ],
+    "queueTime": 4,
+    "reliability": 86
+  },
+  {
+    "id": 22,
+    "name": "ул. Энгельса, 21/1",
+    "brand": "АЗС 74-026",
+    "address": "Челябинск, ул. Энгельса, 21/1",
+    "latitude": 55.1798,
+    "longitude": 61.4595,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 59.0,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 65.5,
+        "available": true
+      }
+    ],
+    "queueTime": 14,
+    "reliability": 78
+  },
+  {
+    "id": 23,
+    "name": "ул. Первой пятилетки, 18",
+    "brand": "Price",
+    "address": "Челябинск, ул. Первой пятилетки, 18 к. 1",
+    "latitude": 55.1648,
+    "longitude": 61.3895,
+    "fuelTypes": [
+      {
+        "type": "АИ-95",
+        "price": 67.5,
+        "available": true
+      },
+      {
+        "type": "Газ",
+        "price": 33.0,
+        "available": true
+      }
+    ],
+    "queueTime": 11,
+    "reliability": 83
+  },
+  {
+    "id": 24,
+    "name": "ул. Городская, 1/4",
+    "brand": "Price",
+    "address": "Челябинск, ул. Городская, 1/4",
+    "latitude": 55.1545,
+    "longitude": 61.4398,
+    "fuelTypes": [
+      {
+        "type": "АИ-95",
+        "price": 67.5,
+        "available": true
+      },
+      {
+        "type": "Газ",
+        "price": 33.0,
+        "available": true
+      }
+    ],
+    "queueTime": 13,
+    "reliability": 82
+  },
+  {
+    "id": 30,
+    "name": "М-5 Урал, 1882 км",
+    "brand": "Газпромнефть",
+    "address": "Челябинская обл., М-5 Урал, 1882 км",
+    "latitude": 54.8995,
+    "longitude": 61.4998,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 62.0,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 69.0,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 79.5,
+        "available": true
+      }
+    ],
+    "queueTime": 5,
+    "reliability": 92
+  },
+  {
+    "id": 31,
+    "name": "М-5 Урал, 1890 км",
+    "brand": "Татнефть",
+    "address": "Челябинская обл., М-5 Урал, 1890 км",
+    "latitude": 54.8495,
+    "longitude": 61.5498,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 59.5,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 66.0,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 77.0,
+        "available": true
+      }
+    ],
+    "queueTime": 8,
+    "reliability": 88
+  },
+  {
+    "id": 32,
+    "name": "АЗС Миасс",
+    "brand": "Лукойл",
+    "address": "Миасс, ул. Московская, 45",
+    "latitude": 55.045,
+    "longitude": 60.1,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 61.5,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 68.0,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 78.0,
+        "available": true
+      }
+    ],
+    "queueTime": 6,
+    "reliability": 89
+  },
+  {
+    "id": 33,
+    "name": "АЗС Златоуст",
+    "brand": "Роснефть",
+    "address": "Златоуст, пр. имени Ю.А. Гагарина, 20",
+    "latitude": 55.17,
+    "longitude": 59.65,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 60.5,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 67.0,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 77.5,
+        "available": true
+      }
+    ],
+    "queueTime": 10,
+    "reliability": 85
+  },
+  {
+    "id": 34,
+    "name": "АЗС Магнитогорск",
+    "brand": "Газпромнефть",
+    "address": "Магнитогорск, пр. Ленина, 100",
+    "latitude": 53.38,
+    "longitude": 59.05,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 61.0,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 68.5,
+        "available": true
+      },
+      {
+        "type": "АИ-98",
+        "price": 80.0,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 78.5,
+        "available": true
+      }
+    ],
+    "queueTime": 7,
+    "reliability": 91
+  },
+  {
+    "id": 35,
+    "name": "АЗС Копейск",
+    "brand": "РегионUno",
+    "address": "Копейск, пр. Коммунистический, 25",
+    "latitude": 55.1,
+    "longitude": 61.62,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 59.0,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 65.5,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 76.0,
+        "available": true
+      },
+      {
+        "type": "Газ",
+        "price": 32.0,
+        "available": true
+      }
+    ],
+    "queueTime": 15,
+    "reliability": 80
+  },
+  {
+    "id": 36,
+    "name": "АЗС Троицк",
+    "brand": "Татнефть",
+    "address": "Троицк, ул. Советская, 80",
+    "latitude": 54.08,
+    "longitude": 61.55,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 59.5,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 66.0,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 77.0,
+        "available": true
+      }
+    ],
+    "queueTime": 9,
+    "reliability": 86
+  },
+  {
+    "id": 37,
+    "name": "АЗС Снежинск",
+    "brand": "Лукойл",
+    "address": "Снежинск, ул. Ленина, 15",
+    "latitude": 56.08,
+    "longitude": 60.73,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 62.0,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 69.0,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 79.0,
+        "available": true
+      }
+    ],
+    "queueTime": 4,
+    "reliability": 90
+  },
+  {
+    "id": 38,
+    "name": "АЗС Озёрск",
+    "brand": "Газпромнефть",
+    "address": "Озёрск, пр. Ленина, 50",
+    "latitude": 55.75,
+    "longitude": 60.7,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 61.5,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 68.0,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 78.5,
+        "available": true
+      }
+    ],
+    "queueTime": 6,
+    "reliability": 92
+  },
+  {
+    "id": 39,
+    "name": "АЗС Южноуральск",
+    "brand": "Роснефть",
+    "address": "Южноуральск, ул. Строителей, 30",
+    "latitude": 54.45,
+    "longitude": 61.25,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 60.0,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 66.5,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 77.0,
+        "available": true
+      }
+    ],
+    "queueTime": 12,
+    "reliability": 83
+  },
+  {
+    "id": 40,
+    "name": "АЗС Аша",
+    "brand": "Татнефть",
+    "address": "Аша, ул. Ленина, 10",
+    "latitude": 54.99,
+    "longitude": 57.27,
+    "fuelTypes": [
+      {
+        "type": "АИ-92",
+        "price": 60.5,
+        "available": true
+      },
+      {
+        "type": "АИ-95",
+        "price": 67.0,
+        "available": true
+      },
+      {
+        "type": "ДТ",
+        "price": 77.5,
+        "available": true
+      }
+    ],
+    "queueTime": 8,
+    "reliability": 87
+  }
+]
