@@ -10,7 +10,15 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -22,9 +30,10 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.navrot.aifuelassistant.data.GasStationRepository
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.ui.fuel.MapViewModel
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
@@ -48,7 +57,6 @@ fun MapScreen(
     val selectedFuelTypes by viewModel.selectedFuelTypes.collectAsStateWithLifecycle()
     val sortMode by viewModel.sortMode.collectAsStateWithLifecycle()
 
-    val allStations = remember { GasStationRepository(context).cachedStations ?: emptyList() }
     val fuelTypes = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ", "Газ")
 
     var userLocation by remember { mutableStateOf<GeoPoint?>(null) }
@@ -58,8 +66,6 @@ fun MapScreen(
     var searchQuery by remember { mutableStateOf("") }
     var showStationList by remember { mutableStateOf(false) }
     var selectedStation by remember { mutableStateOf<GasStation?>(null) }
-
-    val displayStations = if (stations.isNotEmpty()) stations else allStations
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -220,7 +226,7 @@ fun MapScreen(
 
                 OsmMapView(
                     userLocation = userLocation,
-                    stations = displayStations,
+                    stations = stations,
                     selectedFuelTypes = selectedFuelTypes,
                     onStationClick = { selectedStation = it }
                 )
@@ -258,8 +264,8 @@ fun MapScreen(
                     )
                 }
 
-                val recommendation = remember(displayStations, selectedFuelTypes, userLocation) {
-                    displayStations
+                val recommendation = remember(stations, selectedFuelTypes, userLocation) {
+                    stations
                         .mapNotNull { st ->
                             val fuel = st.fuelTypes.firstOrNull {
                                 (selectedFuelTypes.isEmpty() || selectedFuelTypes.contains(it.type)) && it.available
@@ -273,49 +279,53 @@ fun MapScreen(
                         .firstOrNull()
                 }
 
-                AnimatedVisibility(
-                    visible = !showStationList && recommendation != null,
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                    enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
-                    exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 })
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
                 ) {
-                    AiRecommendationCard(
-                        recommendation = recommendation,
-                        onExpandList = { showStationList = true }
-                    )
-                }
-
-                StationBottomSheet(
-                    visible = showStationList,
-                    isLoading = isLoading,
-                    stations = displayStations,
-                    selectedFuelTypes = selectedFuelTypes,
-                    sortMode = sortMode,
-                    userLocation = userLocation,
-                    fuelTypes = fuelTypes,
-                    onToggleFuelType = { viewModel.toggleFuelType(it) },
-                    onSortChange = { mode ->
-                        viewModel.setSortMode(mode, userLocation?.latitude, userLocation?.longitude)
-                    },
-                    onStationClick = {
-                        selectedStation = it
-                        onStationClick(it)
-                    },
-                    onToggleVisibility = { showStationList = !showStationList }
-                )
-
-                AnimatedVisibility(
-                    visible = selectedStation != null,
-                    modifier = Modifier.align(Alignment.BottomCenter),
-                    enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
-                    exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
-                ) {
-                    selectedStation?.let { station ->
-                        StationDetailCard(
-                            station = station,
-                            selectedFuelTypes = selectedFuelTypes,
-                            onClose = { selectedStation = null }
+                    AnimatedVisibility(
+                        visible = !showStationList && recommendation != null,
+                        enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
+                        exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 })
+                    ) {
+                        AiRecommendationCard(
+                            recommendation = recommendation,
+                            onExpandList = { showStationList = true }
                         )
+                    }
+
+                    StationBottomSheet(
+                        visible = showStationList,
+                        isLoading = isLoading,
+                        stations = stations,
+                        selectedFuelTypes = selectedFuelTypes,
+                        sortMode = sortMode,
+                        userLocation = userLocation,
+                        fuelTypes = fuelTypes,
+                        onToggleFuelType = { viewModel.toggleFuelType(it) },
+                        onSortChange = { mode ->
+                            viewModel.setSortMode(mode, userLocation?.latitude, userLocation?.longitude)
+                        },
+                        onStationClick = {
+                            selectedStation = it
+                            onStationClick(it)
+                        },
+                        onToggleVisibility = { showStationList = !showStationList }
+                    )
+
+                    AnimatedVisibility(
+                        visible = selectedStation != null,
+                        enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
+                        exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
+                    ) {
+                        selectedStation?.let { station ->
+                            StationDetailCard(
+                                station = station,
+                                selectedFuelTypes = selectedFuelTypes,
+                                onClose = { selectedStation = null }
+                            )
+                        }
                     }
                 }
             }

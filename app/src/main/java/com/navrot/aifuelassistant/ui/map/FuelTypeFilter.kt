@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
+import androidx.compose.foundation.layout.fillMaxWidth
 
 @Composable
 fun FuelTypeFilter(
