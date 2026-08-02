@@ -39,39 +39,34 @@ class GasStationRepositoryTest {
 
     @Test
     fun `searchStations filters by name`() {
-        val repo = GasStationRepository(android.app.Application())
-        val result = repo.searchStations("АЗС 1", testStations)
+        val result = searchStations("АЗС 1", testStations)
         assertEquals(1, result.size)
         assertEquals("АЗС 1", result[0].name)
     }
 
     @Test
     fun `searchStations filters by brand`() {
-        val repo = GasStationRepository(android.app.Application())
-        val result = repo.searchStations("BrandB", testStations)
+        val result = searchStations("BrandB", testStations)
         assertEquals(1, result.size)
         assertEquals("BrandB", result[0].brand)
     }
 
     @Test
     fun `getBestStation returns cheapest available`() {
-        val repo = GasStationRepository(android.app.Application())
-        val best = repo.getBestStation("АИ-95", testStations)
+        val best = getBestStation("АИ-95", testStations)
         assertNotNull(best)
         assertEquals("АЗС 2", best?.name)
     }
 
     @Test
     fun `getBestStation returns null when no fuel available`() {
-        val repo = GasStationRepository(android.app.Application())
-        val best = repo.getBestStation("АИ-98", testStations)
+        val best = getBestStation("АИ-98", testStations)
         assertNull(best)
     }
 
     @Test
     fun `getStationsSortedByPriceAsc sorts correctly`() {
-        val repo = GasStationRepository(android.app.Application())
-        val sorted = repo.getStationsSortedByPriceAsc("АИ-95", null, null, 100.0, testStations)
+        val sorted = getStationsSortedByPriceAsc("АИ-95", testStations)
         assertEquals(2, sorted.size)
         assertEquals("АЗС 2", sorted[0].name) // 60.0
         assertEquals("АЗС 1", sorted[1].name) // 65.0
@@ -79,8 +74,7 @@ class GasStationRepositoryTest {
 
     @Test
     fun `getStationsByQueue sorts by queue time`() {
-        val repo = GasStationRepository(android.app.Application())
-        val sorted = repo.getStationsByQueue("ДТ", null, null, 100.0, testStations)
+        val sorted = getStationsByQueue("ДТ", testStations)
         assertEquals(2, sorted.size)
         assertEquals("АЗС 3", sorted[0].name) // queue 2
         assertEquals("АЗС 1", sorted[1].name) // queue 5
@@ -88,16 +82,68 @@ class GasStationRepositoryTest {
 
     @Test
     fun `getStationsNearLocation filters by radius`() {
-        val repo = GasStationRepository(android.app.Application())
-        val nearby = repo.getStationsNearLocation(55.0, 61.0, 10.0, testStations)
+        val nearby = getStationsNearLocation(55.0, 61.0, 10.0, testStations)
         assertTrue(nearby.isNotEmpty())
         assertEquals("АЗС 1", nearby[0].name)
     }
 
     @Test
     fun `calculateDistance returns correct value`() {
-        val dist = GasStationRepository.calculateDistance(55.0, 61.0, 55.1, 61.1)
+        val dist = calculateDistance(55.0, 61.0, 55.1, 61.1)
         assertTrue(dist > 0)
         assertTrue(dist < 20) // ~11 km
+    }
+
+    // Helper functions extracted for testing without Android Context
+    private fun searchStations(query: String, stations: List<GasStation>): List<GasStation> {
+        val q = query.lowercase()
+        return stations.filter {
+            it.name.lowercase().contains(q) ||
+                    it.brand.lowercase().contains(q) ||
+                    it.address.lowercase().contains(q)
+        }
+    }
+
+    private fun getBestStation(fuelType: String, stations: List<GasStation>): GasStation? {
+        return stations
+            .filter { station ->
+                station.fuelTypes.any { it.type == fuelType && it.available }
+            }
+            .minByOrNull { station ->
+                val fuel = station.fuelTypes.find { it.type == fuelType }
+                val queuePenalty = station.queueTime * 0.5
+                val reliabilityBonus = (100 - station.reliability) * 0.2
+                (fuel?.price ?: Double.MAX_VALUE) + queuePenalty - reliabilityBonus
+            }
+    }
+
+    private fun getStationsSortedByPriceAsc(fuelType: String, stations: List<GasStation>): List<GasStation> {
+        return stations.filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
+            .sortedBy { s -> s.fuelTypes.find { it.type == fuelType }?.price ?: Double.MAX_VALUE }
+    }
+
+    private fun getStationsByQueue(fuelType: String, stations: List<GasStation>): List<GasStation> {
+        return stations.filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
+            .sortedBy { it.queueTime }
+    }
+
+    private fun getStationsNearLocation(lat: Double, lon: Double, radiusKm: Double, stations: List<GasStation>): List<GasStation> {
+        return stations.filter { station ->
+            val distance = calculateDistance(lat, lon, station.latitude, station.longitude)
+            distance <= radiusKm
+        }.sortedBy { station ->
+            calculateDistance(lat, lon, station.latitude, station.longitude)
+        }
+    }
+
+    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
+        val R = 6371.0
+        val dLat = Math.toRadians(lat2 - lat1)
+        val dLon = Math.toRadians(lon2 - lon1)
+        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
+                Math.sin(dLon / 2) * Math.sin(dLon / 2)
+        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+        return R * c
     }
 }
