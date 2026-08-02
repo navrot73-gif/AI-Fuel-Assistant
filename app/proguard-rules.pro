@@ -6,6 +6,16 @@
 -keep class com.navrot.aifuelassistant.data.database.entity.** { *; }
 -keep interface com.navrot.aifuelassistant.data.database.dao.** { *; }
 
-# okhttp / okio use reflection in places; suppress harmless warnings
+# Hilt
+-keepclasseswithmembers class * {
+    @dagger.hilt.android.HiltAndroidApp <init>(...);
+}
+-keep class dagger.hilt.** { *; }
+
+# OkHttp / Okio
 -dontwarn okhttp3.**
 -dontwarn okio.**
+
+# OSMDroid
+-keep class org.osmdroid.** { *; }
+-dontwarn org.osmdroid.**

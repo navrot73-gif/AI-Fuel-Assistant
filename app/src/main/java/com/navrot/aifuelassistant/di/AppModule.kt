@@ -1,6 +1,9 @@
 package com.navrot.aifuelassistant.di
 
 import android.content.Context
+import androidx.room.Room
+import com.navrot.aifuelassistant.ai.AiRouterFactory
+import com.navrot.aifuelassistant.ai.router.AiRouter
 import com.navrot.aifuelassistant.data.FuelRecordRepository
 import com.navrot.aifuelassistant.data.FuelRecordRepositoryImpl
 import com.navrot.aifuelassistant.data.VehicleRepository
@@ -13,6 +16,8 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import okhttp3.OkHttpClient
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
@@ -22,14 +27,22 @@ object AppModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): AppDatabase {
-        return AppDatabase.getInstance(context)
+        return Room.databaseBuilder(
+            context.applicationContext,
+            AppDatabase::class.java,
+            "ai_fuel_assistant_db"
+        )
+            .fallbackToDestructiveMigration()
+            .build()
     }
 
     @Provides
-    fun provideVehicleDao(db: AppDatabase): VehicleDao = db.vehicleDao()
+    fun provideVehicleDao(database: AppDatabase): VehicleDao =
+        database.vehicleDao()
 
     @Provides
-    fun provideFuelRecordDao(db: AppDatabase): FuelRecordDao = db.fuelRecordDao()
+    fun provideFuelRecordDao(database: AppDatabase): FuelRecordDao =
+        database.fuelRecordDao()
 
     @Provides
     @Singleton
@@ -42,4 +55,17 @@ object AppModule {
     fun provideFuelRecordRepository(dao: FuelRecordDao): FuelRecordRepository {
         return FuelRecordRepositoryImpl(dao)
     }
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(): OkHttpClient {
+        return OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideAiRouter(): AiRouter = AiRouterFactory.create()
 }
