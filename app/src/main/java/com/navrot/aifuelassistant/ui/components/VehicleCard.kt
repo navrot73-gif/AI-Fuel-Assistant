@@ -295,16 +295,26 @@ private fun CarSilhouette(modifier: Modifier = Modifier) {
                 val dy = (size.height - 96f * us) / 2f
                 translate(left = dx, top = dy) {
                     scale(scaleX = us, scaleY = us, pivot = Offset.Zero) {
-                        drawOval(Color(0x66000000), topLeft = Offset(70f, 80f), size = Size(108f, 12f))
+                        // Тень под машиной
+                        drawOval(Color(0x66000000), topLeft = Offset(28f, 84f), size = Size(184f, 9f))
+
                         val grad = Brush.linearGradient(
                             listOf(FueldeckColors.Teal, FueldeckColors.Amber),
                             start = Offset.Zero, end = Offset(240f, 0f),
                         )
+                        // Кузов одной плавной линией с арками колёс
                         drawPath(bodyPath(), grad, style = Stroke(3f, cap = StrokeCap.Round, join = StrokeJoin.Round))
-                        drawPath(winFront(), FueldeckColors.Teal.copy(alpha = 0.10f))
-                        drawPath(winFront(), FueldeckColors.Teal.copy(alpha = 0.5f), style = Stroke(1.5f))
-                        drawPath(winRear(), FueldeckColors.Amber.copy(alpha = 0.08f))
-                        drawPath(winRear(), FueldeckColors.Amber.copy(alpha = 0.4f), style = Stroke(1.5f))
+                        // Окна
+                        drawPath(winRear(), FueldeckColors.Teal.copy(alpha = 0.10f))
+                        drawPath(winRear(), FueldeckColors.Teal.copy(alpha = 0.5f), style = Stroke(1.5f))
+                        drawPath(winFront(), FueldeckColors.Amber.copy(alpha = 0.08f))
+                        drawPath(winFront(), FueldeckColors.Amber.copy(alpha = 0.4f), style = Stroke(1.5f))
+                        // Дверной шов и ручка
+                        drawPath(doorLine(), ring.copy(alpha = 0.35f), style = Stroke(1.5f, cap = StrokeCap.Round))
+                        // Фары
+                        drawPath(headlight(), FueldeckColors.Amber, style = Stroke(2.5f, cap = StrokeCap.Round))
+                        drawPath(taillight(), FueldeckColors.Coral, style = Stroke(2.5f, cap = StrokeCap.Round))
+                        // Колёса
                         wheel(62f, 72f, ring)
                         wheel(172f, 72f, ring)
                     }
@@ -327,55 +337,76 @@ private fun CarSilhouette(modifier: Modifier = Modifier) {
 }
 
 private fun DrawScope.wheel(cx: Float, cy: Float, ring: Color) {
-    drawCircle(Color(0xFF0A0E11), 15f, Offset(cx, cy))
-    drawCircle(ring, 15f, Offset(cx, cy), style = Stroke(3f))
-    drawCircle(ring, 6f, Offset(cx, cy))
+    drawCircle(Color(0xFF0A0E11), 14f, Offset(cx, cy))
+    drawCircle(ring, 14f, Offset(cx, cy), style = Stroke(3f))
+    drawCircle(ring, 5.5f, Offset(cx, cy))
 }
 
 private fun bodyPath(): Path {
     return Path().apply {
-        moveTo(14f, 70f)
-        cubicTo(14f, 64f, 18f, 61f, 26f, 60f)
-        lineTo(48f, 57f)
-        lineTo(66f, 41f)
-        cubicTo(71f, 37f, 77f, 35f, 85f, 35f)
-        lineTo(119f, 35f)
-        cubicTo(128f, 35f, 135f, 38f, 142f, 44f)
-        lineTo(158f, 57f)
-        lineTo(188f, 61f)
-        cubicTo(200f, 63f, 208f, 68f, 210f, 77f)
-        cubicTo(211f, 82f, 208f, 86f, 202f, 86f)
-        lineTo(190f, 86f)
-        moveTo(14f, 70f)
-        lineTo(42f, 70f)
-        moveTo(86f, 70f)
-        lineTo(148f, 70f)
-        moveTo(196f, 70f)
-        lineTo(202f, 70f)
-        lineTo(202f, 78f)
-    }
-}
-
-private fun winFront(): Path {
-    return Path().apply {
-        moveTo(70f, 55f)
-        lineTo(84f, 40f)
-        lineTo(113f, 40f)
-        lineTo(113f, 55f)
+        moveTo(18f, 76f)
+        cubicTo(12f, 76f, 10f, 71f, 10f, 66f)      // задний бампер
+        cubicTo(10f, 60f, 15f, 57f, 24f, 56f)     // багажник
+        lineTo(52f, 52f)                          // заднее крыло
+        cubicTo(60f, 43f, 70f, 38f, 82f, 37f)     // задняя стойка
+        lineTo(116f, 37f)                         // крыша
+        cubicTo(128f, 37f, 137f, 41f, 145f, 48f)  // лобовое стекло
+        lineTo(155f, 54f)                         // капотный стык
+        lineTo(190f, 58f)                         // капот
+        cubicTo(203f, 60f, 211f, 64f, 212f, 69f)  // нос
+        cubicTo(213f, 73f, 210f, 76f, 205f, 76f)  // передний бампер
+        lineTo(190f, 76f)
+        cubicTo(188f, 62f, 180f, 56f, 172f, 56f)  // арка переднего колеса
+        cubicTo(164f, 56f, 156f, 62f, 154f, 76f)
+        lineTo(80f, 76f)
+        cubicTo(78f, 62f, 70f, 56f, 62f, 56f)     // арка заднего колеса
+        cubicTo(54f, 56f, 46f, 62f, 44f, 76f)
         close()
     }
 }
 
 private fun winRear(): Path {
     return Path().apply {
-        moveTo(117f, 55f)
-        lineTo(117f, 40f)
-        lineTo(133f, 41f)
-        lineTo(152f, 54f)
+        moveTo(72f, 52f)
+        lineTo(83f, 41f)
+        lineTo(110f, 41f)
+        lineTo(110f, 52f)
         close()
     }
 }
 
+private fun winFront(): Path {
+    return Path().apply {
+        moveTo(116f, 52f)
+        lineTo(116f, 41f)
+        lineTo(127f, 41f)
+        cubicTo(135f, 42f, 141f, 46f, 146f, 52f)
+        close()
+    }
+}
+
+private fun doorLine(): Path {
+    return Path().apply {
+        moveTo(113f, 54f)
+        lineTo(113f, 74f)
+        moveTo(118f, 58f)
+        lineTo(126f, 58f)
+    }
+}
+
+private fun headlight(): Path {
+    return Path().apply {
+        moveTo(205f, 63f)
+        lineTo(211f, 67f)
+    }
+}
+
+private fun taillight(): Path {
+    return Path().apply {
+        moveTo(10f, 63f)
+        lineTo(15f, 62f)
+    }
+}
 @Preview(showBackground = true, backgroundColor = 0xFF0E1418)
 @Composable
 private fun VehicleCardPreview() {

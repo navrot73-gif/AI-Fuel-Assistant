@@ -1,5 +1,7 @@
 package com.navrot.aifuelassistant.ui.map
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -22,7 +24,11 @@ import com.navrot.aifuelassistant.data.model.GasStation
 fun StationDetailCard(
     station: GasStation,
     selectedFuelTypes: Set<String>,
-    onClose: () -> Unit
+    onClose: () -> Unit,
+    onBuildRoute: () -> Unit = {},
+    isRouting: Boolean = false,
+    routeText: String? = null,
+    onClearRoute: () -> Unit = {}
 ) {
     val context = LocalContext.current
 
@@ -33,27 +39,25 @@ fun StationDetailCard(
         shape = RoundedCornerShape(20.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState())
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = station.brand,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
+                    Text(text = station.brand, fontWeight = FontWeight.Bold, fontSize = 18.sp)
                     Text(
                         text = station.address,
                         fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                IconButton(onClick = onClose) {
-                    Text("✕", fontSize = 20.sp)
-                }
+                IconButton(onClick = onClose) { Text("✕", fontSize = 20.sp) }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -61,9 +65,7 @@ fun StationDetailCard(
             station.fuelTypes.forEach { fuel ->
                 val isSelected = selectedFuelTypes.contains(fuel.type)
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 4.dp),
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -95,52 +97,68 @@ fun StationDetailCard(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 val queueColor = when {
                     station.queueTime <= 5 -> Color(0xFF4CAF50)
                     station.queueTime <= 15 -> Color(0xFFFF9800)
                     else -> Color(0xFFF44336)
                 }
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = queueColor.copy(alpha = 0.1f)
-                ) {
+                Surface(shape = RoundedCornerShape(8.dp), color = queueColor.copy(alpha = 0.1f)) {
                     Text(
                         text = "Очередь: ${station.queueTime} мин",
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        color = queueColor,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 13.sp
+                        color = queueColor, fontWeight = FontWeight.Medium, fontSize = 13.sp
                     )
                 }
-
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.primaryContainer
-                ) {
+                Surface(shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.primaryContainer) {
                     Text(
                         text = "Надёжность: ${station.reliability}%",
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        fontWeight = FontWeight.Medium,
-                        fontSize = 13.sp
+                        fontWeight = FontWeight.Medium, fontSize = 13.sp
                     )
                 }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            // ===== Маршрут внутри приложения =====
             Button(
-                onClick = { openMapsRoute(context, station.latitude, station.longitude, station.brand) },
+                onClick = onBuildRoute,
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(Icons.Default.LocationOn, contentDescription = null)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("Построить маршрут")
+                Text(if (isRouting) "Уточняем по дорогам..." else "Построить маршрут")
+            }
+
+            if (routeText != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "🧭 $routeText",
+                            modifier = Modifier.weight(1f),
+                            fontSize = 13.sp,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                        TextButton(onClick = onClearRoute) { Text("Сбросить") }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedButton(
+                onClick = { openMapsRoute(context, station.latitude, station.longitude, station.brand) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Открыть в навигаторе")
             }
         }
     }
