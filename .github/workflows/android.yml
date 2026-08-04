@@ -33,17 +33,14 @@ jobs:
 
       - name: Run lint
         id: lint
-        continue-on-error: true
         run: ./gradlew lintDebug --stacktrace
 
       - name: Run unit tests
         id: test
-        continue-on-error: true
         run: ./gradlew testDebugUnitTest --stacktrace
 
       - name: Run instrumentation tests
         id: android_test
-        continue-on-error: true
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
@@ -53,7 +50,6 @@ jobs:
 
       - name: Build debug APK
         id: build
-        continue-on-error: true
         run: |
           set -o pipefail
           ./gradlew assembleDebug --stacktrace --info 2>&1 | tee gradle-build.log
@@ -64,10 +60,10 @@ jobs:
         with:
           name: gradle-build-diagnostic
           path: gradle-build.log
-          if-no-files-found: error
+          if-no-files-found: warn
 
       - name: Upload lint report
-        if: always() && steps.lint.outcome == 'success'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: lint-report
@@ -75,7 +71,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload unit test results
-        if: always() && steps.test.outcome == 'success'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-results
@@ -83,7 +79,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload instrumentation test results
-        if: always() && steps.android_test.outcome == 'success'
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: instrumentation-test-results
@@ -91,19 +87,9 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload debug APK
-        if: steps.build.outcome == 'success'
+        if: success()
         uses: actions/upload-artifact@v4
         with:
           name: ai-fuel-assistant-debug-apk
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
-
-      - name: Fail job if any quality gate failed
-        if: steps.lint.outcome != 'success' || steps.test.outcome != 'success' || steps.android_test.outcome != 'success' || steps.build.outcome != 'success'
-        run: |
-          echo "CI quality gate failed:"
-          echo "  lint:             ${{ steps.lint.outcome }}"
-          echo "  unit tests:       ${{ steps.test.outcome }}"
-          echo "  instrumentation:  ${{ steps.android_test.outcome }}"
-          echo "  build:            ${{ steps.build.outcome }}"
-          exit 1
