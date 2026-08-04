@@ -39,6 +39,7 @@ class AppDatabaseMigrationTest {
         val vehicleId: Long
         val fuelRecordId: Long
 
+        // Create database with version 2
         helper.createDatabase(testDbName, 2).apply {
             val vehicle = ContentValues().apply {
                 put("name", "Test car")
@@ -47,9 +48,8 @@ class AppDatabaseMigrationTest {
                 put("year", 2020)
                 put("fuelType", "АИ-95")
                 put("tankCapacity", 60.0)
-                put("currentFuelLevel", 30.0)
                 put("currentMileage", 10000.0)
-                put("averageConsumption", 8.0)
+                // Note: currentFuelLevel and averageConsumption are NOT in version 2 schema
             }
             vehicleId = insert("vehicles", 0, vehicle)
             assertTrue(vehicleId > 0)
@@ -72,6 +72,7 @@ class AppDatabaseMigrationTest {
             close()
         }
 
+        // Run migration to version 3
         helper.runMigrationsAndValidate(
             testDbName,
             3,
