@@ -43,10 +43,13 @@ jobs:
         id: android_test
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          api-level: 29
           arch: x86_64
           profile: pixel_2
-          script: ./gradlew connectedDebugAndroidTest --stacktrace
+          disable-animations: true
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: ./gradlew connectedDebugAndroidTest --stacktrace --parallel
+
 
       - name: Build debug APK
         id: build
