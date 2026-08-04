@@ -1,7 +1,6 @@
 package com.navrot.aifuelassistant.data.database
 
 import android.content.ContentValues
-import androidx.room.Room
 import androidx.room.testing.MigrationTestHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -37,42 +36,10 @@ class AppDatabaseMigrationTest {
 
     @Test
     fun migrate2To3_preservesFuelRecordsAndAddsForeignKey() {
-        helper.createDatabase(testDbName, 2).apply {
-            execSQL(
-                """
-                CREATE TABLE IF NOT EXISTS vehicles (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                    name TEXT NOT NULL,
-                    brand TEXT NOT NULL,
-                    model TEXT NOT NULL,
-                    year INTEGER NOT NULL,
-                    fuelType TEXT NOT NULL,
-                    tankCapacity REAL NOT NULL,
-                    currentFuelLevel REAL NOT NULL,
-                    currentMileage REAL NOT NULL,
-                    averageConsumption REAL NOT NULL
-                )
-                """.trimIndent()
-            )
-            execSQL(
-                """
-                CREATE TABLE IF NOT EXISTS fuel_records (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                    vehicleId INTEGER NOT NULL,
-                    date INTEGER NOT NULL,
-                    mileage REAL NOT NULL,
-                    fuelAmount REAL NOT NULL,
-                    pricePerLiter REAL NOT NULL,
-                    totalCost REAL NOT NULL,
-                    fuelType TEXT NOT NULL,
-                    stationName TEXT NOT NULL,
-                    notes TEXT NOT NULL,
-                    latitude REAL,
-                    longitude REAL
-                )
-                """.trimIndent()
-            )
+        val vehicleId: Long
+        val fuelRecordId: Long
 
+        helper.createDatabase(testDbName, 2).apply {
             val vehicle = ContentValues().apply {
                 put("name", "Test car")
                 put("brand", "Test")
@@ -84,7 +51,8 @@ class AppDatabaseMigrationTest {
                 put("currentMileage", 10000.0)
                 put("averageConsumption", 8.0)
             }
-            val vehicleId = insert("vehicles", 0, vehicle)
+            vehicleId = insert("vehicles", 0, vehicle)
+            assertTrue(vehicleId > 0)
 
             val fuelRecord = ContentValues().apply {
                 put("vehicleId", vehicleId)
@@ -99,9 +67,8 @@ class AppDatabaseMigrationTest {
                 putNull("latitude")
                 putNull("longitude")
             }
-            val fuelRecordId = insert("fuel_records", 0, fuelRecord)
+            fuelRecordId = insert("fuel_records", 0, fuelRecord)
             assertTrue(fuelRecordId > 0)
-
             close()
         }
 
@@ -109,7 +76,7 @@ class AppDatabaseMigrationTest {
             testDbName,
             3,
             true,
-            MIGRATION_2_3
+            DatabaseMigrations.MIGRATION_2_3
         ).use { db ->
             db.query(
                 "SELECT vehicleId, stationName, fuelAmount, totalCost FROM fuel_records WHERE id = ?",
@@ -134,45 +101,6 @@ class AppDatabaseMigrationTest {
                     }
                 }
                 assertTrue("vehicleId foreign key should reference vehicles.id", foundVehicleForeignKey)
-            }
-        }
-    }
-
-    companion object {
-        private val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
-            override fun migrate(database: androidx.sqlite.db.SupportSQLiteDatabase) {
-                database.execSQL(
-                    """
-                    CREATE TABLE IF NOT EXISTS fuel_records_new (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
-                        vehicleId INTEGER NOT NULL,
-                        date INTEGER NOT NULL,
-                        mileage REAL NOT NULL,
-                        fuelAmount REAL NOT NULL,
-                        pricePerLiter REAL NOT NULL,
-                        totalCost REAL NOT NULL,
-                        fuelType TEXT NOT NULL,
-                        stationName TEXT NOT NULL,
-                        notes TEXT NOT NULL,
-                        latitude REAL,
-                        longitude REAL,
-                        FOREIGN KEY(vehicleId) REFERENCES vehicles(id) ON DELETE CASCADE
-                    )
-                    """.trimIndent()
-                )
-                database.execSQL(
-                    """
-                    INSERT INTO fuel_records_new (
-                        id, vehicleId, date, mileage, fuelAmount, pricePerLiter,
-                        totalCost, fuelType, stationName, notes, latitude, longitude
-                    )
-                    SELECT id, vehicleId, date, mileage, fuelAmount, pricePerLiter,
-                        totalCost, fuelType, stationName, notes, latitude, longitude
-                    FROM fuel_records
-                    """.trimIndent()
-                )
-                database.execSQL("DROP TABLE fuel_records")
-                database.execSQL("ALTER TABLE fuel_records_new RENAME TO fuel_records")
             }
         }
     }
