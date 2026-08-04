@@ -39,16 +39,17 @@ jobs:
         id: test
         run: ./gradlew testDebugUnitTest --stacktrace
 
-      - name: Run instrumentation tests
-        id: android_test
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: 29
-          arch: x86_64
-          profile: pixel_2
-          disable-animations: true
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          script: ./gradlew connectedDebugAndroidTest --stacktrace --parallel
+- name: Run instrumentation tests
+  uses: reactivecircus/android-emulator-runner@v2
+  with:
+    api-level: 31
+    target: google_apis
+    arch: x86_64
+    profile: Pixel_6
+    force-avd-creation: false
+    emulator-options: -no-snapshot-load -no-window -no-audio -no-boot-anim -camera-back none
+    disable-animations: true
+    script: ./gradlew connectedDebugAndroidTest --stacktrace
 
 
       - name: Build debug APK
