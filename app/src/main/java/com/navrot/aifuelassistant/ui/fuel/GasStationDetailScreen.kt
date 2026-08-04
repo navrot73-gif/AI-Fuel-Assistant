@@ -400,45 +400,23 @@ fun ReviewCard(review: Review) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = review.text,
+                text = review.content,
                 style = MaterialTheme.typography.bodyMedium
             )
-            if (review.likes > 0) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        imageVector = Icons.Default.ThumbUp,
-                        contentDescription = null,
-                        modifier = Modifier.size(14.dp),
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text(
-                        text = "${review.likes}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
         }
     }
 }
 
 @Composable
-fun AddReviewDialog(
-    onDismiss: () -> Unit,
-    onSubmit: (Int, String) -> Unit
-) {
-    var rating by remember { mutableStateOf(5) }
-    var text by remember { mutableStateOf("") }
+fun AddReviewDialog(onDismiss: () -> Unit, onSubmit: (Int, String) -> Unit) {
+    var rating by remember { mutableIntStateOf(5) }
+    var content by remember { mutableStateOf("") }
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Написать отзыв") },
+        title = { Text("Оставить отзыв") },
         text = {
             Column {
-                Text("Ваша оценка", style = MaterialTheme.typography.bodyMedium)
-                Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center
@@ -447,31 +425,23 @@ fun AddReviewDialog(
                         IconButton(onClick = { rating = index + 1 }) {
                             Icon(
                                 imageVector = Icons.Default.Star,
-                                contentDescription = "${index + 1} звезда",
-                                tint = if (index < rating) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                                }
+                                contentDescription = null,
+                                tint = if (index < rating) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
                             )
                         }
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
                 OutlinedTextField(
-                    value = text,
-                    onValueChange = { text = it },
-                    label = { Text("Ваш отзыв") },
+                    value = content,
+                    onValueChange = { content = it },
                     modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Ваш отзыв...") },
                     minLines = 3
                 )
             }
         },
         confirmButton = {
-            Button(
-                onClick = { onSubmit(rating, text) },
-                enabled = text.isNotBlank()
-            ) {
+            Button(onClick = { onSubmit(rating, content) }) {
                 Text("Отправить")
             }
         },
@@ -483,19 +453,16 @@ fun AddReviewDialog(
     )
 }
 
-// ===== Вспомогательные функции =====
+private fun calculateAverageRating(reviews: List<Review>): String {
+    if (reviews.isEmpty()) return "0.0"
+    val avg = reviews.map { it.rating }.average()
+    return String.format("%.1f", avg)
+}
 
 private fun generateSampleReviews(stationId: Long): List<Review> {
     return listOf(
-        Review(1, stationId, "Алексей К.", 5, "Отличная АЗС! Чисто, топливо качественное, цены адекватные. Кассиры вежливые.", "18.07.2026", 12),
-        Review(2, stationId, "Марина С.", 4, "Хорошая заправка, но вечером бывает очередь. Лучше заезжать утром.", "15.07.2026", 8),
-        Review(3, stationId, "Дмитрий В.", 3, "Нормально, но цены чуть выше, чем на соседней Татнефти. Зато кофе хороший.", "10.07.2026", 3),
-        Review(4, stationId, "Ольга П.", 5, "Люблю эту сеть! Всегда чисто, есть бесплатный воздух и вода для омывателя.", "05.07.2026", 15),
-        Review(5, stationId, "Игорь М.", 2, "Очередь 20 минут в выходные. Не рекомендую в пиковые часы.", "01.07.2026", 1)
+        Review(1, stationId, "Алексей", 5, "Отличная АЗС, всегда качественное топливо.", "01.08.2024"),
+        Review(2, stationId, "Мария", 4, "Хороший сервис, но иногда бывают очереди.", "28.07.2024"),
+        Review(3, stationId, "Иван", 5, "Удобное расположение и вкусный кофе.", "15.07.2024")
     )
-}
-
-private fun calculateAverageRating(reviews: List<Review>): String {
-    if (reviews.isEmpty()) return "0.0"
-    return String.format("%.1f", reviews.map { it.rating }.average())
 }

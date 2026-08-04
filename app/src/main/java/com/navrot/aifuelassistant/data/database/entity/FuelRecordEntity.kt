@@ -2,6 +2,7 @@ package com.navrot.aifuelassistant.data.database.entity
 
 import androidx.room.Entity
 import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 @Entity(
@@ -13,7 +14,8 @@ import androidx.room.PrimaryKey
             childColumns = ["vehicleId"],
             onDelete = ForeignKey.CASCADE
         )
-    ]
+    ],
+    indices = [Index(value = ["vehicleId"])]
 )
 data class FuelRecordEntity(
     @PrimaryKey(autoGenerate = true)

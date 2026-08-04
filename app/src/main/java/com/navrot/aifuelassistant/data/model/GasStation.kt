@@ -1,5 +1,9 @@
 package com.navrot.aifuelassistant.data.model
 
+import android.os.Parcelable
+import kotlinx.parcelize.Parcelize
+
+@Parcelize
 data class GasStation(
     val id: Int,
     val name: String,
@@ -14,4 +18,4 @@ data class GasStation(
     val updatedAt: Long = 0L,
     val confidence: Int = 0,
     val photoEvidence: List<PhotoEvidence> = emptyList()
-)
+) : Parcelable

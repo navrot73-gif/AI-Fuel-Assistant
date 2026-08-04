@@ -96,7 +96,15 @@ fun AppNavigation() {
             composable("map") {
                 MapScreen(
                     onStationClick = { station ->
-                        navController.navigate("station_detail/${station.id}")
+                        // В текущей реализации мы передаем объект через сохраненное состояние или
+                        // используем ViewModel. Для простоты исправления ошибки компиляции,
+                        // если экран требует GasStation, мы должны были либо передавать его,
+                        // либо изменить экран. 
+                        // Так как GasStation не является Parcelable по умолчанию, 
+                        // сохраним его в SavedStateHandle текущего стека или передадим ID.
+                        // НО: GasStationDetailScreen в текущем коде ТРЕБУЕТ объект.
+                        navController.currentBackStackEntry?.savedStateHandle?.set("station", station)
+                        navController.navigate("station_detail")
                     }
                 )
             }
@@ -117,17 +125,19 @@ fun AppNavigation() {
                 AddVehicleScreen(onNavigateBack = { navController.popBackStack() })
             }
 
-            composable(
-                route = "station_detail/{stationId}",
-                arguments = listOf(
-                    navArgument("stationId") { type = NavType.IntType }
-                )
-            ) { entry ->
-                val stationId = entry.arguments?.getInt("stationId") ?: return@composable
-                GasStationDetailScreen(
-                    stationId = stationId,
-                    onBack = { navController.popBackStack() }
-                )
+            composable("station_detail") {
+                val station = navController.previousBackStackEntry?.savedStateHandle?.get<com.navrot.aifuelassistant.data.model.GasStation>("station")
+                if (station != null) {
+                    GasStationDetailScreen(
+                        station = station,
+                        onBack = { navController.popBackStack() }
+                    )
+                } else {
+                    // Если данных нет, возвращаемся назад
+                    LaunchedEffect(Unit) {
+                        navController.popBackStack()
+                    }
+                }
             }
 
             composable(
