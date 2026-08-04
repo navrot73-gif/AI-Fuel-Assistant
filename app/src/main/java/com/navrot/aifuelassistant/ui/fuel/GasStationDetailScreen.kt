@@ -400,7 +400,7 @@ fun ReviewCard(review: Review) {
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                text = review.content,
+                text = review.text,
                 style = MaterialTheme.typography.bodyMedium
             )
         }
