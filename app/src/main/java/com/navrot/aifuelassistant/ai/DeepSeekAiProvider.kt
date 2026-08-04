@@ -44,11 +44,15 @@ class DeepSeekAiProvider : AiProvider {
                 .build()
 
             client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
                 if (!response.isSuccessful) {
-                    throw Exception("DeepSeek API error: ${response.code} ${response.message}")
+                    throw Exception("DeepSeek API error: ${response.code} ${responseBody ?: response.message}")
                 }
 
-                val responseBody = response.body?.string() ?: ""
+                if (responseBody.isNullOrBlank()) {
+                    throw Exception("DeepSeek response body is empty")
+                }
+
                 val jsonResponse = JSONObject(responseBody)
 
                 jsonResponse.getJSONArray("choices")

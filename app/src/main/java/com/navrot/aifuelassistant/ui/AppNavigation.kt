@@ -124,10 +124,10 @@ fun AppNavigation() {
                 )
             ) { entry ->
                 val stationId = entry.arguments?.getInt("stationId") ?: return@composable
-                // Экран будет искать станцию по id через ViewModel
-                // Передаём пока заглушку — реальная реализация потребует
-                // передачи GasStation через SavedStateHandle или NavType
-                Text("Детали АЗС #$stationId — в разработке")
+                GasStationDetailScreen(
+                    stationId = stationId,
+                    onBack = { navController.popBackStack() }
+                )
             }
 
             composable(

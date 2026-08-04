@@ -36,6 +36,7 @@ object AppModule {
             "ai_fuel_assistant_db"
         )
             .addMigrations(DatabaseMigrations.MIGRATION_2_3)
+            .fallbackToDestructiveMigration()
             .build()
     }
 

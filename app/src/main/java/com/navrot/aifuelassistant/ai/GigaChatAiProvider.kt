@@ -1,5 +1,6 @@
 package com.navrot.aifuelassistant.ai
 
+import android.util.Base64
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -11,7 +12,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.Base64
 import java.util.UUID
 
 class GigaChatAiProvider(
@@ -62,9 +62,13 @@ class GigaChatAiProvider(
             .build()
 
         httpClient.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
+            val body = response.body?.string()
             if (!response.isSuccessful) {
-                throw IllegalStateException("GigaChat request failed: HTTP ${response.code} - $body")
+                throw IllegalStateException("GigaChat request failed: HTTP ${response.code} - ${body.orEmpty()}")
+            }
+
+            if (body.isNullOrBlank()) {
+                throw IllegalStateException("GigaChat response body is empty")
             }
 
             JSONObject(body)
@@ -88,7 +92,7 @@ class GigaChatAiProvider(
         } else if (!clientId.isNullOrBlank() && !clientSecret.isNullOrBlank()) {
             // Если есть clientId и clientSecret, кодируем их
             val credentials = "$clientId:$clientSecret"
-            val base64Credentials = Base64.getEncoder().encodeToString(credentials.toByteArray())
+            val base64Credentials = Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)
             "Basic $base64Credentials"
         } else {
             throw IllegalStateException("GigaChat credentials are not configured")
@@ -107,9 +111,13 @@ class GigaChatAiProvider(
             .build()
 
         httpClient.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
+            val body = response.body?.string()
             if (!response.isSuccessful) {
-                throw IllegalStateException("GigaChat token request failed: HTTP ${response.code} - $body")
+                throw IllegalStateException("GigaChat token request failed: HTTP ${response.code} - ${body.orEmpty()}")
+            }
+
+            if (body.isNullOrBlank()) {
+                throw IllegalStateException("GigaChat token response body is empty")
             }
 
             val json = JSONObject(body)

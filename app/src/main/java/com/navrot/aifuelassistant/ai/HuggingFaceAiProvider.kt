@@ -44,12 +44,15 @@ class HuggingFaceAiProvider : AiProvider {
                 .build()
 
             client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
                 if (!response.isSuccessful) {
-                    val errorBody = response.body?.string() ?: "Неизвестная ошибка"
-                    throw Exception("HuggingFace API error: ${response.code} - $errorBody")
+                    throw Exception("HuggingFace API error: ${response.code} - ${responseBody ?: "Неизвестная ошибка"}")
                 }
 
-                val responseBody = response.body?.string() ?: ""
+                if (responseBody.isNullOrBlank()) {
+                    throw Exception("HuggingFace response body is empty")
+                }
+
                 val jsonResponse = JSONObject(responseBody)
 
                 jsonResponse.getJSONArray("choices")
