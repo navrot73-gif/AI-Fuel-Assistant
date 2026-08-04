@@ -51,7 +51,7 @@ jobs:
           api-level: 31
           target: google_apis
           arch: x86_64
-          profile: Pixel_6
+          profile: pixel
           force-avd-creation: false
           emulator-options: -no-snapshot-load -no-window -no-audio -no-boot-anim -camera-back none
           disable-animations: true
@@ -92,7 +92,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: instrumentation-test-results
-          path: app/build/outputs/androidTest-results/
+          path: app/build/reports/androidTests/connected/
           if-no-files-found: warn
 
       - name: Upload debug APK
