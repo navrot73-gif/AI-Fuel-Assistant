@@ -33,6 +33,7 @@ class DashboardViewModelTest {
     @Test
     fun `metrics empty records returns zeros`() = runBlocking {
         whenever(mockRecordRepo.getAll()).thenReturn(flowOf(emptyList()))
+        whenever(mockRecordRepo.getByVehicleId(any())).thenReturn(flowOf(emptyList()))
         whenever(mockVehicleRepo.getAllVehicles()).thenReturn(flowOf(emptyList()))
         whenever(mockStationRepo.getAllStations()).thenReturn(emptyList())
 
@@ -56,6 +57,7 @@ class DashboardViewModelTest {
         )
 
         whenever(mockRecordRepo.getAll()).thenReturn(flowOf(records))
+        whenever(mockRecordRepo.getByVehicleId(eq(1L))).thenReturn(flowOf(records))
         whenever(mockVehicleRepo.getAllVehicles()).thenReturn(flowOf(listOf(vehicle)))
         whenever(mockStationRepo.getAllStations()).thenReturn(emptyList())
 

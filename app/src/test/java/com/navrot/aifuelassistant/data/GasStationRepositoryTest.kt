@@ -19,9 +19,9 @@ class GasStationRepositoryTest {
 
     @Test
     fun `calculateDistance chelyabinsk to magnitogorsk is reasonable`() {
-        // Челябинск (55.164, 61.437) -> Магнитогорск (53.416, 59.048) ~270 км
+        // Челябинск (55.164, 61.437) -> Магнитогорск (53.416, 59.048) ~248.5 км
         val dist = GeoUtils.calculateDistance(55.164, 61.437, 53.416, 59.048)
-        assertTrue("Distance should be ~270 km, got $dist", dist in 250.0..300.0)
+        assertTrue("Distance should be ~248 km, got $dist", dist in 240.0..300.0)
     }
 
     @Test
