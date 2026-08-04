@@ -6,20 +6,35 @@ import com.navrot.aifuelassistant.data.GasStationRepository
 import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
-import com.navrot.aifuelassistant.data.model.FuelPrice
-import com.navrot.aifuelassistant.data.model.GasStation
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.*
+import org.junit.After
 import org.junit.Assert.*
+import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.*
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DashboardViewModelTest {
 
     private val mockRecordRepo = mock<FuelRecordRepository>()
     private val mockVehicleRepo = mock<VehicleRepository>()
     private val mockStationRepo = mock<GasStationRepository>()
     private val mockAiRouter = mock<AiRouter>()
+    
+    private val testDispatcher = StandardTestDispatcher()
+
+    @Before
+    fun setup() {
+        Dispatchers.setMain(testDispatcher)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
 
     private fun createViewModel(): com.navrot.aifuelassistant.features.dashboard.DashboardViewModel {
         return com.navrot.aifuelassistant.features.dashboard.DashboardViewModel(
@@ -31,14 +46,14 @@ class DashboardViewModelTest {
     }
 
     @Test
-    fun `metrics empty records returns zeros`() = runBlocking {
+    fun `metrics empty records returns zeros`() = runTest {
         whenever(mockRecordRepo.getAll()).thenReturn(flowOf(emptyList()))
         whenever(mockRecordRepo.getByVehicleId(any())).thenReturn(flowOf(emptyList()))
         whenever(mockVehicleRepo.getAllVehicles()).thenReturn(flowOf(emptyList()))
         whenever(mockStationRepo.getAllStations()).thenReturn(emptyList())
 
         val vm = createViewModel()
-        kotlinx.coroutines.delay(100)
+        advanceUntilIdle()
 
         val metrics = vm.metrics.value
         assertEquals(0, metrics.fillCount)
@@ -46,7 +61,7 @@ class DashboardViewModelTest {
     }
 
     @Test
-    fun `metrics computes consumption correctly`() = runBlocking {
+    fun `metrics computes consumption correctly`() = runTest {
         val vehicle = VehicleEntity(
             id = 1, name = "Test", brand = "T", model = "M",
             year = 2024, fuelType = "АИ-95"
@@ -57,15 +72,16 @@ class DashboardViewModelTest {
         )
 
         whenever(mockRecordRepo.getAll()).thenReturn(flowOf(records))
-        whenever(mockRecordRepo.getByVehicleId(eq(1L))).thenReturn(flowOf(records))
+        whenever(mockRecordRepo.getByVehicleId(any())).thenReturn(flowOf(records))
         whenever(mockVehicleRepo.getAllVehicles()).thenReturn(flowOf(listOf(vehicle)))
         whenever(mockStationRepo.getAllStations()).thenReturn(emptyList())
 
         val vm = createViewModel()
-        kotlinx.coroutines.delay(100)
+        advanceUntilIdle()
 
         val metrics = vm.metrics.value
         assertEquals(2, metrics.fillCount)
+        // (40 liters / 200 km) * 100 = 20 l/100km
         assertEquals(20f, metrics.consumption, 0.5f)
     }
 }
