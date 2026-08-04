@@ -1,11 +1,7 @@
 package com.navrot.aifuelassistant.ui.theme
 
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Shapes
 import androidx.compose.material3.Typography
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -63,28 +59,3 @@ val FueldeckTypography = Typography(
     bodyMedium    = androidx.compose.ui.text.TextStyle(fontFamily = Body, fontWeight = FontWeight.Normal, fontSize = 13.5.sp),
     bodySmall     = androidx.compose.ui.text.TextStyle(fontFamily = Body, fontWeight = FontWeight.Medium, fontSize = 11.sp, letterSpacing = 0.3.sp),
 )
-
-/** Опциональная обёртка: если захочешь, чтобы ВЕСЬ экран жил в палитре Fueldeck.
- *  Подключать НЕ обязательно — компоненты ниже работают и без неё. */
-@Composable
-fun FueldeckTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = darkColorScheme(
-            primary = FueldeckColors.Amber,
-            secondary = FueldeckColors.Teal,
-            tertiary = FueldeckColors.Coral,
-            background = FueldeckColors.Bg0,
-            surface = FueldeckColors.Surface,
-            onSurface = FueldeckColors.Ink,
-            onSurfaceVariant = FueldeckColors.InkDim,
-            outline = FueldeckColors.Line2,
-        ),
-        typography = FueldeckTypography,
-        shapes = Shapes(
-            small = FueldeckShapes.Sm,
-            medium = FueldeckShapes.Md,
-            large = FueldeckShapes.Lg,
-        ),
-        content = content,
-    )
-}

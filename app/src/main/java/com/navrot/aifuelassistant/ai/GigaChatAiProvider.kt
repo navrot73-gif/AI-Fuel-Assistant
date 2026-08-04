@@ -1,6 +1,8 @@
 package com.navrot.aifuelassistant.ai
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
 import okhttp3.MediaType.Companion.toMediaType
@@ -27,6 +29,9 @@ class GigaChatAiProvider(
 
     @Volatile
     private var tokenExpiresAt: Long = 0L
+
+    // Мьютекс предотвращает одновременное обновление токена из нескольких корутин
+    private val tokenMutex = Mutex()
 
     override suspend fun ask(prompt: String): String = withContext(Dispatchers.IO) {
         require(prompt.isNotBlank()) { "Prompt must not be blank" }
@@ -70,10 +75,10 @@ class GigaChatAiProvider(
         }
     }
 
-    private fun getAccessToken(): String {
+    private suspend fun getAccessToken(): String = tokenMutex.withLock {
         val cachedToken = accessToken
         if (!cachedToken.isNullOrBlank() && System.currentTimeMillis() < tokenExpiresAt) {
-            return cachedToken
+            return@withLock cachedToken
         }
 
         // Определяем способ авторизации
@@ -118,7 +123,7 @@ class GigaChatAiProvider(
                 System.currentTimeMillis() + 25 * 60_000L
             }
 
-            return newToken
+            newToken
         }
     }
 }

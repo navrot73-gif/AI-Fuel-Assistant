@@ -33,9 +33,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.navrot.aifuelassistant.data.model.GasStation
-import com.navrot.aifuelassistant.ui.fuel.MapViewModel
+import com.navrot.aifuelassistant.geo.GeoUtils
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import org.osmdroid.util.GeoPoint
 
@@ -47,7 +48,7 @@ fun MapScreen(
     onBack: () -> Unit = {},
     onVehiclesClick: () -> Unit = {},
     onStationClick: (GasStation) -> Unit = {},
-    viewModel: MapViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    viewModel: MapViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
 
@@ -80,7 +81,6 @@ fun MapScreen(
                 getCurrentLocation(context) { location ->
                     userLocation = GeoPoint(location.latitude, location.longitude)
                     locationStatus = "📍 Вы здесь"
-                    currentCity = detectCity(location.latitude, location.longitude)
                     viewModel.updateUserLocation(location.latitude, location.longitude)
                     viewModel.loadNearbyStations(location.latitude, location.longitude, 50.0)
                 }
@@ -98,7 +98,6 @@ fun MapScreen(
                 getCurrentLocation(context) { location ->
                     userLocation = GeoPoint(location.latitude, location.longitude)
                     locationStatus = "📍 Вы здесь"
-                    currentCity = detectCity(location.latitude, location.longitude)
                     viewModel.updateUserLocation(location.latitude, location.longitude)
                     viewModel.loadNearbyStations(location.latitude, location.longitude, 50.0)
                 }
@@ -107,7 +106,6 @@ fun MapScreen(
                 getCurrentLocation(context) { location ->
                     userLocation = GeoPoint(location.latitude, location.longitude)
                     locationStatus = "📍 Вы здесь"
-                    currentCity = detectCity(location.latitude, location.longitude)
                     viewModel.updateUserLocation(location.latitude, location.longitude)
                     viewModel.loadNearbyStations(location.latitude, location.longitude, 50.0)
                 }
@@ -280,7 +278,7 @@ fun MapScreen(
                                 (selectedFuelTypes.isEmpty() || selectedFuelTypes.contains(it.type)) && it.available
                             } ?: return@mapNotNull null
                             val dist = userLocation?.let {
-                                calculateDistance(it.latitude, it.longitude, st.latitude, st.longitude)
+                                GeoUtils.calculateDistance(it.latitude, it.longitude, st.latitude, st.longitude)
                             } ?: Double.MAX_VALUE
                             Triple(st, fuel, dist)
                         }

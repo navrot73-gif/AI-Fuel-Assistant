@@ -89,7 +89,7 @@ fun FuelRecordCard(
     record: FuelRecordEntity,
     onDelete: () -> Unit
 ) {
-    val dateFormat = SimpleDateFormat("dd.MM.yyyy", Locale.getDefault())
+    val dateFormat = remember { SimpleDateFormat("dd.MM.yyyy", Locale.getDefault()) }
     val dateString = dateFormat.format(Date(record.date))
 
     Card(

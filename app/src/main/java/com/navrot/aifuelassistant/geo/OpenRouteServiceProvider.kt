@@ -27,13 +27,13 @@ class OpenRouteServiceProvider(
         }
 
         val url = "https://api.openrouteservice.org/v2/directions/$profile".toHttpUrl().newBuilder()
-            .addQueryParameter("api_key", apiKey)
             .addQueryParameter("start", "${from.longitude},${from.latitude}")
             .addQueryParameter("end", "${to.longitude},${to.latitude}")
             .build()
 
         val request = Request.Builder()
             .url(url)
+            .addHeader("Authorization", apiKey)
             .build()
 
         httpClient.newCall(request).execute().use { response ->

@@ -24,6 +24,7 @@ import androidx.navigation.navArgument
 import com.navrot.aifuelassistant.features.dashboard.DashboardScreen
 import com.navrot.aifuelassistant.ui.fuel.AddFuelRecordScreen
 import com.navrot.aifuelassistant.ui.fuel.FuelRecordListScreen
+import com.navrot.aifuelassistant.ui.fuel.GasStationDetailScreen
 import com.navrot.aifuelassistant.ui.map.MapScreen
 import com.navrot.aifuelassistant.ui.vehicles.AddVehicleScreen
 import com.navrot.aifuelassistant.ui.vehicles.VehicleListScreen
@@ -92,7 +93,13 @@ fun AppNavigation() {
             startDestination = "map",
             modifier = Modifier.padding(padding)
         ) {
-            composable("map") { MapScreen() }
+            composable("map") {
+                MapScreen(
+                    onStationClick = { station ->
+                        navController.navigate("station_detail/${station.id}")
+                    }
+                )
+            }
 
             composable("ai") { DashboardScreen() }
 
@@ -108,6 +115,19 @@ fun AppNavigation() {
 
             composable("add_vehicle") {
                 AddVehicleScreen(onNavigateBack = { navController.popBackStack() })
+            }
+
+            composable(
+                route = "station_detail/{stationId}",
+                arguments = listOf(
+                    navArgument("stationId") { type = NavType.IntType }
+                )
+            ) { entry ->
+                val stationId = entry.arguments?.getInt("stationId") ?: return@composable
+                // Экран будет искать станцию по id через ViewModel
+                // Передаём пока заглушку — реальная реализация потребует
+                // передачи GasStation через SavedStateHandle или NavType
+                Text("Детали АЗС #$stationId — в разработке")
             }
 
             composable(
@@ -140,7 +160,7 @@ fun AppNavigation() {
                 val vehicleId = entry.arguments?.getLong("vehicleId") ?: 0L
                 AddFuelRecordScreen(
                     vehicleId = vehicleId,
-                    defaultFuelType = "Бензин",
+                    defaultFuelType = "АИ-95",
                     onBack = { navController.popBackStack() }
                 )
             }

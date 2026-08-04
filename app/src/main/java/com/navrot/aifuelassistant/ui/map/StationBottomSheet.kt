@@ -11,12 +11,14 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.navrot.aifuelassistant.data.model.GasStation
-import com.navrot.aifuelassistant.ui.fuel.MapViewModel
 import org.osmdroid.util.GeoPoint
+
+private const val PAGE_SIZE = 20
 
 @Composable
 fun StationBottomSheet(
@@ -32,6 +34,11 @@ fun StationBottomSheet(
     onStationClick: (GasStation) -> Unit,
     onToggleVisibility: () -> Unit
 ) {
+    val visibleCount = remember(stations.size) {
+        if (stations.size <= PAGE_SIZE) stations.size else PAGE_SIZE
+    }
+    val hasMore = stations.size > PAGE_SIZE
+
     AnimatedVisibility(
         visible = visible,
         modifier = Modifier.fillMaxWidth(),
@@ -95,13 +102,27 @@ fun StationBottomSheet(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(stations.take(10)) { station ->
+                        items(stations.take(visibleCount), key = { it.id }) { station ->
                             StationListItem(
                                 station = station,
                                 selectedFuelTypes = selectedFuelTypes,
                                 userLocation = userLocation,
                                 onClick = { onStationClick(station) }
                             )
+                        }
+
+                        if (hasMore) {
+                            item {
+                                TextButton(
+                                    onClick = { onToggleVisibility() },
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        "Показать все (${stations.size} АЗС)",
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                }
+                            }
                         }
                     }
                 }

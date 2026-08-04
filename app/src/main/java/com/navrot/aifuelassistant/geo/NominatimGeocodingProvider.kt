@@ -6,6 +6,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * Геокодинг через публичный Nominatim (nominatim.openstreetmap.org).
@@ -64,8 +65,40 @@ class NominatimGeocodingProvider(
             )
         }
     }
+
+    override suspend fun reverseGeocode(lat: Double, lon: Double): GeocodingResult = withContext(Dispatchers.IO) {
+        val url = "https://nominatim.openstreetmap.org/reverse".toHttpUrl().newBuilder()
+            .addQueryParameter("lat", lat.toString())
+            .addQueryParameter("lon", lon.toString())
+            .addQueryParameter("format", "json")
+            .addQueryParameter("zoom", "10") // уровень города
+            .build()
+
+        val request = Request.Builder()
+            .url(url)
+            .header("User-Agent", userAgent)
+            .build()
+
+        httpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw GeoException.NetworkError("Nominatim reverse вернул код ${response.code}")
+            }
+            val body = response.body?.string()
+                ?: throw GeoException.InvalidResponse("Пустой ответ от Nominatim reverse")
+
+            val json = JSONObject(body)
+            GeocodingResult(
+                point = GeoPoint(
+                    latitude = json.getString("lat").toDouble(),
+                    longitude = json.getString("lon").toDouble()
+                ),
+                displayName = json.optString("display_name", "Неизвестная локация")
+            )
+        }
+    }
 }
 
 interface GeocodingProvider {
     suspend fun geocode(query: String): GeocodingResult
+    suspend fun reverseGeocode(lat: Double, lon: Double): GeocodingResult
 }

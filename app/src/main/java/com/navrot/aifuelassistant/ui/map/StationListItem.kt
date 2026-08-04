@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.geo.GeoUtils
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import org.osmdroid.util.GeoPoint
 
@@ -34,7 +35,7 @@ fun StationListItem(
 ) {
     val primaryFuel = station.fuelTypes.find { selectedFuelTypes.contains(it.type) && it.available }
     val distance = userLocation?.let {
-        calculateDistance(it.latitude, it.longitude, station.latitude, station.longitude)
+        GeoUtils.calculateDistance(it.latitude, it.longitude, station.latitude, station.longitude)
     }
 
     val brandColors = listOf(

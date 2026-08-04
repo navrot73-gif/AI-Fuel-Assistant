@@ -10,8 +10,8 @@ data class VehicleEntity(
     val name: String = "",
     val brand: String = "",
     val model: String = "",
-    val year: Int = 2026,
-    val fuelType: String = "Бензин",
+    val year: Int = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR),
+    val fuelType: String = "АИ-95",
     val tankCapacity: Double = 50.0,
     val currentMileage: Double = 0.0
 )

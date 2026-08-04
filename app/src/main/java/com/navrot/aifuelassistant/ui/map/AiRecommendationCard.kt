@@ -14,9 +14,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -112,16 +109,14 @@ fun AiRecommendationCard(
                     color = FueldeckColors.InkDim, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
             }
 
-            var pressed by remember { mutableStateOf(false) }
             Box(
                 modifier = Modifier
                     .size(44.dp)
                     .background(
-                        FueldeckColors.TealSoft.copy(alpha = if (pressed) 0.4f else 1f),
+                        FueldeckColors.TealSoft,
                         CircleShape
                     )
                     .clickable {
-                        pressed = !pressed
                         openMapsRoute(context, station.latitude, station.longitude, station.brand)
                     },
                 contentAlignment = Alignment.Center

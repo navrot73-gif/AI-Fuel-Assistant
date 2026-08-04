@@ -1,4 +1,4 @@
-package com.navrot.aifuelassistant.ui.fuel
+package com.navrot.aifuelassistant.ui.map
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -6,22 +6,22 @@ import com.navrot.aifuelassistant.BuildConfig
 import com.navrot.aifuelassistant.data.GasStationRepository
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.geo.GeoPoint
+import com.navrot.aifuelassistant.geo.GeoUtils
 import com.navrot.aifuelassistant.geo.OpenRouteServiceProvider
 import com.navrot.aifuelassistant.geo.RoutingProvider
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
-import java.util.concurrent.TimeUnit
-import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.sqrt
+import javax.inject.Inject
 
-class MapViewModel : ViewModel() {
-
-    private val repository = GasStationRepository
+@HiltViewModel
+class MapViewModel @Inject constructor(
+    private val repository: GasStationRepository,
+    private val okHttpClient: OkHttpClient
+) : ViewModel() {
 
     // Роутинг по дорогам: работает, если в local.properties задан ORS_API_KEY
     private val routingProvider: RoutingProvider? =
@@ -30,10 +30,7 @@ class MapViewModel : ViewModel() {
             ?.let {
                 OpenRouteServiceProvider(
                     apiKey = it,
-                    httpClient = OkHttpClient.Builder()
-                        .connectTimeout(8, TimeUnit.SECONDS)
-                        .readTimeout(8, TimeUnit.SECONDS)
-                        .build()
+                    httpClient = okHttpClient
                 )
             }
 
@@ -199,18 +196,20 @@ class MapViewModel : ViewModel() {
     fun buildRouteTo(station: GasStation) {
         val start = _userLocation.value
         if (start == null) {
-            _error.value = "Сначала дождитесь определения местоположения 📍"
+            _error.value = "Сначала дождитесь определения местоположения"
             return
         }
 
         // 1) Мгновенно: прямая линия
-        val distKm = haversineKm(start.first, start.second, station.latitude, station.longitude)
+        val distKm = GeoUtils.calculateDistance(
+            start.first, start.second, station.latitude, station.longitude
+        )
         _route.value = RouteUiState(
             points = listOf(
                 GeoPoint(start.first, start.second),
                 GeoPoint(station.latitude, station.longitude)
             ),
-            distanceText = String.format("≈ %.1f км", distKm),
+            distanceText = String.format("~ %.1f км", distKm),
             durationText = "по прямой",
             destination = station.brand,
             isStraightLine = true
@@ -231,7 +230,7 @@ class MapViewModel : ViewModel() {
                     durationText = formatDuration(result.durationSeconds),
                     destination = station.brand
                 )
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 // ORS недоступен — остаётся прямая линия, ошибки не показываем
             } finally {
                 _isRouting.value = false
@@ -248,23 +247,15 @@ class MapViewModel : ViewModel() {
         return if (min < 60) "$min мин" else "${min / 60} ч ${min % 60} мин"
     }
 
-    private fun haversineKm(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-        val r = 6371.0
-        val dLat = Math.toRadians(lat2 - lat1)
-        val dLon = Math.toRadians(lon2 - lon1)
-        val a = sin(dLat / 2) * sin(dLat / 2) +
-                cos(Math.toRadians(lat1)) * cos(Math.toRadians(lat2)) *
-                sin(dLon / 2) * sin(dLon / 2)
-        return r * 2 * atan2(sqrt(a), sqrt(1 - a))
-    }
-
     private fun updateBestAndCheapest(lat: Double, lon: Double, radiusKm: Double) {
-        _bestStation.value = repository.getBestStations(
-            _selectedFuelTypes.value.first(), lat, lon, radiusKm
-        ).firstOrNull()
-        _cheapestStation.value = repository.getCheapestStation(
-            _selectedFuelTypes.value.first(), lat, lon, radiusKm
-        )
+        viewModelScope.launch {
+            _bestStation.value = repository.getBestStations(
+                _selectedFuelTypes.value.first(), lat, lon, radiusKm
+            ).firstOrNull()
+            _cheapestStation.value = repository.getCheapestStation(
+                _selectedFuelTypes.value.first(), lat, lon, radiusKm
+            )
+        }
     }
 
     fun clearError() { _error.value = null }

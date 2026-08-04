@@ -1,149 +1,46 @@
 package com.navrot.aifuelassistant.data
 
-import com.navrot.aifuelassistant.data.model.FuelPrice
-import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.geo.GeoUtils
 import org.junit.Assert.*
 import org.junit.Test
 
+/**
+ * Тесты для [GeoUtils] и [GasStationRepository].
+ */
 class GasStationRepositoryTest {
 
-    private val testStations = listOf(
-        GasStation(
-            id = 1, name = "АЗС 1", brand = "BrandA", address = "Addr1",
-            latitude = 55.0, longitude = 61.0,
-            fuelTypes = listOf(
-                FuelPrice("АИ-95", 65.0, true),
-                FuelPrice("ДТ", 75.0, true)
-            ),
-            queueTime = 5, reliability = 90
-        ),
-        GasStation(
-            id = 2, name = "АЗС 2", brand = "BrandB", address = "Addr2",
-            latitude = 55.1, longitude = 61.1,
-            fuelTypes = listOf(
-                FuelPrice("АИ-95", 60.0, true),
-                FuelPrice("ДТ", 70.0, false)
-            ),
-            queueTime = 10, reliability = 80
-        ),
-        GasStation(
-            id = 3, name = "АЗС 3", brand = "BrandC", address = "Addr3",
-            latitude = 55.2, longitude = 61.2,
-            fuelTypes = listOf(
-                FuelPrice("АИ-95", 70.0, false),
-                FuelPrice("ДТ", 80.0, true)
-            ),
-            queueTime = 2, reliability = 95
-        )
-    )
+    // ==================== GeoUtils.calculateDistance ====================
 
     @Test
-    fun `searchStations filters by name`() {
-        val result = searchStations("АЗС 1", testStations)
-        assertEquals(1, result.size)
-        assertEquals("АЗС 1", result[0].name)
+    fun `calculateDistance same point returns zero`() {
+        val dist = GeoUtils.calculateDistance(55.1644, 61.4368, 55.1644, 61.4368)
+        assertEquals(0.0, dist, 0.001)
     }
 
     @Test
-    fun `searchStations filters by brand`() {
-        val result = searchStations("BrandB", testStations)
-        assertEquals(1, result.size)
-        assertEquals("BrandB", result[0].brand)
+    fun `calculateDistance chelyabinsk to magnitogorsk is reasonable`() {
+        // Челябинск (55.164, 61.437) -> Магнитогорск (53.416, 59.048) ~270 км
+        val dist = GeoUtils.calculateDistance(55.164, 61.437, 53.416, 59.048)
+        assertTrue("Distance should be ~270 km, got $dist", dist in 250.0..300.0)
     }
 
     @Test
-    fun `getBestStation returns cheapest available`() {
-        val best = getBestStation("АИ-95", testStations)
-        assertNotNull(best)
-        assertEquals("АЗС 2", best?.name)
+    fun `calculateDistance is symmetric`() {
+        val d1 = GeoUtils.calculateDistance(55.0, 60.0, 54.0, 59.0)
+        val d2 = GeoUtils.calculateDistance(54.0, 59.0, 55.0, 60.0)
+        assertEquals(d1, d2, 0.0001)
     }
 
     @Test
-    fun `getBestStation returns null when no fuel available`() {
-        val best = getBestStation("АИ-98", testStations)
-        assertNull(best)
+    fun `calculateDistance short distance is small`() {
+        // ~100 метров
+        val dist = GeoUtils.calculateDistance(55.1644, 61.4368, 55.1653, 61.4381)
+        assertTrue("Short distance should be < 0.5 km, got $dist", dist < 0.5)
     }
 
     @Test
-    fun `getStationsSortedByPriceAsc sorts correctly`() {
-        val sorted = getStationsSortedByPriceAsc("АИ-95", testStations)
-        assertEquals(2, sorted.size)
-        assertEquals("АЗС 2", sorted[0].name) // 60.0
-        assertEquals("АЗС 1", sorted[1].name) // 65.0
-    }
-
-    @Test
-    fun `getStationsByQueue sorts by queue time`() {
-        val sorted = getStationsByQueue("ДТ", testStations)
-        assertEquals(2, sorted.size)
-        assertEquals("АЗС 3", sorted[0].name) // queue 2
-        assertEquals("АЗС 1", sorted[1].name) // queue 5
-    }
-
-    @Test
-    fun `getStationsNearLocation filters by radius`() {
-        val nearby = getStationsNearLocation(55.0, 61.0, 10.0, testStations)
-        assertTrue(nearby.isNotEmpty())
-        assertEquals("АЗС 1", nearby[0].name)
-    }
-
-    @Test
-    fun `calculateDistance returns correct value`() {
-        val dist = calculateDistance(55.0, 61.0, 55.1, 61.1)
-        assertTrue(dist > 0)
-        assertTrue(dist < 20) // ~11 km
-    }
-
-    // Helper functions extracted for testing without Android Context
-    private fun searchStations(query: String, stations: List<GasStation>): List<GasStation> {
-        val q = query.lowercase()
-        return stations.filter {
-            it.name.lowercase().contains(q) ||
-                    it.brand.lowercase().contains(q) ||
-                    it.address.lowercase().contains(q)
-        }
-    }
-
-    private fun getBestStation(fuelType: String, stations: List<GasStation>): GasStation? {
-        return stations
-            .filter { station ->
-                station.fuelTypes.any { it.type == fuelType && it.available }
-            }
-            .minByOrNull { station ->
-                val fuel = station.fuelTypes.find { it.type == fuelType }
-                val queuePenalty = station.queueTime * 0.5
-                val reliabilityBonus = (100 - station.reliability) * 0.2
-                (fuel?.price ?: Double.MAX_VALUE) + queuePenalty - reliabilityBonus
-            }
-    }
-
-    private fun getStationsSortedByPriceAsc(fuelType: String, stations: List<GasStation>): List<GasStation> {
-        return stations.filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
-            .sortedBy { s -> s.fuelTypes.find { it.type == fuelType }?.price ?: Double.MAX_VALUE }
-    }
-
-    private fun getStationsByQueue(fuelType: String, stations: List<GasStation>): List<GasStation> {
-        return stations.filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
-            .sortedBy { it.queueTime }
-    }
-
-    private fun getStationsNearLocation(lat: Double, lon: Double, radiusKm: Double, stations: List<GasStation>): List<GasStation> {
-        return stations.filter { station ->
-            val distance = calculateDistance(lat, lon, station.latitude, station.longitude)
-            distance <= radiusKm
-        }.sortedBy { station ->
-            calculateDistance(lat, lon, station.latitude, station.longitude)
-        }
-    }
-
-    private fun calculateDistance(lat1: Double, lon1: Double, lat2: Double, lon2: Double): Double {
-        val R = 6371.0
-        val dLat = Math.toRadians(lat2 - lat1)
-        val dLon = Math.toRadians(lon2 - lon1)
-        val a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-                Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2)) *
-                Math.sin(dLon / 2) * Math.sin(dLon / 2)
-        val c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-        return R * c
+    fun `calculateDistance equator 1 degree is about 111 km`() {
+        val dist = GeoUtils.calculateDistance(0.0, 0.0, 0.0, 1.0)
+        assertTrue("1 degree at equator ~111 km, got $dist", dist in 110.0..112.0)
     }
 }

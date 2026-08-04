@@ -5,10 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.navrot.aifuelassistant.ai.FuelAnalysisPromptBuilder
 import com.navrot.aifuelassistant.ai.router.AiRouter
 import com.navrot.aifuelassistant.data.FuelRecordRepository
+import com.navrot.aifuelassistant.data.GasStationRepository
 import com.navrot.aifuelassistant.data.VehicleRepository
-import com.navrot.aifuelassistant.domain.fuel.DemoFuelStations
-import com.navrot.aifuelassistant.domain.fuel.FuelDispatcher
-import com.navrot.aifuelassistant.domain.fuel.FuelStation
+import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
+import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
+import com.navrot.aifuelassistant.data.model.GasStation
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -26,6 +27,7 @@ data class DashboardMetrics(
 class DashboardViewModel @Inject constructor(
     private val fuelRecordRepository: FuelRecordRepository,
     private val vehicleRepository: VehicleRepository,
+    private val gasStationRepository: GasStationRepository,
     private val aiRouter: AiRouter,
 ) : ViewModel() {
 
@@ -35,11 +37,11 @@ class DashboardViewModel @Inject constructor(
     private val _selectedFuelType = MutableStateFlow("АИ-95")
     val selectedFuelType: StateFlow<String> = _selectedFuelType.asStateFlow()
 
-    private val _stations = MutableStateFlow<List<FuelStation>>(emptyList())
-    val stations: StateFlow<List<FuelStation>> = _stations.asStateFlow()
+    private val _stations = MutableStateFlow<List<GasStation>>(emptyList())
+    val stations: StateFlow<List<GasStation>> = _stations.asStateFlow()
 
-    private val _bestStation = MutableStateFlow<FuelStation?>(null)
-    val bestStation: StateFlow<FuelStation?> = _bestStation.asStateFlow()
+    private val _bestStation = MutableStateFlow<GasStation?>(null)
+    val bestStation: StateFlow<GasStation?> = _bestStation.asStateFlow()
 
     private val _analysis = MutableStateFlow<String?>(null)
     val analysis: StateFlow<String?> = _analysis.asStateFlow()
@@ -50,41 +52,78 @@ class DashboardViewModel @Inject constructor(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    private val _vehicles = MutableStateFlow<List<VehicleEntity>>(emptyList())
+    val vehicles: StateFlow<List<VehicleEntity>> = _vehicles.asStateFlow()
+
+    private val _selectedVehicleId = MutableStateFlow<Long?>(null)
+    val selectedVehicleId: StateFlow<Long?> = _selectedVehicleId.asStateFlow()
+
     init {
+        loadVehicles()
         loadStations()
+        loadMetrics()
+    }
+
+    fun selectVehicle(vehicleId: Long) {
+        _selectedVehicleId.value = vehicleId
         loadMetrics()
     }
 
     fun selectFuelType(fuelType: String) {
         _selectedFuelType.value = fuelType
-        updateRecommendation()
+        updateBestStation()
+    }
+
+    private fun loadVehicles() {
+        viewModelScope.launch {
+            vehicleRepository.getAllVehicles()
+                .catch { }
+                .collect { list ->
+                    _vehicles.value = list
+                    if (_selectedVehicleId.value == null && list.isNotEmpty()) {
+                        _selectedVehicleId.value = list.first().id
+                    }
+                }
+        }
     }
 
     private fun loadStations() {
-        _stations.value = DemoFuelStations.stations
-        updateRecommendation()
+        viewModelScope.launch {
+            try {
+                _stations.value = gasStationRepository.getAllStations()
+                updateBestStation()
+            } catch (_: Exception) {
+                // Если не удалось загрузить — оставляем пустой список
+            }
+        }
     }
 
-    private fun updateRecommendation() {
+    private fun updateBestStation() {
         val fuelType = _selectedFuelType.value
-        val ranked = FuelDispatcher.rank(
-            stations = _stations.value,
-            fuelType = fuelType
-        )
-        _bestStation.value = ranked.firstOrNull()
+        val best = _stations.value
+            .filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
+            .minByOrNull { s ->
+                val price = s.fuelTypes.find { it.type == fuelType }?.price ?: Double.MAX_VALUE
+                price + s.queueTime * 0.5 - (100 - s.reliability) * 0.2
+            }
+        _bestStation.value = best
     }
 
     private fun loadMetrics() {
         viewModelScope.launch {
-            fuelRecordRepository.getAll()
+            val vehicleId = _selectedVehicleId.value
+            val flow = if (vehicleId != null && vehicleId > 0) {
+                fuelRecordRepository.getByVehicleId(vehicleId)
+            } else {
+                fuelRecordRepository.getAll()
+            }
+            flow
                 .catch { _metrics.value = DashboardMetrics() }
                 .collect { records -> _metrics.value = computeMetrics(records) }
         }
     }
 
-    private fun computeMetrics(
-        records: List<com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity>
-    ): DashboardMetrics {
+    private fun computeMetrics(records: List<FuelRecordEntity>): DashboardMetrics {
         if (records.isEmpty()) return DashboardMetrics()
 
         val sorted = records.sortedByDescending { it.date }
@@ -121,7 +160,7 @@ class DashboardViewModel @Inject constructor(
         )
     }
 
-    private fun computeSparkline(records: List<com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity>): List<Float> {
+    private fun computeSparkline(records: List<FuelRecordEntity>): List<Float> {
         if (records.size < 2) return emptyList()
         val sorted = records.sortedByDescending { it.date }
         val result = mutableListOf<Float>()
@@ -144,8 +183,13 @@ class DashboardViewModel @Inject constructor(
             _error.value = null
 
             try {
-                val records = fuelRecordRepository.getAll().first()
-                val vehicle = vehicleRepository.getAllVehicles().first().firstOrNull()
+                val vehicleId = _selectedVehicleId.value
+                val records = if (vehicleId != null && vehicleId > 0) {
+                    fuelRecordRepository.getByVehicleId(vehicleId).first()
+                } else {
+                    fuelRecordRepository.getAll().first()
+                }
+                val vehicle = _vehicles.value.firstOrNull { it.id == vehicleId }
 
                 val prompt = FuelAnalysisPromptBuilder.build(
                     vehicle = vehicle,
