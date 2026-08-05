@@ -242,6 +242,10 @@ jobs:
 
           BRANCH="ai-agent/run-${GITHUB_RUN_ID}"
           git checkout -b "$BRANCH"
+                    BRANCH="ai-agent/run-${GITHUB_RUN_ID}"
+          git checkout -b "$BRANCH"
+          rm -f ai_agent.py        # ← ДОБАВИТЬ: не коммитим временный скрипт
+          git add -A
           git add -A
           git commit -m "AI Agent: automated changes"
           git push origin "$BRANCH"
