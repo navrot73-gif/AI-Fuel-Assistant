@@ -14,10 +14,18 @@ on:
         type: string
         default: main
       model:
-        description: "Имя модели Qwen"
+        description: "Имя модели Qwen (например: qwen-plus, qwen-max, qwen3-max)"
         required: true
         type: string
-        default: qwen3.8-max
+        default: qwen-plus
+      region:
+        description: "Регион ключа: china или international"
+        required: true
+        type: choice
+        options:
+          - china
+          - international
+        default: international
 
 permissions:
   contents: write
@@ -46,6 +54,7 @@ jobs:
           DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
           QWEN_MODEL: ${{ inputs.model }}
           TASK: ${{ inputs.task }}
+          REGION: ${{ inputs.region }}
         run: |
           cat > ai_agent.py << 'EOF'
           import os
@@ -56,17 +65,24 @@ jobs:
           def main():
               task = os.getenv("TASK")
               api_key = os.getenv("DASHSCOPE_API_KEY")
-              model = os.getenv("QWEN_MODEL", "qwen3.8-max")
+              model = os.getenv("QWEN_MODEL", "qwen-plus")
+              region = os.getenv("REGION", "international")
 
               if not task or not api_key:
                   print("Ошибка: TASK и DASHSCOPE_API_KEY обязательны")
                   sys.exit(1)
 
+              # Выбираем endpoint в зависимости от региона ключа
+              if region == "international":
+                  url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
+              else:
+                  url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+
               print(f"Задача: {task}")
               print(f"Модель: {model}")
+              print(f"Регион: {region}")
+              print(f"Endpoint: {url}")
 
-              # Запрос к Qwen через DashScope API
-              url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
               headers = {
                   "Authorization": f"Bearer {api_key}",
                   "Content-Type": "application/json"
@@ -75,20 +91,32 @@ jobs:
               # Читаем структуру проекта
               file_tree = []
               for root, dirs, files in os.walk("."):
-                  # Пропускаем служебные папки
-                  dirs[:] = [d for d in dirs if d not in [".git", "node_modules", ".github"]]
+                  dirs[:] = [d for d in dirs if d not in [".git", "node_modules", ".github", "build", ".gradle"]]
                   for file in files:
                       path = os.path.join(root, file)
+                      # Пропускаем бинарники и большие файлы
+                      if any(path.endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.gif', '.ico', '.jar', '.apk', '.so']):
+                          continue
                       file_tree.append(path)
 
-              file_tree_str = "\n".join(sorted(file_tree)[:100])  # Первые 100 файлов
+              file_tree_str = "\n".join(sorted(file_tree)[:200])
 
-              # Читаем ключевые файлы (если есть)
+              # Ищем файл StationListItem.kt если он упомянут в задаче
+              target_files = []
+              if "StationListItem" in task:
+                  for path in file_tree:
+                      if "StationListItem.kt" in path:
+                          target_files.append(path)
+              
+              # Если не нашли целевой файл — читаем первые 10 .kt файлов
+              if not target_files:
+                  target_files = [p for p in file_tree if p.endswith('.kt')][:10]
+
               key_files = []
-              for path in file_tree[:20]:  # Первые 20 файлов
+              for path in target_files:
                   try:
                       with open(path, 'r', encoding='utf-8') as f:
-                          content = f.read()[:2000]  # Первые 2000 символов
+                          content = f.read()[:3000]
                           key_files.append(f"=== {path} ===\n{content}\n")
                   except:
                       pass
@@ -98,8 +126,8 @@ jobs:
           Структура проекта:
           {file_tree_str}
 
-          Содержимое ключевых файлов:
-          {"".join(key_files[:5])}
+          Содержимое файлов для анализа:
+          {"".join(key_files)}
 
           Задача: {task}
 
@@ -108,11 +136,11 @@ jobs:
             {{
               "path": "путь/к/файлу",
               "action": "create|update|delete",
-              "content": "новое содержимое файла (для create/update)"
+              "content": "полное новое содержимое файла (для create/update)"
             }}
           ]
 
-          Верни ТОЛЬКО JSON, без пояснений.
+          Верни ТОЛЬКО JSON, без пояснений и markdown-обёрток.
           """
 
               payload = {
@@ -123,26 +151,47 @@ jobs:
                   "temperature": 0.1
               }
 
-              response = requests.post(url, headers=headers, json=payload)
-              response.raise_for_status()
-              result = response.json()
-
-              content = result["choices"][0]["message"]["content"]
-              print(f"Ответ AI:\n{content[:500]}...")
-
-              # Извлекаем JSON из ответа (ищем [...] или {...})
+              print(f"Отправляю запрос к {url} с моделью {model}...")
               try:
-                  # Ищем JSON-массив
+                  response = requests.post(url, headers=headers, json=payload, timeout=120)
+                  print(f"HTTP статус: {response.status_code}")
+                  if response.status_code != 200:
+                      print(f"Ответ сервера: {response.text[:500]}")
+                  response.raise_for_status()
+              except requests.exceptions.HTTPError as e:
+                  print(f"HTTP ошибка: {e}")
+                  print(f"Тело ответа: {e.response.text[:1000] if e.response else 'нет ответа'}")
+                  sys.exit(1)
+              except Exception as e:
+                  print(f"Ошибка запроса: {e}")
+                  sys.exit(1)
+
+              result = response.json()
+              content = result["choices"][0]["message"]["content"]
+              print(f"Ответ AI:\n{content[:1000]}...")
+
+              # Извлекаем JSON из ответа
+              try:
                   start = content.find("[")
                   end = content.rfind("]") + 1
                   if start >= 0 and end > start:
                       changes = json.loads(content[start:end])
                   else:
-                      print("Не удалось найти JSON-массив в ответе")
-                      sys.exit(0)
+                      # Пробуем найти JSON-объект
+                      start = content.find("{")
+                      end = content.rfind("}") + 1
+                      if start >= 0 and end > start:
+                          changes = [json.loads(content[start:end])]
+                      else:
+                          print("Не удалось найти JSON в ответе")
+                          print(f"Полный ответ: {content}")
+                          sys.exit(0)
               except json.JSONDecodeError as e:
                   print(f"Ошибка парсинга JSON: {e}")
+                  print(f"Полный ответ: {content}")
                   sys.exit(1)
+
+              print(f"Получено изменений: {len(changes)}")
 
               # Применяем изменения
               for change in changes:
@@ -156,7 +205,7 @@ jobs:
                   print(f"Обрабатываю: {action} {path}")
 
                   if action == "create" or action == "update":
-                      os.makedirs(os.path.dirname(path), exist_ok=True)
+                      os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
                       with open(path, 'w', encoding='utf-8') as f:
                           f.write(new_content)
                       print(f"  ✓ Записан файл: {path}")
