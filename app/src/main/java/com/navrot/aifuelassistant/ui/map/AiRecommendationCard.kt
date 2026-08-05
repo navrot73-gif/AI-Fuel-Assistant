@@ -22,7 +22,6 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,10 +46,16 @@ fun AiRecommendationCard(
         0f, 1f, infiniteRepeatable(tween(1500), RepeatMode.Reverse), label = "rec"
     )
 
+    // Честная подпись: что реально учёл алгоритм
     val reason = buildString {
-        append("ближайшая с ${fuel.type} в наличии")
-        if (station.queueTime <= 0) append(", без очереди")
-        else append(", очередь ${station.queueTime} мин")
+        if (dist == Double.MAX_VALUE || dist == 0.0) {
+            append("в наличии")
+        } else {
+            append("${String.format("%.1f", dist)} км")
+        }
+        if (station.queueTime <= 0) append(" · без очереди")
+        else append(" · очередь ${station.queueTime} мин")
+        append(" · ${String.format("%.0f", fuel.price)} ₽")
     }
 
     Surface(
@@ -103,10 +108,12 @@ fun AiRecommendationCard(
             }
 
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                // FontFamily.Monospace убран: на старых Android не содержит символ ₽,
+                // поэтому цена отображалась квадратиком.
                 Text("${String.format("%.0f", fuel.price)} ₽", color = FueldeckColors.Amber,
-                    fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                    fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Text(if (dist == Double.MAX_VALUE) "—" else "${String.format("%.1f", dist)} км",
-                    color = FueldeckColors.InkDim, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                    color = FueldeckColors.InkDim, fontSize = 11.sp)
             }
 
             Box(

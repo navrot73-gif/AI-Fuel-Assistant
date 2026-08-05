@@ -22,11 +22,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.features.dashboard.DashboardScreen
 import com.navrot.aifuelassistant.ui.fuel.AddFuelRecordScreen
 import com.navrot.aifuelassistant.ui.fuel.FuelRecordListScreen
 import com.navrot.aifuelassistant.ui.fuel.GasStationDetailScreen
 import com.navrot.aifuelassistant.ui.map.MapScreen
+import com.navrot.aifuelassistant.ui.map.pendingRouteStation
 import com.navrot.aifuelassistant.ui.vehicles.AddVehicleScreen
 import com.navrot.aifuelassistant.ui.vehicles.VehicleListScreen
 
@@ -97,13 +99,6 @@ fun AppNavigation() {
             composable("map") {
                 MapScreen(
                     onStationClick = { station ->
-                        // В текущей реализации мы передаем объект через сохраненное состояние или
-                        // используем ViewModel. Для простоты исправления ошибки компиляции,
-                        // если экран требует GasStation, мы должны были либо передавать его,
-                        // либо изменить экран. 
-                        // Так как GasStation не является Parcelable по умолчанию, 
-                        // сохраним его в SavedStateHandle текущего стека или передадим ID.
-                        // НО: GasStationDetailScreen в текущем коде ТРЕБУЕТ объект.
                         navController.currentBackStackEntry?.savedStateHandle?.set("station", station)
                         navController.navigate("station_detail")
                     }
@@ -127,14 +122,20 @@ fun AppNavigation() {
             }
 
             composable("station_detail") {
-                val station = navController.previousBackStackEntry?.savedStateHandle?.get<com.navrot.aifuelassistant.data.model.GasStation>("station")
+                val station = navController.previousBackStackEntry
+                    ?.savedStateHandle
+                    ?.get<GasStation>("station")
                 if (station != null) {
                     GasStationDetailScreen(
                         station = station,
-                        onBack = { navController.popBackStack() }
+                        onBack = { navController.popBackStack() },
+                        onRouteClick = {
+                            // Команда карте: построить маршрут после возврата
+                            pendingRouteStation = station
+                            navController.popBackStack()
+                        }
                     )
                 } else {
-                    // Если данных нет, возвращаемся назад
                     LaunchedEffect(Unit) {
                         navController.popBackStack()
                     }

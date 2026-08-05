@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
@@ -29,6 +30,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -39,6 +41,12 @@ import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.geo.GeoUtils
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import org.osmdroid.util.GeoPoint
+
+/**
+ * «Ящик для команды»: экран АЗС кладёт сюда станцию,
+ * карта забирает один раз при входе.
+ */
+var pendingRouteStation: GasStation? = null
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
@@ -58,7 +66,6 @@ fun MapScreen(
     val selectedFuelTypes by viewModel.selectedFuelTypes.collectAsStateWithLifecycle()
     val sortMode by viewModel.sortMode.collectAsStateWithLifecycle()
     val route by viewModel.route.collectAsStateWithLifecycle()
-    val isRouting by viewModel.isRouting.collectAsStateWithLifecycle()
 
     val fuelTypes = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ", "Газ")
 
@@ -69,7 +76,18 @@ fun MapScreen(
     var searchQuery by remember { mutableStateOf("") }
     var showStationList by remember { mutableStateOf(false) }
     var selectedStation by remember { mutableStateOf<GasStation?>(null) }
-    var recenterTick by remember { mutableStateOf(0) }
+    var recenterTick by remember { mutableIntStateOf(0) }
+
+    // Команда «построить маршрут» с детального экрана АЗС
+    LaunchedEffect(Unit) {
+        pendingRouteStation?.let { st ->
+            pendingRouteStation = null
+            userLocation?.let { loc ->
+                viewModel.updateUserLocation(loc.latitude, loc.longitude)
+            }
+            viewModel.buildRouteTo(st)
+        }
+    }
 
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
@@ -81,6 +99,7 @@ fun MapScreen(
                 getCurrentLocation(context) { location ->
                     userLocation = GeoPoint(location.latitude, location.longitude)
                     locationStatus = "📍 Вы здесь"
+                    currentCity = detectCity(location.latitude, location.longitude)
                     viewModel.updateUserLocation(location.latitude, location.longitude)
                     viewModel.loadNearbyStations(location.latitude, location.longitude, 50.0)
                 }
@@ -98,6 +117,7 @@ fun MapScreen(
                 getCurrentLocation(context) { location ->
                     userLocation = GeoPoint(location.latitude, location.longitude)
                     locationStatus = "📍 Вы здесь"
+                    currentCity = detectCity(location.latitude, location.longitude)
                     viewModel.updateUserLocation(location.latitude, location.longitude)
                     viewModel.loadNearbyStations(location.latitude, location.longitude, 50.0)
                 }
@@ -106,6 +126,7 @@ fun MapScreen(
                 getCurrentLocation(context) { location ->
                     userLocation = GeoPoint(location.latitude, location.longitude)
                     locationStatus = "📍 Вы здесь"
+                    currentCity = detectCity(location.latitude, location.longitude)
                     viewModel.updateUserLocation(location.latitude, location.longitude)
                     viewModel.loadNearbyStations(location.latitude, location.longitude, 50.0)
                 }
@@ -189,7 +210,9 @@ fun MapScreen(
                                 userLocation?.let { loc ->
                                     viewModel.loadNearbyStations(loc.latitude, loc.longitude, 50.0)
                                 }
-                            }) { Text("✕") }
+                            }) {
+                                Text("✕")
+                            }
                         }
                     }
                 )
@@ -221,7 +244,12 @@ fun MapScreen(
                                 color = FueldeckColors.Amber.copy(alpha = 0.5f + 0.5f * arrowPulse.value),
                                 fontWeight = FontWeight.Bold, fontSize = 13.sp
                             )
-                            Text("АЗС рядом", color = FueldeckColors.Ink, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Text(
+                                "АЗС рядом",
+                                color = FueldeckColors.Ink,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 14.sp
+                            )
                         }
                     }
                 }
@@ -230,12 +258,9 @@ fun MapScreen(
                     userLocation = userLocation,
                     stations = stations,
                     selectedFuelTypes = selectedFuelTypes,
-                    routePoints = route?.points?.map { GeoPoint(it.latitude, it.longitude) } ?: emptyList(),
-                    recenterTick = recenterTick,
-                    onStationClick = {
-                        viewModel.clearRoute()
-                        selectedStation = it
-                    }
+                    route = route,
+                    recenterRequest = recenterTick,
+                    onStationClick = { selectedStation = it }
                 )
 
                 if (userLocation == null) {
@@ -256,11 +281,50 @@ fun MapScreen(
                     }
                 }
 
+                // Кнопка «Маршрут» ПРЯМО на карте — работает всегда,
+                // без переходов между экранами
+                if (selectedStation != null) {
+                    ExtendedFloatingActionButton(
+                        onClick = {
+                            val st = selectedStation
+                            if (st != null) {
+                                userLocation?.let { loc ->
+                                    viewModel.updateUserLocation(loc.latitude, loc.longitude)
+                                }
+                                viewModel.buildRouteTo(st)
+                            }
+                        },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 16.dp, bottom = if (showStationList) 380.dp else 84.dp),
+                        containerColor = FueldeckColors.Amber,
+                        contentColor = Color.Black,
+                        icon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
+                        text = { Text("Маршрут", fontWeight = FontWeight.Bold) }
+                    )
+                }
+
+                // Сброс маршрута
+                if (route != null) {
+                    SmallFloatingActionButton(
+                        onClick = { viewModel.clearRoute() },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 16.dp, bottom = if (showStationList) 452.dp else 156.dp),
+                        containerColor = FueldeckColors.Surface,
+                        contentColor = FueldeckColors.Coral
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Сбросить маршрут")
+                    }
+                }
+
                 FloatingActionButton(
-                    onClick = { recenterTick++ },
+                    onClick = {
+                        if (userLocation != null) recenterTick++
+                    },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = if (showStationList) 320.dp else 96.dp),
+                        .padding(end = 16.dp, bottom = if (showStationList) 320.dp else 16.dp),
                     containerColor = MaterialTheme.colorScheme.surface,
                     shape = CircleShape
                 ) {
@@ -278,12 +342,18 @@ fun MapScreen(
                                 (selectedFuelTypes.isEmpty() || selectedFuelTypes.contains(it.type)) && it.available
                             } ?: return@mapNotNull null
                             val dist = userLocation?.let {
-                                GeoUtils.calculateDistance(it.latitude, it.longitude, st.latitude, st.longitude)
+                                GeoUtils.calculateDistance(
+                                    it.latitude, it.longitude,
+                                    st.latitude, st.longitude
+                                )
                             } ?: Double.MAX_VALUE
                             Triple(st, fuel, dist)
                         }
-                        .sortedWith(compareBy<Triple<GasStation, com.navrot.aifuelassistant.data.model.FuelPrice, Double>> { it.first.queueTime }.thenBy { it.third })
-                        .firstOrNull()
+                        .minByOrNull { (st, fuel, dist) ->
+                            fuel.price +
+                                    st.queueTime * 0.5 +
+                                    (if (dist == Double.MAX_VALUE) 0.0 else dist * 0.3)
+                        }
                 }
 
                 Column(
@@ -292,7 +362,7 @@ fun MapScreen(
                         .fillMaxWidth()
                 ) {
                     AnimatedVisibility(
-                        visible = !showStationList && recommendation != null && selectedStation == null,
+                        visible = !showStationList && recommendation != null,
                         enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
                         exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 })
                     ) {
@@ -315,9 +385,7 @@ fun MapScreen(
                             viewModel.setSortMode(mode, userLocation?.latitude, userLocation?.longitude)
                         },
                         onStationClick = {
-                            viewModel.clearRoute()
                             selectedStation = it
-                            showStationList = false
                             onStationClick(it)
                         },
                         onToggleVisibility = { showStationList = !showStationList }
@@ -332,32 +400,40 @@ fun MapScreen(
                             StationDetailCard(
                                 station = station,
                                 selectedFuelTypes = selectedFuelTypes,
-                                onClose = {
-                                    selectedStation = null
-                                    viewModel.clearRoute()
-                                },
-                                onBuildRoute = { viewModel.buildRouteTo(station) },
-                                isRouting = isRouting,
-                                routeText = route?.let { r ->
-                                    "${r.destination} · ${r.distanceText} · ${r.durationText}"
-                                },
-                                onClearRoute = { viewModel.clearRoute() }
+                                onClose = { selectedStation = null }
                             )
                         }
                     }
                 }
             }
         }
-    }
 
-    error?.let { errorMsg ->
-        AlertDialog(
-            onDismissRequest = { viewModel.clearError() },
-            title = { Text("Ошибка") },
-            text = { Text(errorMsg) },
-            confirmButton = {
-                Button(onClick = { viewModel.clearError() }) { Text("OK") }
-            }
-        )
+        error?.let { errorMsg ->
+            AlertDialog(
+                onDismissRequest = { viewModel.clearError() },
+                title = { Text("Ошибка") },
+                text = { Text(errorMsg) },
+                confirmButton = {
+                    Button(onClick = { viewModel.clearError() }) {
+                        Text("OK")
+                    }
+                }
+            )
+        }
     }
+}
+
+private fun detectCity(lat: Double, lon: Double): String = when {
+    lat in 55.1..55.3 && lon in 61.2..61.6 -> "Челябинске"
+    lat in 54.0..54.2 && lon in 61.4..61.7 -> "Троицке"
+    lat in 55.0..55.1 && lon in 60.0..60.2 -> "Миассе"
+    lat in 55.1..55.2 && lon in 59.5..59.8 -> "Златоусте"
+    lat in 53.3..53.5 && lon in 58.9..59.2 -> "Магнитогорске"
+    lat in 55.0..55.1 && lon in 61.5..61.7 -> "Копейске"
+    lat in 56.0..56.1 && lon in 60.6..60.8 -> "Снежинске"
+    lat in 55.7..55.8 && lon in 60.6..60.8 -> "Озёрске"
+    lat in 54.4..54.5 && lon in 61.1..61.3 -> "Южноуральске"
+    lat in 54.9..55.0 && lon in 57.2..57.4 -> "Аше"
+    lat in 55.7..55.8 && lon in 37.5..37.7 -> "Москве"
+    else -> "вашем районе"
 }
