@@ -240,7 +240,7 @@ jobs:
             exit 0
           fi
 
-          BRANCH="ai-agent/run-${GITHUB_RUN_ID}"
+          BRANCH="ai-agent/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$(date +%s)"
           git checkout -b "$BRANCH"
                     BRANCH="ai-agent/run-${GITHUB_RUN_ID}"
           git checkout -b "$BRANCH"
