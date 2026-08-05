@@ -39,7 +39,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.navrot.aifuelassistant.data.model.GasStation   // ← вот этот импорт был потерян
+import com.navrot.aifuelassistant.data.model.GasStation
 
 @Composable
 fun StationDetailCard(
