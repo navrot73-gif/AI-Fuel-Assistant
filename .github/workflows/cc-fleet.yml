@@ -1,0 +1,112 @@
+name: cc-fleet + Qwen AI Agent
+
+on:
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Какая задача для AI-агента?"
+        required: true
+        type: string
+        default: "Переделай структуру проекта: создай папки src, config, docs. Обнови README."
+      base_branch:
+        description: "В какую ветку создавать Pull Request?"
+        required: true
+        type: string
+        default: main
+      model:
+        description: "Имя модели Qwen"
+        required: true
+        type: string
+        default: qwen3.8-max
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  run-cc-fleet:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install cc-fleet
+        run: |
+          # Если cc-fleet установлен через npm, оставь так:
+          npm install -g cc-fleet
+
+          # Если cc-fleet уже находится в твоём репозитории,
+          # закомментируй строку выше и используй например:
+          # npm ci
+          # или свою команду установки.
+
+      - name: Run cc-fleet and create Pull Request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
+
+          # Ключ Qwen/DashScope
+          DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
+
+          # Некоторые инструменты понимают OpenAI-совместимые переменные.
+          # Поэтому на всякий случай дублируем ключ и endpoint.
+          OPENAI_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
+          OPENAI_BASE_URL: https://dashscope.aliyuncs.com/compatible-mode/v1
+
+          # Модель и задача
+          QWEN_MODEL: ${{ inputs.model }}
+          TASK: ${{ inputs.task }}
+          BASE_BRANCH: ${{ inputs.base_branch }}
+
+        run: |
+          set -euo pipefail
+
+          echo "Настраиваем git..."
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          BRANCH="cc-fleet/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          git checkout -b "$BRANCH"
+
+          echo "Запускаем cc-fleet..."
+
+          # ВАЖНО: здесь команда запуска cc-fleet.
+          # Если у твоего cc-fleet другая команда, замени её.
+          cc-fleet --task "$TASK" --model "$QWEN_MODEL"
+
+          # Если после агента остались изменения — коммитим их.
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "Есть изменения. Создаю commit..."
+            git add -A
+            git commit -m "cc-fleet: automated changes"
+          fi
+
+          # Если есть коммиты, которых нет в базовой ветке — создаём PR.
+          if git rev-parse --verify "origin/$BASE_BRANCH" >/dev/null 2>&1; then
+            if [ "$(git rev-list --count "origin/$BASE_BRANCH..HEAD")" -gt 0 ]; then
+              echo "Push branch and create PR..."
+              git push origin "$BRANCH"
+
+              TITLE="cc-fleet: automated AI changes"
+              BODY=$(printf 'Automated Pull Request created by cc-fleet.\n\nModel: %s\n\nTask:\n%s\n' "$QWEN_MODEL" "$TASK")
+
+              gh pr create \
+                --base "$BASE_BRANCH" \
+                --head "$BRANCH" \
+                --title "$TITLE" \
+                --body "$BODY"
+            else
+              echo "Нет новых коммитов после работы агента."
+            fi
+          else
+            echo "Не удалось найти origin/$BASE_BRANCH. Проверь имя базовой ветки."
+            exit 1
+          fi
