@@ -1,4 +1,4 @@
-name: cc-fleet + Qwen AI Agent
+name: Qwen AI Agent
 
 on:
   workflow_dispatch:
@@ -7,24 +7,32 @@ on:
         description: "Какая задача для AI-агента?"
         required: true
         type: string
-        default: "Переделай структуру проекта: создай папки src, config, docs. Обнови README."
+        default: "Исправь отображение символа рубля в списке АЗС"
       base_branch:
         description: "В какую ветку создавать Pull Request?"
         required: true
         type: string
         default: main
       model:
-        description: "Имя модели Qwen"
+        description: "Имя модели Qwen (например: qwen-plus, qwen-max, qwen3-max)"
         required: true
         type: string
-        default: qwen3.8-max
+        default: qwen-plus
+      region:
+        description: "Регион ключа: china или international"
+        required: true
+        type: choice
+        options:
+          - china
+          - international
+        default: international
 
 permissions:
   contents: write
   pull-requests: write
 
 jobs:
-  run-cc-fleet:
+  run-ai-agent:
     runs-on: ubuntu-latest
 
     steps:
@@ -33,80 +41,220 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          node-version: 22
+          python-version: '3.11'
 
-      - name: Install cc-fleet
+      - name: Install dependencies
+        run: pip install requests
+
+      - name: Run AI Agent
+        env:
+          DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
+          QWEN_MODEL: ${{ inputs.model }}
+          TASK: ${{ inputs.task }}
+          REGION: ${{ inputs.region }}
         run: |
-          # Если cc-fleet установлен через npm, оставь так:
-          npm install -g cc-fleet
+          cat > ai_agent.py << 'EOF'
+          import os
+          import sys
+          import json
+          import requests
 
-          # Если cc-fleet уже находится в твоём репозитории,
-          # закомментируй строку выше и используй например:
-          # npm ci
-          # или свою команду установки.
+          def main():
+              task = os.getenv("TASK")
+              api_key = os.getenv("DASHSCOPE_API_KEY")
+              model = os.getenv("QWEN_MODEL", "qwen-plus")
+              region = os.getenv("REGION", "international")
 
-      - name: Run cc-fleet and create Pull Request
+              if not task or not api_key:
+                  print("Ошибка: TASK и DASHSCOPE_API_KEY обязательны")
+                  sys.exit(1)
+
+              # Выбираем endpoint в зависимости от региона ключа
+              if region == "international":
+                  url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
+              else:
+                  url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+
+              print(f"Задача: {task}")
+              print(f"Модель: {model}")
+              print(f"Регион: {region}")
+              print(f"Endpoint: {url}")
+
+              headers = {
+                  "Authorization": f"Bearer {api_key}",
+                  "Content-Type": "application/json"
+              }
+
+              # Читаем структуру проекта
+              file_tree = []
+              for root, dirs, files in os.walk("."):
+                  dirs[:] = [d for d in dirs if d not in [".git", "node_modules", ".github", "build", ".gradle"]]
+                  for file in files:
+                      path = os.path.join(root, file)
+                      # Пропускаем бинарники и большие файлы
+                      if any(path.endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.gif', '.ico', '.jar', '.apk', '.so']):
+                          continue
+                      file_tree.append(path)
+
+              file_tree_str = "\n".join(sorted(file_tree)[:200])
+
+              # Ищем файл StationListItem.kt если он упомянут в задаче
+              target_files = []
+              if "StationListItem" in task:
+                  for path in file_tree:
+                      if "StationListItem.kt" in path:
+                          target_files.append(path)
+              
+              # Если не нашли целевой файл — читаем первые 10 .kt файлов
+              if not target_files:
+                  target_files = [p for p in file_tree if p.endswith('.kt')][:10]
+
+              key_files = []
+              for path in target_files:
+                  try:
+                      with open(path, 'r', encoding='utf-8') as f:
+                          content = f.read()[:3000]
+                          key_files.append(f"=== {path} ===\n{content}\n")
+                  except:
+                      pass
+
+              prompt = f"""Ты — AI-агент для Android-проекта (Kotlin, Jetpack Compose).
+
+          Структура проекта:
+          {file_tree_str}
+
+          Содержимое файлов для анализа:
+          {"".join(key_files)}
+
+          Задача: {task}
+
+          Верни JSON-массив с изменениями файлов:
+          [
+            {{
+              "path": "путь/к/файлу",
+              "action": "create|update|delete",
+              "content": "полное новое содержимое файла (для create/update)"
+            }}
+          ]
+
+          Верни ТОЛЬКО JSON, без пояснений и markdown-обёрток.
+          """
+
+              payload = {
+                  "model": model,
+                  "messages": [
+                      {"role": "user", "content": prompt}
+                  ],
+                  "temperature": 0.1
+              }
+
+              print(f"Отправляю запрос к {url} с моделью {model}...")
+              try:
+                  response = requests.post(url, headers=headers, json=payload, timeout=120)
+                  print(f"HTTP статус: {response.status_code}")
+                  if response.status_code != 200:
+                      print(f"Ответ сервера: {response.text[:500]}")
+                  response.raise_for_status()
+              except requests.exceptions.HTTPError as e:
+                  print(f"HTTP ошибка: {e}")
+                  print(f"Тело ответа: {e.response.text[:1000] if e.response else 'нет ответа'}")
+                  sys.exit(1)
+              except Exception as e:
+                  print(f"Ошибка запроса: {e}")
+                  sys.exit(1)
+
+              result = response.json()
+              content = result["choices"][0]["message"]["content"]
+              print(f"Ответ AI:\n{content[:1000]}...")
+
+              # Извлекаем JSON из ответа
+              try:
+                  start = content.find("[")
+                  end = content.rfind("]") + 1
+                  if start >= 0 and end > start:
+                      changes = json.loads(content[start:end])
+                  else:
+                      # Пробуем найти JSON-объект
+                      start = content.find("{")
+                      end = content.rfind("}") + 1
+                      if start >= 0 and end > start:
+                          changes = [json.loads(content[start:end])]
+                      else:
+                          print("Не удалось найти JSON в ответе")
+                          print(f"Полный ответ: {content}")
+                          sys.exit(0)
+              except json.JSONDecodeError as e:
+                  print(f"Ошибка парсинга JSON: {e}")
+                  print(f"Полный ответ: {content}")
+                  sys.exit(1)
+
+              print(f"Получено изменений: {len(changes)}")
+
+              # Применяем изменения
+              for change in changes:
+                  path = change.get("path")
+                  action = change.get("action")
+                  new_content = change.get("content", "")
+
+                  if not path:
+                      continue
+
+                  print(f"Обрабатываю: {action} {path}")
+
+                  if action == "create" or action == "update":
+                      os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+                      with open(path, 'w', encoding='utf-8') as f:
+                          f.write(new_content)
+                      print(f"  ✓ Записан файл: {path}")
+                  elif action == "delete":
+                      if os.path.exists(path):
+                          os.remove(path)
+                          print(f"  ✓ Удалён файл: {path}")
+
+              print("Готово!")
+
+          if __name__ == "__main__":
+              main()
+          EOF
+
+          python ai_agent.py
+
+      - name: Create Pull Request
         env:
           GH_TOKEN: ${{ github.token }}
           GITHUB_TOKEN: ${{ github.token }}
-
-          # Ключ Qwen/DashScope
-          DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
-
-          # Некоторые инструменты понимают OpenAI-совместимые переменные.
-          # Поэтому на всякий случай дублируем ключ и endpoint.
-          OPENAI_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
-          OPENAI_BASE_URL: https://dashscope.aliyuncs.com/compatible-mode/v1
-
-          # Модель и задача
-          QWEN_MODEL: ${{ inputs.model }}
-          TASK: ${{ inputs.task }}
           BASE_BRANCH: ${{ inputs.base_branch }}
-
+          TASK: ${{ inputs.task }}
+          MODEL: ${{ inputs.model }}
         run: |
           set -euo pipefail
 
-          echo "Настраиваем git..."
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
-          BRANCH="cc-fleet/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          if [[ -z "$(git status --porcelain)" ]]; then
+            echo "Нет изменений после работы AI-агента."
+            exit 0
+          fi
+
+          BRANCH="ai-agent/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$(date +%s)"
           git checkout -b "$BRANCH"
+                    BRANCH="ai-agent/run-${GITHUB_RUN_ID}"
+          git checkout -b "$BRANCH"
+          rm -f ai_agent.py        # ← ДОБАВИТЬ: не коммитим временный скрипт
+          git add -A
+          git add -A
+          git commit -m "AI Agent: automated changes"
+          git push origin "$BRANCH"
 
-          echo "Запускаем cc-fleet..."
+          TITLE="AI Agent: automated changes"
+          BODY=$(printf 'Automated Pull Request by Qwen AI Agent.\n\n**Model:** %s\n\n**Task:**\n%s\n' "$MODEL" "$TASK")
 
-          # ВАЖНО: здесь команда запуска cc-fleet.
-          # Если у твоего cc-fleet другая команда, замени её.
-          cc-fleet --task "$TASK" --model "$QWEN_MODEL"
-
-          # Если после агента остались изменения — коммитим их.
-          if [[ -n "$(git status --porcelain)" ]]; then
-            echo "Есть изменения. Создаю commit..."
-            git add -A
-            git commit -m "cc-fleet: automated changes"
-          fi
-
-          # Если есть коммиты, которых нет в базовой ветке — создаём PR.
-          if git rev-parse --verify "origin/$BASE_BRANCH" >/dev/null 2>&1; then
-            if [ "$(git rev-list --count "origin/$BASE_BRANCH..HEAD")" -gt 0 ]; then
-              echo "Push branch and create PR..."
-              git push origin "$BRANCH"
-
-              TITLE="cc-fleet: automated AI changes"
-              BODY=$(printf 'Automated Pull Request created by cc-fleet.\n\nModel: %s\n\nTask:\n%s\n' "$QWEN_MODEL" "$TASK")
-
-              gh pr create \
-                --base "$BASE_BRANCH" \
-                --head "$BRANCH" \
-                --title "$TITLE" \
-                --body "$BODY"
-            else
-              echo "Нет новых коммитов после работы агента."
-            fi
-          else
-            echo "Не удалось найти origin/$BASE_BRANCH. Проверь имя базовой ветки."
-            exit 1
-          fi
+          gh pr create \
+            --base "$BASE_BRANCH" \
+            --head "$BRANCH" \
+            --title "$TITLE" \
+            --body "$BODY"
