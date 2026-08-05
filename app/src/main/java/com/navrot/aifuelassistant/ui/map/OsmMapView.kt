@@ -10,6 +10,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.navrot.aifuelassistant.data.model.GasStation
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
@@ -26,8 +27,9 @@ fun OsmMapView(
     onStationClick: (GasStation) -> Unit
 ) {
     val context = LocalContext.current
-    // Не Compose-state, чтобы не устраивать циклы рекомпозиции
     val mapViewRef = remember { arrayOfNulls<MapView>(1) }
+    // Чтобы подгонять масштаб один раз на каждый новый маршрут
+    val lastFittedRoute = remember { arrayOfNulls<MapViewModel.RouteUiState>(1) }
 
     AndroidView(
         factory = { ctx ->
@@ -72,7 +74,10 @@ fun OsmMapView(
             }
 
             // Рисуем маршрут
-            route?.let { r ->
+            if (route == null) {
+                lastFittedRoute[0] = null
+            } else {
+                val r = route
                 try {
                     val osmPoints = r.points.map { GeoPoint(it.latitude, it.longitude) }
                     if (osmPoints.size >= 2) {
@@ -82,23 +87,29 @@ fun OsmMapView(
                         polyline.outlinePaint.strokeWidth = 10f
                         mapView.overlays.add(polyline)
 
-                        val first = osmPoints.first()
-                        val last = osmPoints.last()
-                        mapView.controller.setCenter(
-                            GeoPoint(
-                                (first.latitude + last.latitude) / 2.0,
-                                (first.longitude + last.longitude) / 2.0
-                            )
-                        )
-                        mapView.controller.setZoom(14.0)
+                        // Один раз на маршрут: вписываем старт и финиш в экран
+                        if (lastFittedRoute[0] !== r) {
+                            lastFittedRoute[0] = r
+                            mapView.post {
+                                try {
+                                    mapView.zoomToBoundingBox(
+                                        BoundingBox.fromGeoPoints(osmPoints),
+                                        false,
+                                        120
+                                    )
+                                    // Не приближать слишком сильно короткий маршрут
+                                    if (mapView.zoomLevelDouble > 16.0) {
+                                        mapView.controller.setZoom(16.0)
+                                    }
+                                } catch (_: Exception) { }
+                            }
+                        }
                     } else {
                         // Точек меньше двух — линию не рисуем
                     }
                 } catch (t: Throwable) {
                     android.util.Log.e("RouteDebug", "route draw failed", t)
                 }
-                // Явно возвращаем Unit, чтобы try/catch не был "выражением"
-                Unit
             }
 
             mapView.invalidate()

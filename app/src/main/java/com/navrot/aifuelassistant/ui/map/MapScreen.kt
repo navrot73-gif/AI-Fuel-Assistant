@@ -43,8 +43,7 @@ import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import org.osmdroid.util.GeoPoint
 
 /**
- * «Ящик для команды»: экран АЗС кладёт сюда станцию,
- * карта забирает один раз при входе.
+ * Команда для карты: построить маршрут до АЗС (ставится экраном АЗС).
  */
 var pendingRouteStation: GasStation? = null
 
@@ -56,6 +55,8 @@ fun MapScreen(
     onBack: () -> Unit = {},
     onVehiclesClick: () -> Unit = {},
     onStationClick: (GasStation) -> Unit = {},
+    routeTarget: GasStation? = null,
+    onRouteHandled: () -> Unit = {},
     viewModel: MapViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -66,6 +67,7 @@ fun MapScreen(
     val selectedFuelTypes by viewModel.selectedFuelTypes.collectAsStateWithLifecycle()
     val sortMode by viewModel.sortMode.collectAsStateWithLifecycle()
     val route by viewModel.route.collectAsStateWithLifecycle()
+    val isRouting by viewModel.isRouting.collectAsStateWithLifecycle()
 
     val fuelTypes = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ", "Газ")
 
@@ -76,9 +78,32 @@ fun MapScreen(
     var searchQuery by remember { mutableStateOf("") }
     var showStationList by remember { mutableStateOf(false) }
     var selectedStation by remember { mutableStateOf<GasStation?>(null) }
+    var routeStation by remember { mutableStateOf<GasStation?>(null) }
     var recenterTick by remember { mutableIntStateOf(0) }
 
-    // Команда «построить маршрут» с детального экрана АЗС
+    // Построить маршрут в приложении и закрыть большую карточку
+    val buildRouteAndClose: (GasStation) -> Unit = { st ->
+        userLocation?.let { loc ->
+            viewModel.updateUserLocation(loc.latitude, loc.longitude)
+        }
+        viewModel.buildRouteTo(st)
+        routeStation = st
+        selectedStation = null
+    }
+
+    // Команда с детального экрана (через параметр)
+    LaunchedEffect(routeTarget) {
+        if (routeTarget != null) {
+            userLocation?.let { loc ->
+                viewModel.updateUserLocation(loc.latitude, loc.longitude)
+            }
+            viewModel.buildRouteTo(routeTarget)
+            routeStation = routeTarget
+            onRouteHandled()
+        }
+    }
+
+    // Команда с детального экрана (через статическую переменную)
     LaunchedEffect(Unit) {
         pendingRouteStation?.let { st ->
             pendingRouteStation = null
@@ -86,6 +111,7 @@ fun MapScreen(
                 viewModel.updateUserLocation(loc.latitude, loc.longitude)
             }
             viewModel.buildRouteTo(st)
+            routeStation = st
         }
     }
 
@@ -281,22 +307,33 @@ fun MapScreen(
                     }
                 }
 
-                // Кнопка «Маршрут» ПРЯМО на карте — работает всегда,
-                // без переходов между экранами
+                // ===== Кнопки справа: аккуратная колонка без перекрытий =====
+                val yellowRouteVisible =
+                    selectedStation != null || (route != null && routeStation != null)
+
+                // Фаза 1: карточка АЗС открыта — строим маршрут в приложении
                 if (selectedStation != null) {
                     ExtendedFloatingActionButton(
+                        onClick = { selectedStation?.let { buildRouteAndClose(it) } },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 16.dp, bottom = if (showStationList) 380.dp else 16.dp),
+                        containerColor = FueldeckColors.Amber,
+                        contentColor = Color.Black,
+                        icon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
+                        text = { Text("Маршрут", fontWeight = FontWeight.Bold) }
+                    )
+                } else if (route != null && routeStation != null) {
+                    // Фаза 2: маршрут построен — открываем навигатор (Google Maps)
+                    ExtendedFloatingActionButton(
                         onClick = {
-                            val st = selectedStation
-                            if (st != null) {
-                                userLocation?.let { loc ->
-                                    viewModel.updateUserLocation(loc.latitude, loc.longitude)
-                                }
-                                viewModel.buildRouteTo(st)
+                            routeStation?.let { st ->
+                                openMapsRoute(context, st.latitude, st.longitude, st.brand)
                             }
                         },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(end = 16.dp, bottom = if (showStationList) 380.dp else 84.dp),
+                            .padding(end = 16.dp, bottom = if (showStationList) 380.dp else 16.dp),
                         containerColor = FueldeckColors.Amber,
                         contentColor = Color.Black,
                         icon = { Icon(Icons.Default.LocationOn, contentDescription = null) },
@@ -304,13 +341,23 @@ fun MapScreen(
                     )
                 }
 
-                // Сброс маршрута
+                // Сброс маршрута (✕) — всегда выше жёлтой кнопки
                 if (route != null) {
                     SmallFloatingActionButton(
-                        onClick = { viewModel.clearRoute() },
+                        onClick = {
+                            viewModel.clearRoute()
+                            routeStation = null
+                        },
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .padding(end = 16.dp, bottom = if (showStationList) 452.dp else 156.dp),
+                            .padding(
+                                end = 16.dp,
+                                bottom = when {
+                                    showStationList -> 524.dp
+                                    yellowRouteVisible -> 160.dp
+                                    else -> 88.dp
+                                }
+                            ),
                         containerColor = FueldeckColors.Surface,
                         contentColor = FueldeckColors.Coral
                     ) {
@@ -318,13 +365,21 @@ fun MapScreen(
                     }
                 }
 
+                // Возврат к моему местоположению (📍)
                 FloatingActionButton(
                     onClick = {
                         if (userLocation != null) recenterTick++
                     },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = if (showStationList) 320.dp else 16.dp),
+                        .padding(
+                            end = 16.dp,
+                            bottom = when {
+                                showStationList -> 452.dp
+                                yellowRouteVisible -> 88.dp
+                                else -> 16.dp
+                            }
+                        ),
                     containerColor = MaterialTheme.colorScheme.surface,
                     shape = CircleShape
                 ) {
@@ -361,8 +416,9 @@ fun MapScreen(
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                 ) {
+                    // Карточка AI скрывается, пока активен маршрут
                     AnimatedVisibility(
-                        visible = !showStationList && recommendation != null,
+                        visible = !showStationList && recommendation != null && route == null,
                         enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
                         exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 })
                     ) {
@@ -400,7 +456,16 @@ fun MapScreen(
                             StationDetailCard(
                                 station = station,
                                 selectedFuelTypes = selectedFuelTypes,
-                                onClose = { selectedStation = null }
+                                onClose = { selectedStation = null },
+                                onBuildRoute = { buildRouteAndClose(station) },
+                                isRouting = isRouting,
+                                routeText = route?.let {
+                                    "${it.distanceText} · ${it.durationText} · до ${it.destination}"
+                                },
+                                onClearRoute = {
+                                    viewModel.clearRoute()
+                                    routeStation = null
+                                }
                             )
                         }
                     }
