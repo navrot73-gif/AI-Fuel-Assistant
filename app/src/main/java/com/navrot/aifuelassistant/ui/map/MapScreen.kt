@@ -514,7 +514,7 @@ fun MapScreen(
                         enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
                         exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
                     ) {
-                        selectedStation?.let { station ->
+                                                selectedStation?.let { station ->
                             StationDetailCard(
                                 station = station,
                                 selectedFuelTypes = selectedFuelTypes,
@@ -527,6 +527,9 @@ fun MapScreen(
                                 onClearRoute = {
                                     viewModel.clearRoute()
                                     routeStation = null
+                                },
+                                onReportPrice = { stationId, fuelType, price ->
+                                    viewModel.reportPrice(stationId, fuelType, price)
                                 }
                             )
                         }
