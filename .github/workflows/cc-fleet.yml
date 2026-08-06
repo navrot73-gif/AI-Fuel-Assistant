@@ -14,17 +14,17 @@ on:
         type: string
         default: main
       model:
-        description: "Имя модели Qwen (например: qwen-plus, qwen-max, qwen3-max)"
+        description: "Имя модели Qwen (qwen-max, qwen-plus, qwen3-max)"
         required: true
         type: string
-        default: qwen-plus
+        default: qwen-max
       region:
         description: "Регион ключа: china или international"
         required: true
         type: choice
         options:
-          - china
           - international
+          - china
         default: international
 
 permissions:
@@ -55,8 +55,9 @@ jobs:
           QWEN_MODEL: ${{ inputs.model }}
           TASK: ${{ inputs.task }}
           REGION: ${{ inputs.region }}
+          QWEN_BASE_URL: ${{ secrets.QWEN_BASE_URL }}
         run: |
-          cat > ai_agent.py << 'EOF'
+          cat > ai_agent.py << 'PYEOF'
           import os
           import sys
           import json
@@ -65,22 +66,26 @@ jobs:
           def main():
               task = os.getenv("TASK")
               api_key = os.getenv("DASHSCOPE_API_KEY")
-              model = os.getenv("QWEN_MODEL", "qwen-plus")
+              model = os.getenv("QWEN_MODEL", "qwen-max")
               region = os.getenv("REGION", "international")
 
               if not task or not api_key:
                   print("Ошибка: TASK и DASHSCOPE_API_KEY обязательны")
                   sys.exit(1)
 
-              # Выбираем endpoint в зависимости от региона ключа
-              if region == "international":
-                  url = "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions"
+              # --- Endpoint: секрет QWEN_BASE_URL имеет приоритет, иначе по региону ---
+              base = (os.getenv("QWEN_BASE_URL") or
+                      ("https://dashscope-intl.aliyuncs.com" if region == "international"
+                       else "https://dashscope.aliyuncs.com")).rstrip("/")
+              if "/chat/completions" in base:
+                  url = base
+              elif base.endswith("/compatible-mode/v1"):
+                  url = base + "/chat/completions"
               else:
-                  url = "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions"
+                  url = base + "/compatible-mode/v1/chat/completions"
 
               print(f"Задача: {task}")
               print(f"Модель: {model}")
-              print(f"Регион: {region}")
               print(f"Endpoint: {url}")
 
               headers = {
@@ -88,112 +93,104 @@ jobs:
                   "Content-Type": "application/json"
               }
 
-              # Читаем структуру проекта
+              # --- Структура проекта ---
               file_tree = []
               for root, dirs, files in os.walk("."):
-                  dirs[:] = [d for d in dirs if d not in [".git", "node_modules", ".github", "build", ".gradle"]]
+                  dirs[:] = [d for d in dirs if d not in
+                             [".git", "node_modules", ".github", ".gradle", ".idea", "build", "gradle"]]
                   for file in files:
-                      path = os.path.join(root, file)
-                      # Пропускаем бинарники и большие файлы
-                      if any(path.endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.gif', '.ico', '.jar', '.apk', '.so']):
+                      path = os.path.join(root, file).replace("\\", "/")
+                      if any(path.endswith(ext) for ext in
+                             ['.png', '.jpg', '.jpeg', '.gif', '.ico', '.jar', '.apk', '.so', '.bin']):
                           continue
                       file_tree.append(path)
 
               file_tree_str = "\n".join(sorted(file_tree)[:200])
 
-              # Ищем файл StationListItem.kt если он упомянут в задаче
+              # --- Читаем файлы, чьи имена упомянуты в задаче (до 6 шт, целиком) ---
               target_files = []
-              if "StationListItem" in task:
-                  for path in file_tree:
-                      if "StationListItem.kt" in path:
+              for path in file_tree:
+                  if path.endswith(".kt"):
+                      name = os.path.basename(path)[:-3]
+                      if name and name in task:
                           target_files.append(path)
-              
-              # Если не нашли целевой файл — читаем первые 10 .kt файлов
+
               if not target_files:
-                  target_files = [p for p in file_tree if p.endswith('.kt')][:10]
+                  target_files = [p for p in file_tree if p.endswith(".kt")][:10]
+
+              target_files = target_files[:6]
 
               key_files = []
               for path in target_files:
                   try:
                       with open(path, 'r', encoding='utf-8') as f:
-                          content = f.read()[:3000]
+                          content = f.read()[:12000]
                           key_files.append(f"=== {path} ===\n{content}\n")
-                  except:
+                  except Exception:
                       pass
 
-              prompt = f"""Ты — AI-агент для Android-проекта (Kotlin, Jetpack Compose).
+              prompt = f"""Ты — AI-агент для Android-проекта (Kotlin, Jetpack Compose, Hilt, Room).
 
           Структура проекта:
           {file_tree_str}
 
-          Содержимое файлов для анализа:
+          ПОЛНОЕ содержимое файлов, которые нужно изменить:
           {"".join(key_files)}
 
           Задача: {task}
 
-          Верни JSON-массив с изменениями файлов:
+          ТРЕБОВАНИЯ:
+          - Вноси МИНИМАЛЬНЫЕ точечные изменения. Сохраняй ВСЕ существующие строки,
+            импорты, функции и разметку, которые не относятся к задаче.
+          - НЕ переписывай файлы целиком, НЕ удаляй существующий код без явной необходимости.
+          - Верни JSON-массив изменений:
           [
             {{
               "path": "путь/к/файлу",
               "action": "create|update|delete",
-              "content": "полное новое содержимое файла (для create/update)"
+              "content": "ПОЛНОЕ новое содержимое файла (для create/update)"
             }}
           ]
-
           Верни ТОЛЬКО JSON, без пояснений и markdown-обёрток.
           """
 
               payload = {
                   "model": model,
-                  "messages": [
-                      {"role": "user", "content": prompt}
-                  ],
+                  "messages": [{"role": "user", "content": prompt}],
                   "temperature": 0.1
               }
 
-              print(f"Отправляю запрос к {url} с моделью {model}...")
+              print(f"Отправляю запрос к {url} ...")
               try:
-                  response = requests.post(url, headers=headers, json=payload, timeout=120)
+                  response = requests.post(url, headers=headers, json=payload, timeout=300)
                   print(f"HTTP статус: {response.status_code}")
                   if response.status_code != 200:
-                      print(f"Ответ сервера: {response.text[:500]}")
+                      print(f"Ответ сервера: {response.text[:800]}")
                   response.raise_for_status()
-              except requests.exceptions.HTTPError as e:
-                  print(f"HTTP ошибка: {e}")
-                  print(f"Тело ответа: {e.response.text[:1000] if e.response else 'нет ответа'}")
-                  sys.exit(1)
               except Exception as e:
                   print(f"Ошибка запроса: {e}")
                   sys.exit(1)
 
               result = response.json()
               content = result["choices"][0]["message"]["content"]
-              print(f"Ответ AI:\n{content[:1000]}...")
+              print(f"Ответ AI (первые 800 символов):\n{content[:800]}")
 
-              # Извлекаем JSON из ответа
+              # --- Парсинг JSON ---
               try:
                   start = content.find("[")
                   end = content.rfind("]") + 1
                   if start >= 0 and end > start:
                       changes = json.loads(content[start:end])
                   else:
-                      # Пробуем найти JSON-объект
-                      start = content.find("{")
-                      end = content.rfind("}") + 1
-                      if start >= 0 and end > start:
-                          changes = [json.loads(content[start:end])]
-                      else:
-                          print("Не удалось найти JSON в ответе")
-                          print(f"Полный ответ: {content}")
-                          sys.exit(0)
+                      print("Не удалось найти JSON-массив в ответе")
+                      sys.exit(0)
               except json.JSONDecodeError as e:
                   print(f"Ошибка парсинга JSON: {e}")
-                  print(f"Полный ответ: {content}")
                   sys.exit(1)
 
               print(f"Получено изменений: {len(changes)}")
 
-              # Применяем изменения
+              # --- Применение изменений (со защитой служебных файлов) ---
               for change in changes:
                   path = change.get("path")
                   action = change.get("action")
@@ -202,9 +199,14 @@ jobs:
                   if not path:
                       continue
 
+                  if (path.startswith(".github") or path.endswith(".gradle")
+                          or path.endswith(".gradle.kts") or path.endswith(".properties")):
+                      print(f"  ⛔ Пропускаю защищённый файл: {path}")
+                      continue
+
                   print(f"Обрабатываю: {action} {path}")
 
-                  if action == "create" or action == "update":
+                  if action in ("create", "update"):
                       os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
                       with open(path, 'w', encoding='utf-8') as f:
                           f.write(new_content)
@@ -218,7 +220,7 @@ jobs:
 
           if __name__ == "__main__":
               main()
-          EOF
+          PYEOF
 
           python ai_agent.py
 
@@ -240,12 +242,13 @@ jobs:
             exit 0
           fi
 
+          # Уникальное имя ветки: run id + попытка + timestamp
           BRANCH="ai-agent/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$(date +%s)"
           git checkout -b "$BRANCH"
-                    BRANCH="ai-agent/run-${GITHUB_RUN_ID}"
-          git checkout -b "$BRANCH"
-          rm -f ai_agent.py        # ← ДОБАВИТЬ: не коммитим временный скрипт
-          git add -A
+
+          # НЕ коммитим временный скрипт агента
+          rm -f ai_agent.py
+
           git add -A
           git commit -m "AI Agent: automated changes"
           git push origin "$BRANCH"
