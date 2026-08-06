@@ -46,6 +46,9 @@ class MapViewModel @Inject constructor(
     private val _selectedFuelTypes = MutableStateFlow<Set<String>>(setOf("АИ-95"))
     val selectedFuelTypes: StateFlow<Set<String>> = _selectedFuelTypes.asStateFlow()
 
+    private val _openOnly = MutableStateFlow(false)
+    val openOnly: StateFlow<Boolean> = _openOnly.asStateFlow()
+
     private val _sortMode = MutableStateFlow(SortMode.BEST)
     val sortMode: StateFlow<SortMode> = _sortMode.asStateFlow()
 
@@ -140,6 +143,10 @@ class MapViewModel @Inject constructor(
         viewModelScope.launch {
             _userLocation.value?.let { (lat, lon) -> updateBestAndCheapest(lat, lon, 50.0) }
         }
+    }
+
+    fun toggleOpenOnly() {
+        _openOnly.value = !_openOnly.value
     }
 
     fun setSortMode(mode: SortMode, lat: Double? = null, lon: Double? = null) {
