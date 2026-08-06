@@ -30,9 +30,11 @@ import javax.inject.Singleton
  */
 @Singleton
 class GasStationRepository @Inject constructor(
-    private val context: Context,
-    private val userPrices: UserPriceRepository
+    private val context: Context
 ) {
+
+    // Создаём вручную, чтобы не трогать ручной @Provides в AppModule
+    private val userPrices: UserPriceRepository = UserPriceRepository(context)
 
     companion object {
         private const val REMOTE_URL =
