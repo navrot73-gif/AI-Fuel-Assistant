@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.navrot.aifuelassistant.BuildConfig
 import com.navrot.aifuelassistant.data.GasStationRepository
+import com.navrot.aifuelassistant.data.UserPriceRepository
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.geo.GeoPoint
 import com.navrot.aifuelassistant.geo.GeoUtils
@@ -20,10 +21,10 @@ import javax.inject.Inject
 @HiltViewModel
 class MapViewModel @Inject constructor(
     private val repository: GasStationRepository,
-    private val okHttpClient: OkHttpClient
+    private val okHttpClient: OkHttpClient,
+    private val userPriceRepository: UserPriceRepository
 ) : ViewModel() {
 
-    // Роутинг по дорогам: работает, если в local.properties задан ORS_API_KEY
     private val routingProvider: RoutingProvider? =
         BuildConfig.ORS_API_KEY
             .takeIf { it.isNotBlank() }
@@ -149,6 +150,24 @@ class MapViewModel @Inject constructor(
         _openOnly.value = !_openOnly.value
     }
 
+    /**
+     * Сообщить пользовательскую цену. Цена сохраняется в SharedPreferences
+     * и немедленно применяется к списку станций (переживёт рестарт приложения).
+     */
+    fun reportPrice(stationId: Int, fuelType: String, price: Double) {
+        viewModelScope.launch {
+            try {
+                val updated = repository.reportUserPrice(stationId, fuelType, price)
+                _stations.value = updated
+                _userLocation.value?.let { (lat, lon) ->
+                    updateBestAndCheapest(lat, lon, 50.0)
+                }
+            } catch (e: Exception) {
+                _error.value = "Не удалось сохранить цену: ${e.message}"
+            }
+        }
+    }
+
     fun setSortMode(mode: SortMode, lat: Double? = null, lon: Double? = null) {
         _sortMode.value = mode
         viewModelScope.launch {
@@ -194,12 +213,6 @@ class MapViewModel @Inject constructor(
         }
     }
 
-    // ==================== МАРШРУТЫ ====================
-
-    /**
-     * Маршрут строится СРАЗУ (прямая линия — мгновенная линия на карте),
-     * затем в фоне уточняется по дорогам через OpenRouteService, если есть ключ.
-     */
     fun buildRouteTo(station: GasStation) {
         val start = _userLocation.value
         if (start == null) {
@@ -207,7 +220,6 @@ class MapViewModel @Inject constructor(
             return
         }
 
-        // 1) Мгновенно: прямая линия
         val distKm = GeoUtils.calculateDistance(
             start.first, start.second, station.latitude, station.longitude
         )
@@ -222,7 +234,6 @@ class MapViewModel @Inject constructor(
             isStraightLine = true
         )
 
-        // 2) В фоне: уточняем по дорогам, если доступен ORS
         val provider = routingProvider ?: return
         viewModelScope.launch {
             _isRouting.value = true
@@ -238,7 +249,6 @@ class MapViewModel @Inject constructor(
                     destination = station.brand
                 )
             } catch (_: Exception) {
-                // ORS недоступен — остаётся прямая линия, ошибки не показываем
             } finally {
                 _isRouting.value = false
             }
