@@ -160,48 +160,39 @@ class DashboardViewModel @Inject constructor(
         )
     }
 
-    private fun computeSparkline(records: List<FuelRecordEntity>): List<Float> {
-        if (records.size < 2) return emptyList()
-        val sorted = records.sortedByDescending { it.date }
-        val result = mutableListOf<Float>()
-        for (i in 0 until sorted.size - 1) {
-            val curr = sorted[i]
-            val prev = sorted[i + 1]
-            val km = curr.mileage - prev.mileage
-            if (km > 0 && curr.fuelAmount > 0) {
-                result.add((curr.fuelAmount / km * 100).toFloat())
-            }
-        }
-        return result.reversed()
-    }
+private fun computeSparkline(records: List<FuelRecordEntity>): List<Float> {
+    if (records.size < 2) return emptyList()
 
-    fun askAi() {
-        if (_isAnalyzing.value) return
+    // От старых к новым (чтобы пары были корректные)
+    val sorted = records.sortedBy { it.date }
+    val result = mutableListOf<Float>()
 
-        viewModelScope.launch {
-            _isAnalyzing.value = true
-            _error.value = null
-
-            try {
-                val vehicleId = _selectedVehicleId.value
-                val records = if (vehicleId != null && vehicleId > 0) {
-                    fuelRecordRepository.getByVehicleId(vehicleId).first()
-                } else {
-                    fuelRecordRepository.getAll().first()
-                }
-                val vehicle = _vehicles.value.firstOrNull { it.id == vehicleId }
-
-                val prompt = FuelAnalysisPromptBuilder.build(
-                    vehicle = vehicle,
-                    records = records
-                )
-
-                _analysis.value = aiRouter.ask(prompt)
-            } catch (e: Throwable) {
-                _error.value = e.message ?: "Не удалось получить AI-анализ"
-            } finally {
-                _isAnalyzing.value = false
+    for (i in 1 until sorted.size) {
+        val curr = sorted[i]
+        val prev = sorted[i - 1]
+        val km = curr.mileage - prev.mileage
+        val liters = curr.fuelAmount
+        // Расход только при положительном пробеге и литрах
+        if (km > 0 && liters > 0) {
+            val consumption = (liters / km * 100).toFloat()
+            // Отбрасываем аномалии (< 2 или > 50 л/100км — явный бред датчика)
+            if (consumption in 2f..50f) {
+                result.add(consumption)
             }
         }
     }
+
+    // Если не получили ни одной точки — fallback на общий consumption
+    if (result.isEmpty()) {
+        val totalLiters = sorted.sumOf { it.fuelAmount }
+        val totalKm = (sorted.last().mileage - sorted.first().mileage)
+            .coerceAtLeast(0.0)
+        if (totalKm > 0) {
+            val avg = (totalLiters / totalKm * 100).toFloat()
+            // Повторяем одну точку несколько раз — чтобы был хоть какой-то график
+            result.addAll(List(3) { avg })
+        }
+    }
+
+    return result
 }
