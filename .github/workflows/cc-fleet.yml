@@ -73,7 +73,7 @@ jobs:
                   print("Ошибка: TASK и DASHSCOPE_API_KEY обязательны")
                   sys.exit(1)
 
-              # --- Endpoint: секрет QWEN_BASE_URL имеет приоритет, иначе по региону ---
+              # --- Endpoint ---
               base = (os.getenv("QWEN_BASE_URL") or
                       ("https://dashscope-intl.aliyuncs.com" if region == "international"
                        else "https://dashscope.aliyuncs.com")).rstrip("/")
@@ -93,6 +93,16 @@ jobs:
                   "Content-Type": "application/json"
               }
 
+              # --- Контекст проекта из CONTEXT.md ---
+              context_content = ""
+              if os.path.exists("CONTEXT.md"):
+                  try:
+                      with open("CONTEXT.md", "r", encoding="utf-8") as f:
+                          context_content = f.read()
+                      print("CONTEXT.md загружен")
+                  except Exception:
+                      pass
+
               # --- Структура проекта ---
               file_tree = []
               for root, dirs, files in os.walk("."):
@@ -107,7 +117,7 @@ jobs:
 
               file_tree_str = "\n".join(sorted(file_tree)[:200])
 
-              # --- Читаем файлы, чьи имена упомянуты в задаче (до 6 шт, целиком) ---
+              # --- Читаем файлы, чьи имена упомянуты в задаче ---
               target_files = []
               for path in file_tree:
                   if path.endswith(".kt"):
@@ -131,18 +141,22 @@ jobs:
 
               prompt = f"""Ты — AI-агент для Android-проекта (Kotlin, Jetpack Compose, Hilt, Room).
 
+          КОНТЕКСТ ПРОЕКТА (читай внимательно, особенно раздел "Правила для AI-агента"):
+          {context_content}
+
           Структура проекта:
           {file_tree_str}
 
-          ПОЛНОЕ содержимое файлов, которые нужно изменить:
+          ПОЛНОЕ содержимое файлов для изменения:
           {"".join(key_files)}
 
           Задача: {task}
 
           ТРЕБОВАНИЯ:
-          - Вноси МИНИМАЛЬНЫЕ точечные изменения. Сохраняй ВСЕ существующие строки,
-            импорты, функции и разметку, которые не относятся к задаче.
-          - НЕ переписывай файлы целиком, НЕ удаляй существующий код без явной необходимости.
+          - СТРОГО следуй правилам из CONTEXT.md.
+          - Вноси МИНИМАЛЬНЫЕ точечные изменения; сохраняй ВСЕ существующие строки, импорты, функции и разметку.
+          - НИКОГДА не оставляй функции с пустыми телами.
+          - НЕ переписывай файлы целиком и НЕ удаляй существующий код без явной необходимости.
           - Верни JSON-массив изменений:
           [
             {{
@@ -175,7 +189,6 @@ jobs:
               content = result["choices"][0]["message"]["content"]
               print(f"Ответ AI (первые 800 символов):\n{content[:800]}")
 
-              # --- Парсинг JSON ---
               try:
                   start = content.find("[")
                   end = content.rfind("]") + 1
@@ -190,7 +203,6 @@ jobs:
 
               print(f"Получено изменений: {len(changes)}")
 
-              # --- Применение изменений (со защитой служебных файлов) ---
               for change in changes:
                   path = change.get("path")
                   action = change.get("action")
@@ -242,11 +254,9 @@ jobs:
             exit 0
           fi
 
-          # Уникальное имя ветки: run id + попытка + timestamp
           BRANCH="ai-agent/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$(date +%s)"
           git checkout -b "$BRANCH"
 
-          # НЕ коммитим временный скрипт агента
           rm -f ai_agent.py
 
           git add -A
