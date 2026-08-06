@@ -8,13 +8,22 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.File
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Репозиторий АЗС, загружающий данные из assets/stations.json.
+ * Репозиторий АЗС.
+ *
+ * Приоритет загрузки данных:
+ *  1) удалённый stations.json (GitHub raw) — цены обновляются без релиза приложения;
+ *  2) локальный кеш последнего успешного ответа;
+ *  3) assets/stations.json — офлайн-фолбэк.
  *
  * Управляется Hilt (синглтон), потокобезопасен через [Mutex].
  */
@@ -23,12 +32,49 @@ class GasStationRepository @Inject constructor(
     private val context: Context
 ) {
 
+    companion object {
+        private const val REMOTE_URL =
+            "https://raw.githubusercontent.com/navrot73-gif/AI-Fuel-Assistant/main/app/src/main/assets/stations.json"
+        private const val CACHE_FILE = "stations_cache.json"
+
+        // Не дёргаем сеть чаще, чем раз в 10 минут
+        private const val REFRESH_INTERVAL_MS = 10 * 60 * 1000L
+    }
+
+    private val httpClient: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(10, TimeUnit.SECONDS)
+        .readTimeout(10, TimeUnit.SECONDS)
+        .build()
+
     private val loadMutex = Mutex()
     private var cachedStations: List<GasStation>? = null
+    private var lastRemoteCheckMs = 0L
 
     private suspend fun ensureLoaded(): List<GasStation> = loadMutex.withLock {
-        cachedStations ?: loadFromAssets().also { cachedStations = it }
+        cachedStations?.let { return@withLock it }
+
+        val now = System.currentTimeMillis()
+        val stations: List<GasStation> =
+            if (now - lastRemoteCheckMs >= REFRESH_INTERVAL_MS) {
+                lastRemoteCheckMs = now
+                loadFromRemote() ?: loadFromCache() ?: loadFromAssets()
+            } else {
+                loadFromCache() ?: loadFromAssets()
+            }
+
+        cachedStations = stations
+        stations
     }
+
+    /** Принудительное обновление из сети (пригодится для pull-to-refresh). */
+    suspend fun refresh(): List<GasStation> = loadMutex.withLock {
+        lastRemoteCheckMs = System.currentTimeMillis()
+        val stations = loadFromRemote() ?: loadFromCache() ?: loadFromAssets()
+        cachedStations = stations
+        stations
+    }
+
+    // ==================== ПУБЛИЧНЫЕ МЕТОДЫ (без изменений) ====================
 
     suspend fun getAllStations(): List<GasStation> = withContext(Dispatchers.IO) {
         ensureLoaded()
@@ -110,6 +156,8 @@ class GasStationRepository @Inject constructor(
             .sortedBy { it.queueTime }
     }
 
+    // ==================== ЗАГРУЗКА ДАННЫХ ====================
+
     private fun getStationsNearLocation(lat: Double, lon: Double, radiusKm: Double, stations: List<GasStation>): List<GasStation> {
         return stations.filter { station ->
             val distance = GeoUtils.calculateDistance(lat, lon, station.latitude, station.longitude)
@@ -119,8 +167,44 @@ class GasStationRepository @Inject constructor(
         }
     }
 
+    /** 1) Сеть: GitHub raw. При успехе — сохраняем копию в кеш. */
+    private suspend fun loadFromRemote(): List<GasStation>? = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder().url(REMOTE_URL).build()
+            httpClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext null
+                val body = response.body?.string() ?: return@withContext null
+                val stations = parseJson(body)
+                if (stations.isNotEmpty()) {
+                    cacheFile().writeText(body)
+                }
+                stations.takeIf { it.isNotEmpty() }
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /** 2) Локальный кеш последнего успешного ответа из сети. */
+    private suspend fun loadFromCache(): List<GasStation>? = withContext(Dispatchers.IO) {
+        try {
+            val file = cacheFile()
+            if (!file.exists()) return@withContext null
+            parseJson(file.readText()).takeIf { it.isNotEmpty() }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    /** 3) Офлайн-фолбэк из assets. */
     private fun loadFromAssets(): List<GasStation> {
         val jsonString = context.assets.open("stations.json").bufferedReader().use { it.readText() }
+        return parseJson(jsonString)
+    }
+
+    private fun cacheFile(): File = File(context.filesDir, CACHE_FILE)
+
+    private fun parseJson(jsonString: String): List<GasStation> {
         val jsonArray = JSONArray(jsonString)
         return (0 until jsonArray.length()).map { i ->
             parseStation(jsonArray.getJSONObject(i))
