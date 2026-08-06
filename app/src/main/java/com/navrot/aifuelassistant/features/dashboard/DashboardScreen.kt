@@ -67,11 +67,9 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
     val consumption = metrics.consumption
     val efficiency = metrics.efficiency
     val rubPerKm = metrics.rubPerKm
-    val spark = remember(metrics.sparklineData) {
-        if (metrics.sparklineData.size >= 2) metrics.sparklineData
-        else listOf(0f)
-    }
+        val spark = metrics.sparklineData
     val isEmpty = metrics.fillCount == 0
+    val hasSparkline = spark.size >= 2
 
     Column(
         modifier = modifier
@@ -192,15 +190,19 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 )
             }
             Spacer(Modifier.height(10.dp))
-            if (isEmpty) {
+                       if (isEmpty || !hasSparkline) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(80.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text("Добавьте заправки для отображения",
-                        fontSize = 12.sp, color = FueldeckColors.InkDim)
+                    Text(
+                        if (isEmpty) "Добавьте заправки для отображения"
+                        else "Недостаточно данных для графика",
+                        fontSize = 12.sp,
+                        color = FueldeckColors.InkDim
+                    )
                 }
             } else {
                 Sparkline(data = spark)
