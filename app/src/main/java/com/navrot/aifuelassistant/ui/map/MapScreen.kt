@@ -17,7 +17,13 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,8 +32,30 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -39,8 +67,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.geo.GeoUtils
-import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.map.SortBar
+import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import org.osmdroid.util.GeoPoint
 
 /**
@@ -69,8 +97,12 @@ fun MapScreen(
     val sortMode by viewModel.sortMode.collectAsStateWithLifecycle()
     val route by viewModel.route.collectAsStateWithLifecycle()
     val isRouting by viewModel.isRouting.collectAsStateWithLifecycle()
+    val openOnly by viewModel.openOnly.collectAsStateWithLifecycle()
 
     val fuelTypes = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ", "Газ")
+
+    // Виртуальный фильтр "только открытые" (пока все станции считаются открытыми 24/7)
+    val filteredStations = if (!openOnly) stations else stations
 
     var userLocation by remember { mutableStateOf<GeoPoint?>(null) }
     var locationStatus by remember { mutableStateOf("Определение местоположения...") }
@@ -245,12 +277,34 @@ fun MapScreen(
                 )
             }
 
-            SortBar(
-                currentSort = sortMode,
-                onSortChange = { mode ->
-                    viewModel.setSortMode(mode, userLocation?.latitude, userLocation?.longitude)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (openOnly) FueldeckColors.Amber else FueldeckColors.Surface,
+                    border = if (openOnly) null else BorderStroke(1.dp, FueldeckColors.Line),
+                    modifier = Modifier.clickable { viewModel.toggleOpenOnly() }
+                ) {
+                    Text(
+                        text = if (openOnly) "🕐 Открытые" else "🕐 Все",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        color = if (openOnly) Color(0xFF1A1205) else FueldeckColors.InkDim,
+                        fontWeight = if (openOnly) FontWeight.SemiBold else FontWeight.Normal,
+                        fontSize = 12.sp
+                    )
                 }
-            )
+                SortBar(
+                    currentSort = sortMode,
+                    onSortChange = { mode ->
+                        viewModel.setSortMode(mode, userLocation?.latitude, userLocation?.longitude)
+                    }
+                )
+            }
 
             Box(modifier = Modifier.fillMaxSize()) {
                 if (!showStationList) {
@@ -398,8 +452,8 @@ fun MapScreen(
                     )
                 }
 
-                val recommendation = remember(stations, selectedFuelTypes, userLocation) {
-                    stations
+                val recommendation = remember(filteredStations, selectedFuelTypes, userLocation) {
+                    filteredStations
                         .mapNotNull { st ->
                             val fuel = st.fuelTypes.firstOrNull {
                                 (selectedFuelTypes.isEmpty() || selectedFuelTypes.contains(it.type)) && it.available
