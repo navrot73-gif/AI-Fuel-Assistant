@@ -49,7 +49,7 @@ jobs:
       - name: Install dependencies
         run: pip install requests
 
-      - name: Run AI Agent
+      - name: Run AI Agent (edits + compile + auto-repair)
         env:
           DASHSCOPE_API_KEY: ${{ secrets.DASHSCOPE_API_KEY }}
           QWEN_MODEL: ${{ inputs.model }}
@@ -61,12 +61,33 @@ jobs:
           import os
           import sys
           import json
+          import subprocess
           import requests
 
           def is_protected(path):
               return (path.startswith(".github") or path.endswith(".gradle")
                       or path.endswith(".gradle.kts") or path.endswith(".properties")
                       or path.endswith(".md"))
+
+          def call_model(url, headers, model, prompt):
+              payload = {
+                  "model": model,
+                  "messages": [{"role": "user", "content": prompt}],
+                  "temperature": 0.1
+              }
+              response = requests.post(url, headers=headers, json=payload, timeout=300)
+              print(f"HTTP статус: {response.status_code}")
+              if response.status_code != 200:
+                  print(f"Ответ сервера: {response.text[:800]}")
+              response.raise_for_status()
+              return response.json()["choices"][0]["message"]["content"]
+
+          def extract_json(content):
+              start = content.find("[")
+              end = content.rfind("]") + 1
+              if start >= 0 and end > start:
+                  return json.loads(content[start:end])
+              return None
 
           def apply_edits(path, edits):
               with open(path, 'r', encoding='utf-8') as f:
@@ -85,10 +106,57 @@ jobs:
                   elif count == 0:
                       print(f"  ⚠ правка {i + 1}: SEARCH не найден — пропущена")
                   else:
-                      print(f"  ⚠ правка {i + 1}: SEARCH найден {count} раз (не уникально) — пропущена")
+                      print(f"  ⚠ правка {i + 1}: SEARCH найден {count} раз — пропущена")
               with open(path, 'w', encoding='utf-8') as f:
                   f.write(text)
               return applied
+
+          def apply_changes(changes):
+              total = 0
+              touched = []
+              for change in changes:
+                  path = change.get("path")
+                  if not path:
+                      continue
+                  if is_protected(path):
+                      print(f"  ⛔ Пропускаю защищённый файл: {path}")
+                      continue
+                  if "edits" in change and os.path.exists(path):
+                      print(f"Обрабатываю правки: {path}")
+                      total += apply_edits(path, change["edits"])
+                      touched.append(path)
+                  elif change.get("action") in ("create", "update") and "content" in change:
+                      print(f"Обрабатываю полную запись: {path}")
+                      os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+                      with open(path, 'w', encoding='utf-8') as f:
+                          f.write(change["content"])
+                      total += 1
+                      touched.append(path)
+              return total, touched
+
+          def read_files(paths, limit=12000):
+              blocks = []
+              for path in paths:
+                  try:
+                      with open(path, 'r', encoding='utf-8') as f:
+                          blocks.append(f"=== {path} ===\n{f.read()[:limit]}\n")
+                  except Exception:
+                      pass
+              return "".join(blocks)
+
+          def compile_project():
+              print("🔨 Компиляция :app:compileDebugKotlin ...")
+              p = subprocess.run(
+                  ["./gradlew", ":app:compileDebugKotlin", "--console=plain"],
+                  capture_output=True, text=True)
+              out = (p.stdout or "") + (p.stderr or "")
+              return p.returncode, out
+
+          def extract_errors(out):
+              lines = [l for l in out.splitlines() if l.strip().startswith("e:")]
+              if lines:
+                  return "\n".join(lines[:40])
+              return out[-3000:]
 
           def main():
               task = os.getenv("TASK")
@@ -153,102 +221,111 @@ jobs:
 
               target_files = target_files[:6]
 
-              key_files = []
-              for path in target_files:
-                  try:
-                      with open(path, 'r', encoding='utf-8') as f:
-                          content = f.read()[:12000]
-                          key_files.append(f"=== {path} ===\n{content}\n")
-                  except Exception:
-                      pass
+              format_rules = """
+          ФОРМАТ ОТВЕТА — JSON-массив точечных замен:
+          [
+            {
+              "path": "путь/к/файлу",
+              "edits": [
+                {
+                  "search": "ТОЧНЫЙ фрагмент ТЕКУЩЕГО кода (символ в символ, со всеми отступами)",
+                  "replace": "новый фрагмент, на который его заменить"
+                }
+              ]
+            }
+          ]
+          ПРАВИЛА: search должен совпадать с файлом СИМВОЛ В СИМВОЛ; каждая правка 1–15 строк;
+          НЕ возвращай файлы целиком; сохраняй весь код вне задачи; НЕ оставляй пустых тел функций;
+          используй только импорты, которые точно существуют в проекте (обычный DropdownMenu вместо
+          ExposedDropdownMenuBox/ExposedDropdownMenu). Верни ТОЛЬКО JSON.
+          """
 
-              prompt = f"""Ты — AI-агент для Android-проекта (Kotlin, Jetpack Compose, Hilt, Room).
+              prompt1 = f"""Ты — AI-агент для Android-проекта (Kotlin, Jetpack Compose, Hilt, Room).
 
-          КОНТЕКСТ ПРОЕКТА (раздел "Правила для AI-агента" обязателен к исполнению):
+          КОНТЕКСТ ПРОЕКТА (раздел "Правила для AI-агента" обязателен):
           {context_content}
 
           Структура проекта:
           {file_tree_str}
 
           ТЕКУЩЕЕ ПОЛНОЕ содержимое файлов:
-          {"".join(key_files)}
+          {read_files(target_files)}
 
           Задача: {task}
+          {format_rules}"""
 
-          ФОРМАТ ОТВЕТА — JSON-массив точечных замен:
-          [
-            {{
-              "path": "путь/к/файлу",
-              "edits": [
-                {{
-                  "search": "ТОЧНЫЙ фрагмент ТЕКУЩЕГО кода (скопируй из файла выше, со всеми отступами и символами)",
-                  "replace": "новый фрагмент, на который его заменить"
-                }}
-              ]
-            }}
-          ]
-
-          ПРАВИЛА ФОРМАТА:
-          - search должен совпадать с текущим файлом СИМВОЛ В СИМВОЛ, иначе правка будет пропущена.
-          - Каждая правка — минимальная (1–15 строк). НЕ возвращай файлы целиком.
-          - Сохраняй весь код, не относящийся к задаче. НЕ оставляй пустых тел функций.
-          - Верни ТОЛЬКО JSON, без пояснений и markdown.
-          """
-
-              payload = {
-                  "model": model,
-                  "messages": [{"role": "user", "content": prompt}],
-                  "temperature": 0.1
-              }
-
-              print(f"Отправляю запрос к {url} ...")
+              print("Отправляю запрос №1 ...")
               try:
-                  response = requests.post(url, headers=headers, json=payload, timeout=300)
-                  print(f"HTTP статус: {response.status_code}")
-                  if response.status_code != 200:
-                      print(f"Ответ сервера: {response.text[:800]}")
-                  response.raise_for_status()
+                  content = call_model(url, headers, model, prompt1)
               except Exception as e:
                   print(f"Ошибка запроса: {e}")
                   sys.exit(1)
 
-              result = response.json()
-              content = result["choices"][0]["message"]["content"]
-              print(f"Ответ AI (первые 1000 символов):\n{content[:1000]}")
+              print(f"Ответ AI (первые 600 символов):\n{content[:600]}")
+              changes = extract_json(content)
+              if not changes:
+                  print("Не удалось найти JSON-массив — PR не будет")
+                  with open("compile_status.txt", "w") as f:
+                      f.write("fail")
+                  sys.exit(0)
 
-              try:
-                  start = content.find("[")
-                  end = content.rfind("]") + 1
-                  if start >= 0 and end > start:
-                      changes = json.loads(content[start:end])
-                  else:
-                      print("Не удалось найти JSON-массив в ответе")
+              total, touched = apply_changes(changes)
+              print(f"Применено правок: {total}")
+
+              if total == 0:
+                  print("Ни одна правка не применилась — PR не будет")
+                  with open("compile_status.txt", "w") as f:
+                      f.write("fail")
+                  sys.exit(0)
+
+              # --- Авто-валидация: компиляция ---
+              rc, out = compile_project()
+
+              if rc != 0:
+                  errors = extract_errors(out)
+                  print("❌ Компиляция упала. Ошибки:\n" + errors)
+                  print("Отправляю запрос №2 (авто-починка) ...")
+
+                  repair_prompt = f"""Ты — AI-агент для Android-проекта. Твои предыдущие правки СЛОМАЛИ компиляцию.
+
+          ТЕКУЩЕЕ содержимое изменённых файлов:
+          {read_files(touched)}
+
+          ОШИБКИ КОМПИЛЯТОРА:
+          {errors}
+
+          Задача (та же): {task}
+
+          Исправь ТОЛЬКО эти ошибки компиляции в формате search/replace.
+          Не меняй ничего, что не относится к ошибкам. {format_rules}"""
+
+                  try:
+                      content2 = call_model(url, headers, model, repair_prompt)
+                  except Exception as e:
+                      print(f"Ошибка запроса №2: {e}")
+                      with open("compile_status.txt", "w") as f:
+                          f.write("fail")
                       sys.exit(0)
-              except json.JSONDecodeError as e:
-                  print(f"Ошибка парсинга JSON: {e}")
-                  sys.exit(1)
 
-              total_applied = 0
-              for change in changes:
-                  path = change.get("path")
-                  if not path:
-                      continue
-                  if is_protected(path):
-                      print(f"  ⛔ Пропускаю защищённый файл: {path}")
-                      continue
+                  changes2 = extract_json(content2)
+                  if changes2:
+                      applied2, touched2 = apply_changes(changes2)
+                      print(f"Починка: применено правок {applied2}")
+                      touched = list(set(touched + touched2))
+                  else:
+                      print("Авто-починка не вернула JSON")
 
-                  if "edits" in change and os.path.exists(path):
-                      print(f"Обрабатываю правки: {path}")
-                      total_applied += apply_edits(path, change["edits"])
-                  elif change.get("action") in ("create", "update") and "content" in change:
-                      print(f"Обрабатываю полную запись: {path}")
-                      os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
-                      with open(path, 'w', encoding='utf-8') as f:
-                          f.write(change["content"])
-                      total_applied += 1
+                  rc2, out2 = compile_project()
+                  if rc2 != 0:
+                      print("❌ Компиляция всё ещё падает. PR НЕ создаётся.")
+                      print(extract_errors(out2))
+                      with open("compile_status.txt", "w") as f:
+                          f.write("fail")
+                      sys.exit(0)
 
-              print(f"Всего применено правок: {total_applied}")
-              print("Готово!")
+              print("✅ Компиляция успешна — можно создавать PR")
+              with open("compile_status.txt", "w") as f:
+                  f.write("ok")
 
           if __name__ == "__main__":
               main()
@@ -266,6 +343,12 @@ jobs:
         run: |
           set -euo pipefail
 
+          if [[ -f compile_status.txt && "$(cat compile_status.txt)" != "ok" ]]; then
+            echo "❌ Компиляция не прошла — Pull Request НЕ создаётся."
+            rm -f compile_status.txt ai_agent.py
+            exit 0
+          fi
+
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
@@ -277,14 +360,14 @@ jobs:
           BRANCH="ai-agent/run-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-$(date +%s)"
           git checkout -b "$BRANCH"
 
-          rm -f ai_agent.py
+          rm -f ai_agent.py compile_status.txt
 
           git add -A
-          git commit -m "AI Agent: automated changes"
+          git commit -m "AI Agent: automated changes (compile-verified)"
           git push origin "$BRANCH"
 
-          TITLE="AI Agent: automated changes"
-          BODY=$(printf 'Automated Pull Request by Qwen AI Agent.\n\n**Model:** %s\n\n**Task:**\n%s\n' "$MODEL" "$TASK")
+          TITLE="AI Agent: automated changes (compile-verified)"
+          BODY=$(printf 'Automated Pull Request by Qwen AI Agent.\n\n**Model:** %s\n\n**Task:**\n%s\n\n✅ Код скомпилирован перед созданием PR.\n' "$MODEL" "$TASK")
 
           gh pr create \
             --base "$BASE_BRANCH" \
