@@ -14,10 +14,10 @@ on:
         type: string
         default: main
       model:
-        description: "Имя модели Qwen (qwen-max, qwen-plus, qwen3-max)"
+        description: "Имя модели Qwen (qwen3-coder-plus, qwen3-max, qwen-max)"
         required: true
         type: string
-        default: qwen-max
+        default: qwen3-coder-plus
       region:
         description: "Регион ключа: china или international"
         required: true
@@ -63,17 +63,43 @@ jobs:
           import json
           import requests
 
+          def is_protected(path):
+              return (path.startswith(".github") or path.endswith(".gradle")
+                      or path.endswith(".gradle.kts") or path.endswith(".properties")
+                      or path.endswith(".md"))
+
+          def apply_edits(path, edits):
+              with open(path, 'r', encoding='utf-8') as f:
+                  text = f.read()
+              applied = 0
+              for i, edit in enumerate(edits):
+                  search = edit.get("search", "")
+                  replace = edit.get("replace", "")
+                  if not search:
+                      continue
+                  count = text.count(search)
+                  if count == 1:
+                      text = text.replace(search, replace)
+                      applied += 1
+                      print(f"  ✓ правка {i + 1} применена")
+                  elif count == 0:
+                      print(f"  ⚠ правка {i + 1}: SEARCH не найден — пропущена")
+                  else:
+                      print(f"  ⚠ правка {i + 1}: SEARCH найден {count} раз (не уникально) — пропущена")
+              with open(path, 'w', encoding='utf-8') as f:
+                  f.write(text)
+              return applied
+
           def main():
               task = os.getenv("TASK")
               api_key = os.getenv("DASHSCOPE_API_KEY")
-              model = os.getenv("QWEN_MODEL", "qwen-max")
+              model = os.getenv("QWEN_MODEL", "qwen3-coder-plus")
               region = os.getenv("REGION", "international")
 
               if not task or not api_key:
                   print("Ошибка: TASK и DASHSCOPE_API_KEY обязательны")
                   sys.exit(1)
 
-              # --- Endpoint ---
               base = (os.getenv("QWEN_BASE_URL") or
                       ("https://dashscope-intl.aliyuncs.com" if region == "international"
                        else "https://dashscope.aliyuncs.com")).rstrip("/")
@@ -93,7 +119,6 @@ jobs:
                   "Content-Type": "application/json"
               }
 
-              # --- Контекст проекта из CONTEXT.md ---
               context_content = ""
               if os.path.exists("CONTEXT.md"):
                   try:
@@ -103,7 +128,6 @@ jobs:
                   except Exception:
                       pass
 
-              # --- Структура проекта ---
               file_tree = []
               for root, dirs, files in os.walk("."):
                   dirs[:] = [d for d in dirs if d not in
@@ -117,7 +141,6 @@ jobs:
 
               file_tree_str = "\n".join(sorted(file_tree)[:200])
 
-              # --- Читаем файлы, чьи имена упомянуты в задаче ---
               target_files = []
               for path in file_tree:
                   if path.endswith(".kt"):
@@ -141,31 +164,35 @@ jobs:
 
               prompt = f"""Ты — AI-агент для Android-проекта (Kotlin, Jetpack Compose, Hilt, Room).
 
-          КОНТЕКСТ ПРОЕКТА (читай внимательно, особенно раздел "Правила для AI-агента"):
+          КОНТЕКСТ ПРОЕКТА (раздел "Правила для AI-агента" обязателен к исполнению):
           {context_content}
 
           Структура проекта:
           {file_tree_str}
 
-          ПОЛНОЕ содержимое файлов для изменения:
+          ТЕКУЩЕЕ ПОЛНОЕ содержимое файлов:
           {"".join(key_files)}
 
           Задача: {task}
 
-          ТРЕБОВАНИЯ:
-          - СТРОГО следуй правилам из CONTEXT.md.
-          - Вноси МИНИМАЛЬНЫЕ точечные изменения; сохраняй ВСЕ существующие строки, импорты, функции и разметку.
-          - НИКОГДА не оставляй функции с пустыми телами.
-          - НЕ переписывай файлы целиком и НЕ удаляй существующий код без явной необходимости.
-          - Верни JSON-массив изменений:
+          ФОРМАТ ОТВЕТА — JSON-массив точечных замен:
           [
             {{
               "path": "путь/к/файлу",
-              "action": "create|update|delete",
-              "content": "ПОЛНОЕ новое содержимое файла (для create/update)"
+              "edits": [
+                {{
+                  "search": "ТОЧНЫЙ фрагмент ТЕКУЩЕГО кода (скопируй из файла выше, со всеми отступами и символами)",
+                  "replace": "новый фрагмент, на который его заменить"
+                }}
+              ]
             }}
           ]
-          Верни ТОЛЬКО JSON, без пояснений и markdown-обёрток.
+
+          ПРАВИЛА ФОРМАТА:
+          - search должен совпадать с текущим файлом СИМВОЛ В СИМВОЛ, иначе правка будет пропущена.
+          - Каждая правка — минимальная (1–15 строк). НЕ возвращай файлы целиком.
+          - Сохраняй весь код, не относящийся к задаче. НЕ оставляй пустых тел функций.
+          - Верни ТОЛЬКО JSON, без пояснений и markdown.
           """
 
               payload = {
@@ -187,7 +214,7 @@ jobs:
 
               result = response.json()
               content = result["choices"][0]["message"]["content"]
-              print(f"Ответ AI (первые 800 символов):\n{content[:800]}")
+              print(f"Ответ AI (первые 1000 символов):\n{content[:1000]}")
 
               try:
                   start = content.find("[")
@@ -201,33 +228,26 @@ jobs:
                   print(f"Ошибка парсинга JSON: {e}")
                   sys.exit(1)
 
-              print(f"Получено изменений: {len(changes)}")
-
+              total_applied = 0
               for change in changes:
                   path = change.get("path")
-                  action = change.get("action")
-                  new_content = change.get("content", "")
-
                   if not path:
                       continue
-
-                  if (path.startswith(".github") or path.endswith(".gradle")
-                          or path.endswith(".gradle.kts") or path.endswith(".properties")):
+                  if is_protected(path):
                       print(f"  ⛔ Пропускаю защищённый файл: {path}")
                       continue
 
-                  print(f"Обрабатываю: {action} {path}")
-
-                  if action in ("create", "update"):
+                  if "edits" in change and os.path.exists(path):
+                      print(f"Обрабатываю правки: {path}")
+                      total_applied += apply_edits(path, change["edits"])
+                  elif change.get("action") in ("create", "update") and "content" in change:
+                      print(f"Обрабатываю полную запись: {path}")
                       os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
                       with open(path, 'w', encoding='utf-8') as f:
-                          f.write(new_content)
-                      print(f"  ✓ Записан файл: {path}")
-                  elif action == "delete":
-                      if os.path.exists(path):
-                          os.remove(path)
-                          print(f"  ✓ Удалён файл: {path}")
+                          f.write(change["content"])
+                      total_applied += 1
 
+              print(f"Всего применено правок: {total_applied}")
               print("Готово!")
 
           if __name__ == "__main__":
