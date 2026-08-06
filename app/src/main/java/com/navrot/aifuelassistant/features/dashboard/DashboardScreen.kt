@@ -67,7 +67,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
     val consumption = metrics.consumption
     val efficiency = metrics.efficiency
     val rubPerKm = metrics.rubPerKm
-        val spark = metrics.sparklineData
+    val spark = metrics.sparklineData
     val isEmpty = metrics.fillCount == 0
     val hasSparkline = spark.size >= 2
 
@@ -96,7 +96,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
             )
         }
 
-        // ===== Селектор автомобиля (на обычном DropdownMenu) =====
+        // ===== Селектор автомобиля =====
         Surface(
             shape = FueldeckShapes.Pill,
             color = FueldeckColors.Surface,
@@ -190,7 +190,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 )
             }
             Spacer(Modifier.height(10.dp))
-                       if (isEmpty || !hasSparkline) {
+            if (isEmpty || !hasSparkline) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
