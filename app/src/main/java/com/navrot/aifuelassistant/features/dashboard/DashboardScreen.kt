@@ -1,9 +1,12 @@
 package com.navrot.aifuelassistant.features.dashboard
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,15 +24,11 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenu
-import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -54,7 +53,6 @@ import com.navrot.aifuelassistant.ui.components.Sparkline
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(modifier: Modifier = Modifier) {
     val viewModel: DashboardViewModel = hiltViewModel()
@@ -100,20 +98,16 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
             )
         }
 
-        // ===== Селектор автомобиля =====
+        // ===== Селектор автомобиля (на обычном DropdownMenu) =====
         Surface(
             shape = FueldeckShapes.Pill,
             color = FueldeckColors.Surface,
             border = BorderStroke(1.dp, FueldeckColors.Line),
+            modifier = Modifier.clickable { expanded = !expanded }
         ) {
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = it },
-            ) {
+            Box {
                 Row(
-                    modifier = Modifier
-                        .padding(horizontal = 12.dp, vertical = 8.dp)
-                        .menuAnchor(),
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(7.dp),
                 ) {
@@ -123,8 +117,13 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                         fontSize = 13.sp,
                         color = FueldeckColors.Ink
                     )
+                    Text(
+                        if (expanded) "▴" else "▾",
+                        fontSize = 11.sp,
+                        color = FueldeckColors.InkDim
+                    )
                 }
-                ExposedDropdownMenu(
+                DropdownMenu(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
                 ) {
