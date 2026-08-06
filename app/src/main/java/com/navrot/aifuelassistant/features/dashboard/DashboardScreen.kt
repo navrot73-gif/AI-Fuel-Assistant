@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.ExposedDropdownMenuBox
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -26,23 +27,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+
 import com.navrot.aifuelassistant.ui.components.ConsumptionGauge
 import com.navrot.aifuelassistant.ui.components.Sparkline
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
@@ -55,6 +43,9 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
     val analysis by viewModel.analysis.collectAsStateWithLifecycle()
     val isAnalyzing by viewModel.isAnalyzing.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
+    val vehicles by viewModel.vehicles.collectAsStateWithLifecycle()
+    val selectedVehicleId by viewModel.selectedVehicleId.collectAsStateWithLifecycle()
+    var expanded by remember { mutableStateOf(false) }
 
     val consumption = metrics.consumption
     val efficiency = metrics.efficiency
@@ -91,18 +82,42 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                     letterSpacing = 0.4.sp,
                 )
             }
-            Surface(
-                shape = FueldeckShapes.Pill,
-                color = FueldeckColors.Surface,
-                border = BorderStroke(1.dp, FueldeckColors.Line),
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = it },
+                modifier = Modifier
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                Surface(
+                    shape = FueldeckShapes.Pill,
+                    color = FueldeckColors.Surface,
+                    border = BorderStroke(1.dp, FueldeckColors.Line),
                 ) {
-                    Box(Modifier.size(7.dp).background(FueldeckColors.Amber, CircleShape))
-                    Text("Пенс", fontSize = 13.sp, color = FueldeckColors.Ink)
+                    Row(
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    ) {
+                        Text(
+                            vehicles.find { it.id == selectedVehicleId }?.name ?: "Выберите авто",
+                            fontSize = 13.sp,
+                            color = FueldeckColors.Ink
+                        )
+                    }
+                }
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                    modifier = Modifier.exposedDropdownSize()
+                ) {
+                    vehicles.forEach { vehicle ->
+                        DropdownMenuItem(
+                            text = { Text(vehicle.name) },
+                            onClick = {
+                                viewModel.selectVehicle(vehicle.id)
+                                expanded = false
+                            }
+                        )
+                    }
                 }
             }
         }
