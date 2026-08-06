@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.geo.GeoUtils
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
+import com.navrot.aifuelassistant.ui.map.SortBar
 import org.osmdroid.util.GeoPoint
 
 /**
@@ -243,6 +244,13 @@ fun MapScreen(
                     }
                 )
             }
+
+            SortBar(
+                currentSort = sortMode,
+                onSortChange = { mode ->
+                    viewModel.setSortMode(mode, userLocation?.latitude, userLocation?.longitude)
+                }
+            )
 
             Box(modifier = Modifier.fillMaxSize()) {
                 if (!showStationList) {
