@@ -1,5 +1,4 @@
 package com.navrot.aifuelassistant.features.dashboard
-
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -47,7 +46,6 @@ import com.navrot.aifuelassistant.ui.components.ConsumptionGauge
 import com.navrot.aifuelassistant.ui.components.Sparkline
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
-
 @Composable
 fun DashboardScreen(modifier: Modifier = Modifier) {
     val viewModel: DashboardViewModel = hiltViewModel()
@@ -55,7 +53,8 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
     val analysis by viewModel.analysis.collectAsStateWithLifecycle()
     val isAnalyzing by viewModel.isAnalyzing.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
-
+    val vehicles by viewModel.vehicles.collectAsStateWithLifecycle()
+    val selectedVehicleId by viewModel.selectedVehicleId.collectAsStateWithLifecycle()
     val consumption = metrics.consumption
     val efficiency = metrics.efficiency
     val rubPerKm = metrics.rubPerKm
@@ -63,9 +62,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
         if (metrics.sparklineData.size >= 2) metrics.sparklineData
         else listOf(0f)
     }
-
     val isEmpty = metrics.fillCount == 0
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -106,7 +103,6 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
-
         Row(
             modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -142,7 +138,6 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
-
         Panel(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -181,7 +176,6 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
-
         if (analysis == null && !isAnalyzing) {
             Box(
                 modifier = Modifier
@@ -199,7 +193,6 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 )
             }
         }
-
         analysis?.let { text ->
             Surface(
                 shape = FueldeckShapes.Md,
@@ -223,11 +216,9 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
-
         error?.let {
             Text(it, color = FueldeckColors.Coral, fontSize = 13.sp)
         }
-
         Button(
             onClick = { viewModel.askAi() },
             enabled = !isAnalyzing && !isEmpty,
@@ -256,9 +247,22 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 )
             }
         }
+        DropdownMenu(
+            expanded = true,
+            onDismissRequest = {},
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            vehicles.forEach { vehicle ->
+                DropdownMenuItem(
+                    text = { Text(vehicle.name) },
+                    onClick = {
+                        viewModel.selectVehicle(vehicle.id)
+                    }
+                )
+            }
+        }
     }
 }
-
 @Composable
 private fun Panel(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Surface(
@@ -270,7 +274,6 @@ private fun Panel(modifier: Modifier = Modifier, content: @Composable () -> Unit
         Column(modifier = Modifier.padding(16.dp)) { content() }
     }
 }
-
 @Composable
 private fun MiniRing(value: Int) {
     val progress by animateFloatAsState(
@@ -284,14 +287,4 @@ private fun MiniRing(value: Int) {
             drawArc(color = FueldeckColors.Line, startAngle = 135f, sweepAngle = 270f,
                 useCenter = false, style = stroke)
             drawArc(color = FueldeckColors.Teal, startAngle = 135f,
-                sweepAngle = 270f * progress, useCenter = false, style = stroke)
-        }
-        Text(
-            "$value",
-            fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.Bold,
-            fontSize = 21.sp,
-            color = FueldeckColors.Ink,
-        )
-    }
-}
+                sweepAngle = 270f * progress, useCent
