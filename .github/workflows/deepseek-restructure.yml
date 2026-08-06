@@ -1,0 +1,71 @@
+name: 🧐 DeepSeek Review
+
+on:
+  pull_request:
+    types: [opened, synchronize]  # 👈 Запускается, когда открывают или обновляют PR
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Клонировать код
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Чтобы получить всю историю, нужную для diff
+
+      - name: 🔑 Установить переменные
+        id: vars
+        run: |
+          echo "PR_NUMBER=${{ github.event.pull_request.number }}" >> $GITHUB_ENV
+          echo "REPO=${{ github.repository }}" >> $GITHUB_ENV
+
+      - name: 📊 Получить diff изменений
+        id: diff
+        run: |
+          # Собираем diff между HEAD и целевой веткой
+          git diff origin/${{ github.base_ref }}..HEAD > pr.diff
+          echo "diff=$(cat pr.diff | jq -Rs .)" >> $GITHUB_OUTPUT
+
+      - name: 🤖 Отправить запрос в DeepSeek
+        id: deepseek
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+        run: |
+          # Формируем JSON-запрос к DeepSeek API
+          PROMPT="Ты — эксперт по Android и Kotlin. Проверь следующий diff и найди проблемы: стиль, безопасность, возможные баги. Ответь на русском, кратко, в виде списка."
+          DIFF_CONTENT="${{ steps.diff.outputs.diff }}"
+          # Используем curl для вызова API
+          RESPONSE=$(curl -s https://api.deepseek.com/chat/completions \
+            -H "Content-Type: application/json" \
+            -H "Authorization: Bearer $DEEPSEEK_API_KEY" \
+            -d "{
+              \"model\": \"deepseek-chat\",
+              \"messages\": [
+                {\"role\": \"system\", \"content\": \"$PROMPT\"},
+                {\"role\": \"user\", \"content\": \"Вот diff:\\n$DIFF_CONTENT\"}
+              ],
+              \"temperature\": 0.3
+            }")
+          # Извлекаем текст ответа
+          COMMENT=$(echo $RESPONSE | jq -r '.choices[0].message.content')
+          echo "comment=$COMMENT" >> $GITHUB_OUTPUT
+
+      - name: 💬 Опубликовать комментарий в PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const comment = `${{ steps.deepseek.outputs.comment }}`;
+            if (comment && comment.length > 0) {
+              const { data: issue } = await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ${{ env.PR_NUMBER }}
+              });
+              // Добавляем комментарий
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: ${{ env.PR_NUMBER }},
+                body: `### 🤖 DeepSeek Review\n\n${comment}`
+              });
+            }
