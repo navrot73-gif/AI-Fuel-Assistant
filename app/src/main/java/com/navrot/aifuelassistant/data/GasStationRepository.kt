@@ -20,24 +20,24 @@ import javax.inject.Singleton
 /**
  * Репозиторий АЗС.
  *
- * Приоритет загрузки данных:
- *  1) удалённый stations.json (GitHub raw) — цены обновляются без релиза приложения;
- *  2) локальный кеш последнего успешного ответа;
- *  3) assets/stations.json — офлайн-фолбэк.
+ * Приоритет источников цен:
+ *  1) пользовательские цены (SharedPreferences, через UserPriceRepository);
+ *  2) удалённый stations.json (GitHub raw);
+ *  3) локальный кеш последнего успешного ответа;
+ *  4) assets/stations.json — офлайн-фолбэк.
  *
  * Управляется Hilt (синглтон), потокобезопасен через [Mutex].
  */
 @Singleton
 class GasStationRepository @Inject constructor(
-    private val context: Context
+    private val context: Context,
+    private val userPrices: UserPriceRepository
 ) {
 
     companion object {
         private const val REMOTE_URL =
             "https://raw.githubusercontent.com/navrot73-gif/AI-Fuel-Assistant/main/app/src/main/assets/stations.json"
         private const val CACHE_FILE = "stations_cache.json"
-
-        // Не дёргаем сеть чаще, чем раз в 10 минут
         private const val REFRESH_INTERVAL_MS = 10 * 60 * 1000L
     }
 
@@ -62,19 +62,43 @@ class GasStationRepository @Inject constructor(
                 loadFromCache() ?: loadFromAssets()
             }
 
-        cachedStations = stations
-        stations
+        val withUserPrices = applyUserPrices(stations)
+        cachedStations = withUserPrices
+        withUserPrices
     }
 
-    /** Принудительное обновление из сети (пригодится для pull-to-refresh). */
+    /** Принудительное обновление из сети + применение пользовательских цен. */
     suspend fun refresh(): List<GasStation> = loadMutex.withLock {
         lastRemoteCheckMs = System.currentTimeMillis()
         val stations = loadFromRemote() ?: loadFromCache() ?: loadFromAssets()
-        cachedStations = stations
-        stations
+        val withUserPrices = applyUserPrices(stations)
+        cachedStations = withUserPrices
+        withUserPrices
     }
 
-    // ==================== ПУБЛИЧНЫЕ МЕТОДЫ (без изменений) ====================
+    /**
+     * Сообщить пользовательскую цену. Цена немедленно применяется к кешу.
+     */
+    suspend fun reportUserPrice(stationId: Int, fuelType: String, price: Double): List<GasStation> =
+        loadMutex.withLock {
+            userPrices.report(stationId, fuelType, price)
+            val updated = applyUserPrices(cachedStations ?: emptyList())
+            cachedStations = updated
+            updated
+        }
+
+    /**
+     * Очистить пользовательскую цену (когда пришёл новый json с актуальной ценой).
+     */
+    suspend fun clearUserPrice(stationId: Int, fuelType: String): List<GasStation> =
+        loadMutex.withLock {
+            userPrices.clear(stationId, fuelType)
+            val updated = applyUserPrices(cachedStations ?: emptyList())
+            cachedStations = updated
+            updated
+        }
+
+    // ==================== ПУБЛИЧНЫЕ МЕТОДЫ ====================
 
     suspend fun getAllStations(): List<GasStation> = withContext(Dispatchers.IO) {
         ensureLoaded()
@@ -156,7 +180,7 @@ class GasStationRepository @Inject constructor(
             .sortedBy { it.queueTime }
     }
 
-    // ==================== ЗАГРУЗКА ДАННЫХ ====================
+    // ==================== ЗАГРУЗКА И ПРИМЕНЕНИЕ ЦЕН ====================
 
     private fun getStationsNearLocation(lat: Double, lon: Double, radiusKm: Double, stations: List<GasStation>): List<GasStation> {
         return stations.filter { station ->
@@ -167,7 +191,26 @@ class GasStationRepository @Inject constructor(
         }
     }
 
-    /** 1) Сеть: GitHub raw. При успехе — сохраняем копию в кеш. */
+    /** Применяет пользовательские цены поверх базовых станций. */
+    private fun applyUserPrices(stations: List<GasStation>): List<GasStation> {
+        val overrides = userPrices.getAll()
+        if (overrides.isEmpty()) return stations
+        return stations.map { station ->
+            val newFuelTypes = station.fuelTypes.map { fuel ->
+                val override = overrides[Pair(station.id, fuel.type)]
+                if (override != null && override > 0) {
+                    fuel.copy(
+                        price = override,
+                        updatedAt = System.currentTimeMillis()
+                    )
+                } else {
+                    fuel
+                }
+            }
+            station.copy(fuelTypes = newFuelTypes)
+        }
+    }
+
     private suspend fun loadFromRemote(): List<GasStation>? = withContext(Dispatchers.IO) {
         try {
             val request = Request.Builder().url(REMOTE_URL).build()
@@ -185,7 +228,6 @@ class GasStationRepository @Inject constructor(
         }
     }
 
-    /** 2) Локальный кеш последнего успешного ответа из сети. */
     private suspend fun loadFromCache(): List<GasStation>? = withContext(Dispatchers.IO) {
         try {
             val file = cacheFile()
@@ -196,7 +238,6 @@ class GasStationRepository @Inject constructor(
         }
     }
 
-    /** 3) Офлайн-фолбэк из assets. */
     private fun loadFromAssets(): List<GasStation> {
         val jsonString = context.assets.open("stations.json").bufferedReader().use { it.readText() }
         return parseJson(jsonString)
