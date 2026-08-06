@@ -67,7 +67,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.geo.GeoUtils
-import com.navrot.aifuelassistant.ui.map.SortBar
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import org.osmdroid.util.GeoPoint
 
@@ -277,35 +276,6 @@ fun MapScreen(
                 )
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(16.dp),
-                    color = if (openOnly) FueldeckColors.Amber else FueldeckColors.Surface,
-                    border = if (openOnly) null else BorderStroke(1.dp, FueldeckColors.Line),
-                    modifier = Modifier.clickable { viewModel.toggleOpenOnly() }
-                ) {
-                    Text(
-                        text = if (openOnly) "🕐 Открытые" else "🕐 Все",
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        color = if (openOnly) Color(0xFF1A1205) else FueldeckColors.InkDim,
-                        fontWeight = if (openOnly) FontWeight.SemiBold else FontWeight.Normal,
-                        fontSize = 12.sp
-                    )
-                }
-                SortBar(
-                    currentSort = sortMode,
-                    onSortChange = { mode ->
-                        viewModel.setSortMode(mode, userLocation?.latitude, userLocation?.longitude)
-                    }
-                )
-            }
-
             Box(modifier = Modifier.fillMaxSize()) {
                 if (!showStationList) {
                     val arrowPulse = rememberInfiniteTransition(label = "pl").animateFloat(
@@ -468,8 +438,8 @@ fun MapScreen(
                         }
                         .minByOrNull { (st, fuel, dist) ->
                             fuel.price +
-                                    st.queueTime * 0.5 +
-                                    (if (dist == Double.MAX_VALUE) 0.0 else dist * 0.3)
+                                    st.queueTime * 0.4 +
+                                    (if (dist == Double.MAX_VALUE) 0.0 else dist * 1.2)
                         }
                 }
 
@@ -486,7 +456,10 @@ fun MapScreen(
                     ) {
                         AiRecommendationCard(
                             recommendation = recommendation,
-                            onExpandList = { showStationList = true }
+                            onExpandList = {
+                                // Тап по рекомендации открывает карточку именно этой АЗС
+                                selectedStation = recommendation?.first
+                            }
                         )
                     }
 
@@ -498,6 +471,8 @@ fun MapScreen(
                         sortMode = sortMode,
                         userLocation = userLocation,
                         fuelTypes = fuelTypes,
+                        openOnly = openOnly,
+                        onToggleOpenOnly = { viewModel.toggleOpenOnly() },
                         onToggleFuelType = { viewModel.toggleFuelType(it) },
                         onSortChange = { mode ->
                             viewModel.setSortMode(mode, userLocation?.latitude, userLocation?.longitude)
@@ -514,7 +489,7 @@ fun MapScreen(
                         enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
                         exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
                     ) {
-                                                selectedStation?.let { station ->
+                        selectedStation?.let { station ->
                             StationDetailCard(
                                 station = station,
                                 selectedFuelTypes = selectedFuelTypes,
@@ -530,6 +505,16 @@ fun MapScreen(
                                 },
                                 onReportPrice = { stationId, fuelType, price ->
                                     viewModel.reportPrice(stationId, fuelType, price)
+                                    // Мгновенно обновляем карточку новой ценой
+                                    selectedStation = selectedStation?.let { st ->
+                                        if (st.id == stationId) {
+                                            st.copy(
+                                                fuelTypes = st.fuelTypes.map { f ->
+                                                    if (f.type == fuelType) f.copy(price = price) else f
+                                                }
+                                            )
+                                        } else st
+                                    }
                                 }
                             )
                         }

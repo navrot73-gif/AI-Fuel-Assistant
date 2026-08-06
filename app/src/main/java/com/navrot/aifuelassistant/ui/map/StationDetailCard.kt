@@ -6,15 +6,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
@@ -28,7 +23,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -38,8 +32,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -58,7 +52,6 @@ fun StationDetailCard(
     onReportPrice: (stationId: Int, fuelType: String, price: Double) -> Unit = { _, _, _ -> }
 ) {
     val context = LocalContext.current
-    var expanded by remember { mutableStateOf(false) }
     var showPriceDialog by remember { mutableStateOf(false) }
 
     Card(
@@ -71,9 +64,7 @@ fun StationDetailCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 520.dp)
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
+                .padding(14.dp)
         ) {
             // ===== Шапка: бренд, адрес, крестик =====
             Row(
@@ -97,122 +88,109 @@ fun StationDetailCard(
                 }
             }
 
-            // ===== Раскрывающаяся часть: цены и подробности =====
-            if (expanded) {
-                Spacer(modifier = Modifier.height(8.dp))
-                station.fuelTypes.forEach { fuel ->
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // ===== Цены в одну строку =====
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                station.fuelTypes.take(3).forEach { fuel ->
                     val isSelected = selectedFuelTypes.contains(fuel.type)
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Surface(
-                            shape = CircleShape,
-                            color = if (fuel.available) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(10.dp)
-                        ) {}
-                        Spacer(modifier = Modifier.width(10.dp))
                         Text(
                             text = fuel.type,
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                            fontSize = 11.sp,
                             color = if (isSelected) {
                                 MaterialTheme.colorScheme.primary
                             } else {
-                                MaterialTheme.colorScheme.onSurface
-                            }
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                         )
-                        Spacer(modifier = Modifier.weight(1f))
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = String.format("%.2f ₽", fuel.price),
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.SemiBold
+                            text = String.format("%.2f", fuel.price),
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
-                        Text(
-                            "Очередь: ${station.queueTime} мин",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            fontSize = 13.sp
-                        )
-                    }
-                    Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.surfaceVariant) {
-                        Text(
-                            "Надёжность: ${station.reliability}%",
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            fontSize = 13.sp
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-            }
-
-            // ===== Переключатель подробностей =====
-            TextButton(onClick = { expanded = !expanded }) {
-                Text(if (expanded) "Скрыть подробности ▴" else "Цены и подробности ▾")
-            }
-
-            // ===== Кнопка "Сообщить цену" =====
-            OutlinedButton(
-                onClick = { showPriceDialog = true },
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
-            ) {
-                Text("💬 Сообщить цену")
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // ===== Маршрут =====
-            Button(
-                onClick = onBuildRoute,
+            // ===== Очередь и надёжность =====
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Icon(Icons.Default.LocationOn, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(if (isRouting) "Уточняем по дорогам..." else "Построить маршрут")
+                Text(
+                    "Очередь: ${station.queueTime} мин",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "Надёжность: ${station.reliability}%",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
-            if (routeText != null) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Surface(shape = RoundedCornerShape(12.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            "🧭 $routeText",
-                            modifier = Modifier.weight(1f),
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
-                        )
-                        TextButton(onClick = onClearRoute) { Text("Сбросить") }
-                    }
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // ===== Кнопки: цена + маршрут =====
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { showPriceDialog = true },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("💬 Цена")
+                }
+                Button(
+                    onClick = onBuildRoute,
+                    modifier = Modifier.weight(1.4f),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.LocationOn, contentDescription = null)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(if (isRouting) "Уточняем..." else "Маршрут")
                 }
             }
 
-            if (expanded) {
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ===== Навигатор =====
+            OutlinedButton(
+                onClick = { openMapsRoute(context, station.latitude, station.longitude, station.brand) },
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Text("Открыть в навигаторе")
+            }
+
+            // ===== Текст маршрута =====
+            if (routeText != null) {
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedButton(
-                    onClick = { openMapsRoute(context, station.latitude, station.longitude, station.brand) },
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp)
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Открыть в навигаторе")
+                    Text(
+                        "🧭 $routeText",
+                        modifier = Modifier.weight(1f),
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                    TextButton(onClick = onClearRoute) { Text("Сбросить") }
                 }
             }
         }
@@ -240,7 +218,8 @@ private fun ReportPriceDialog(
         mutableStateOf(station.fuelTypes.firstOrNull()?.type ?: "")
     }
     var priceText by remember { mutableStateOf("") }
-    val priceError = priceText.toDoubleOrNull()?.let { it <= 0 || it > 200 } ?: priceText.isNotEmpty()
+    val parsedPrice = priceText.toDoubleOrNull()
+    val priceValid = parsedPrice != null && parsedPrice > 0 && parsedPrice <= 200
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -271,20 +250,21 @@ private fun ReportPriceDialog(
                 OutlinedTextField(
                     value = priceText,
                     onValueChange = { newValue ->
-                        // Разрешаем цифры и одну точку
-                        val filtered = newValue.filter { it.isDigit() || it == '.' }
+                        val normalized = newValue.replace(',', '.')
+                        val filtered = normalized.filter { it.isDigit() || it == '.' }
                         if (filtered.count { it == '.' } <= 1) priceText = filtered
                     },
                     label = { Text("Новая цена, ₽") },
                     placeholder = { Text("65.50") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
-                    isError = priceError,
-                    supportingText = {
-                        if (priceError) Text("Цена должна быть от 0 до 200 ₽")
-                    },
+                    isError = priceText.isNotEmpty() && !priceValid,
                     modifier = Modifier.fillMaxWidth()
                 )
+                if (priceText.isNotEmpty() && !priceValid) {
+                    Text("Цена должна быть от 0 до 200 ₽", fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.error)
+                }
             }
         },
         confirmButton = {
@@ -295,8 +275,7 @@ private fun ReportPriceDialog(
                         onConfirm(selectedFuelType, price)
                     }
                 },
-                enabled = priceText.toDoubleOrNull()?.let { it > 0 && it <= 200 } == true
-                        && selectedFuelType.isNotEmpty()
+                enabled = priceValid && selectedFuelType.isNotEmpty()
             ) {
                 Text("Сохранить")
             }

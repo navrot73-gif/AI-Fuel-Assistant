@@ -83,8 +83,8 @@ fun OsmMapView(
                     if (osmPoints.size >= 2) {
                         val polyline = Polyline()
                         polyline.setPoints(osmPoints)
-                        polyline.outlinePaint.color = android.graphics.Color.parseColor("#4DB6AC")
-                        polyline.outlinePaint.strokeWidth = 10f
+                        polyline.outlinePaint.color = android.graphics.Color.parseColor("#E53935")
+                        polyline.outlinePaint.strokeWidth = 12f
                         mapView.overlays.add(polyline)
 
                         // Один раз на маршрут: вписываем старт и финиш в экран
@@ -92,11 +92,18 @@ fun OsmMapView(
                             lastFittedRoute[0] = r
                             mapView.post {
                                 try {
-                                    mapView.zoomToBoundingBox(
-                                        BoundingBox.fromGeoPoints(osmPoints),
-                                        false,
-                                        120
+                                    val bounds = BoundingBox.fromGeoPoints(osmPoints)
+                                    val latSpan = bounds.latNorth - bounds.latSouth
+                                    // Асимметричная рамка: сверху запас 15% (маркер не
+                                    // прилипает к шапке), снизу 45% (кнопка "Маршрут"
+                                    // и панели) — маршрут и точки в комфортной зоне.
+                                    val extended = BoundingBox(
+                                        bounds.latNorth + maxOf(latSpan * 0.15, 0.001),
+                                        bounds.lonEast,
+                                        bounds.latSouth - maxOf(latSpan * 0.45, 0.003),
+                                        bounds.lonWest
                                     )
+                                    mapView.zoomToBoundingBox(extended, false, 100)
                                     // Не приближать слишком сильно короткий маршрут
                                     if (mapView.zoomLevelDouble > 16.0) {
                                         mapView.controller.setZoom(16.0)

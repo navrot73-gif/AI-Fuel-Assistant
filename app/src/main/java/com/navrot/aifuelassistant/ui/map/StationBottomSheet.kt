@@ -3,19 +3,37 @@ package com.navrot.aifuelassistant.ui.map
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.*
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import org.osmdroid.util.GeoPoint
 
 private const val PAGE_SIZE = 20
@@ -29,6 +47,8 @@ fun StationBottomSheet(
     sortMode: MapViewModel.SortMode,
     userLocation: GeoPoint?,
     fuelTypes: List<String>,
+    openOnly: Boolean,
+    onToggleOpenOnly: () -> Unit,
     onToggleFuelType: (String) -> Unit,
     onSortChange: (MapViewModel.SortMode) -> Unit,
     onStationClick: (GasStation) -> Unit,
@@ -79,10 +99,34 @@ fun StationBottomSheet(
                         selectedFuelTypes = selectedFuelTypes,
                         onFuelTypeToggled = onToggleFuelType
                     )
-                    SortBar(
-                        currentSort = sortMode,
-                        onSortChange = onSortChange
-                    )
+                    // ===== Чип "Открытые" + сортировка в одну строку =====
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Surface(
+                            shape = RoundedCornerShape(16.dp),
+                            color = if (openOnly) FueldeckColors.Amber else FueldeckColors.Surface,
+                            border = if (openOnly) null else BorderStroke(1.dp, FueldeckColors.Line),
+                            modifier = Modifier
+                                .padding(start = 16.dp)
+                                .clickable { onToggleOpenOnly() }
+                        ) {
+                            Text(
+                                text = if (openOnly) "🕐 Открытые" else "🕐 Все",
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                color = if (openOnly) Color(0xFF1A1205) else FueldeckColors.InkDim,
+                                fontWeight = if (openOnly) FontWeight.SemiBold else FontWeight.Normal,
+                                fontSize = 12.sp
+                            )
+                        }
+                        Box(modifier = Modifier.weight(1f)) {
+                            SortBar(
+                                currentSort = sortMode,
+                                onSortChange = onSortChange
+                            )
+                        }
+                    }
                 }
             }
 
