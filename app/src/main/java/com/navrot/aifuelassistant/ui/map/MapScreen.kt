@@ -16,6 +16,8 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
@@ -69,8 +71,14 @@ fun MapScreen(
     val sortMode by viewModel.sortMode.collectAsStateWithLifecycle()
     val route by viewModel.route.collectAsStateWithLifecycle()
     val isRouting by viewModel.isRouting.collectAsStateWithLifecycle()
+    val openOnly by viewModel.openOnly.collectAsStateWithLifecycle()
 
     val fuelTypes = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ", "Газ")
+
+    // Виртуальный фильтр "только открытые" (пока все станции считаются открытыми 24/7)
+    val filteredStations = remember(stations, openOnly) {
+        if (!openOnly) stations else stations // заглушка: когда появится openHours — фильтровать
+    }
 
     var userLocation by remember { mutableStateOf<GeoPoint?>(null) }
     var locationStatus by remember { mutableStateOf("Определение местоположения...") }
@@ -245,12 +253,35 @@ fun MapScreen(
                 )
             }
 
-            SortBar(
-                currentSort = sortMode,
-                onSortChange = { mode ->
-                    viewModel.setSortMode(mode, userLocation?.latitude, userLocation?.longitude)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = if (openOnly) FueldeckColors.Amber else FueldeckColors.Surface,
+                    border = if (openOnly) null else BorderStroke(1.dp, FueldeckColors.Line),
+                    modifier = Modifier.clickable { viewModel.toggleOpenOnly() }
+                ) {
+                    Text(
+                        text = if (openOnly) "🕐 Открытые" else "🕐 Все",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        color = if (openOnly) Color(0xFF1A1205) else FueldeckColors.InkDim,
+                        fontWeight = if (openOnly) FontWeight.SemiBold else FontWeight.Normal,
+                        fontSize = 12.sp
+                    )
                 }
-            )
+                SortBar(
+                    currentSort = sortMode,
+                    onSortChange = { mode ->
+                        viewModel.setSortMode(mode, userLocation?.latitude, userLocation?.longitude)
+                    }
+                )
+            }
 
             Box(modifier = Modifier.fillMaxSize()) {
                 if (!showStationList) {
@@ -398,8 +429,8 @@ fun MapScreen(
                     )
                 }
 
-                val recommendation = remember(stations, selectedFuelTypes, userLocation) {
-                    stations
+                val recommendation = remember(filteredStations, selectedFuelTypes, userLocation) {
+                    filteredStations
                         .mapNotNull { st ->
                             val fuel = st.fuelTypes.firstOrNull {
                                 (selectedFuelTypes.isEmpty() || selectedFuelTypes.contains(it.type)) && it.available
