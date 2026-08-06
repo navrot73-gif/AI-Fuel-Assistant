@@ -1,8 +1,5 @@
 package com.navrot.aifuelassistant.features.dashboard
 
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -19,18 +16,27 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenu
+import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,13 +47,14 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.navrot.aifuelassistant.ui.components.ConsumptionGauge
 import com.navrot.aifuelassistant.ui.components.Sparkline
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(modifier: Modifier = Modifier) {
     val viewModel: DashboardViewModel = hiltViewModel()
@@ -55,6 +62,9 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
     val analysis by viewModel.analysis.collectAsStateWithLifecycle()
     val isAnalyzing by viewModel.isAnalyzing.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
+    val vehicles by viewModel.vehicles.collectAsStateWithLifecycle()
+    val selectedVehicleId by viewModel.selectedVehicleId.collectAsStateWithLifecycle()
+    var expanded by remember { mutableStateOf(false) }
 
     val consumption = metrics.consumption
     val efficiency = metrics.efficiency
@@ -63,50 +73,75 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
         if (metrics.sparklineData.size >= 2) metrics.sparklineData
         else listOf(0f)
     }
-
     val isEmpty = metrics.fillCount == 0
 
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(FueldeckColors.Bg1)
+            .verticalScroll(rememberScrollState())
             .statusBarsPadding()
-            .padding(20.dp)
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    "AI‑ассистент",
-                    fontSize = 25.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = FueldeckColors.Ink,
-                    letterSpacing = (-0.5).sp,
-                )
-                Text(
-                    "телеметрия расхода",
-                    fontSize = 12.sp,
-                    color = FueldeckColors.InkFaint,
-                    letterSpacing = 0.4.sp,
-                )
-            }
-            Surface(
-                shape = FueldeckShapes.Pill,
-                color = FueldeckColors.Surface,
-                border = BorderStroke(1.dp, FueldeckColors.Line),
+        // ===== Шапка =====
+        Column {
+            Text(
+                "AI‑помощник",
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Bold,
+                color = FueldeckColors.Ink,
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "анализ стиля вождения и топлива",
+                fontSize = 12.sp,
+                color = FueldeckColors.InkDim,
+                letterSpacing = 0.4.sp,
+            )
+        }
+
+        // ===== Селектор автомобиля =====
+        Surface(
+            shape = FueldeckShapes.Pill,
+            color = FueldeckColors.Surface,
+            border = BorderStroke(1.dp, FueldeckColors.Line),
+        ) {
+            ExposedDropdownMenuBox(
+                expanded = expanded,
+                onExpandedChange = { expanded = it },
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                    modifier = Modifier
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                        .menuAnchor(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(7.dp),
                 ) {
                     Box(Modifier.size(7.dp).background(FueldeckColors.Amber, CircleShape))
-                    Text("Пенс", fontSize = 13.sp, color = FueldeckColors.Ink)
+                    Text(
+                        vehicles.find { it.id == selectedVehicleId }?.name ?: "Выберите авто",
+                        fontSize = 13.sp,
+                        color = FueldeckColors.Ink
+                    )
+                }
+                ExposedDropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false },
+                ) {
+                    vehicles.forEach { vehicle ->
+                        DropdownMenuItem(
+                            text = { Text(vehicle.name) },
+                            onClick = {
+                                viewModel.selectVehicle(vehicle.id)
+                                expanded = false
+                            }
+                        )
+                    }
                 }
             }
         }
 
+        // ===== Метрики =====
         Row(
             modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -143,6 +178,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
             }
         }
 
+        // ===== График расхода =====
         Panel(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -182,6 +218,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
             }
         }
 
+        // ===== AI-анализ =====
         if (analysis == null && !isAnalyzing) {
             Box(
                 modifier = Modifier
@@ -228,6 +265,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
             Text(it, color = FueldeckColors.Coral, fontSize = 13.sp)
         }
 
+        // ===== Кнопка AI-анализа =====
         Button(
             onClick = { viewModel.askAi() },
             enabled = !isAnalyzing && !isEmpty,
