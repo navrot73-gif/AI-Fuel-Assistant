@@ -26,11 +26,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
+import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.ui.components.ConsumptionGauge
 import com.navrot.aifuelassistant.ui.components.Sparkline
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
@@ -55,6 +61,8 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
     val analysis by viewModel.analysis.collectAsStateWithLifecycle()
     val isAnalyzing by viewModel.isAnalyzing.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
+    val vehicles by viewModel.vehicles.collectAsStateWithLifecycle()
+    val selectedVehicleId by viewModel.selectedVehicleId.collectAsStateWithLifecycle()
 
     val consumption = metrics.consumption
     val efficiency = metrics.efficiency
@@ -91,18 +99,38 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                     letterSpacing = 0.4.sp,
                 )
             }
-            Surface(
-                shape = FueldeckShapes.Pill,
-                color = FueldeckColors.Surface,
-                border = BorderStroke(1.dp, FueldeckColors.Line),
+            
+            // Vehicle selection dropdown
+            ExposedDropdownMenuBox(
+                expanded = false,
+                onExpandedChange = { },
+                modifier = Modifier
             ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(7.dp),
+                TextField(
+                    value = vehicles.find { it.id == selectedVehicleId }?.name ?: "Выберите авто",
+                    onValueChange = { },
+                    readOnly = true,
+                    modifier = Modifier.menuAnchor(),
+                    colors = androidx.compose.material3.TextFieldDefaults.colors(
+                        focusedIndicatorColor = Color.Transparent,
+                        unfocusedIndicatorColor = Color.Transparent,
+                        disabledIndicatorColor = Color.Transparent
+                    ),
+                    textStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp),
+                )
+                DropdownMenu(
+                    expanded = false,
+                    onDismissRequest = { },
+                    modifier = Modifier.exposedDropdownSize(true)
                 ) {
-                    Box(Modifier.size(7.dp).background(FueldeckColors.Amber, CircleShape))
-                    Text("Пенс", fontSize = 13.sp, color = FueldeckColors.Ink)
+                    vehicles.forEach { vehicle ->
+                        DropdownMenuItem(
+                            text = { Text(vehicle.name) },
+                            onClick = {
+                                viewModel.selectVehicle(vehicle.id)
+                            }
+                        )
+                    }
                 }
             }
         }
