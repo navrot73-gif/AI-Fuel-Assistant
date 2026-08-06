@@ -1,5 +1,4 @@
 package com.navrot.aifuelassistant.features.dashboard
-
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.navrot.aifuelassistant.ai.FuelAnalysisPromptBuilder
@@ -10,11 +9,6 @@ import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.data.model.GasStation
-import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.*
-import kotlinx.coroutines.launch
-import javax.inject.Inject
-
 data class DashboardMetrics(
     val fillCount: Int = 0,
     val consumption: Float = 0f,
@@ -22,7 +16,6 @@ data class DashboardMetrics(
     val rubPerKm: Float = 0f,
     val sparklineData: List<Float> = emptyList(),
 )
-
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val fuelRecordRepository: FuelRecordRepository,
@@ -30,50 +23,37 @@ class DashboardViewModel @Inject constructor(
     private val gasStationRepository: GasStationRepository,
     private val aiRouter: AiRouter,
 ) : ViewModel() {
-
     private val _metrics = MutableStateFlow(DashboardMetrics())
     val metrics: StateFlow<DashboardMetrics> = _metrics.asStateFlow()
-
     private val _selectedFuelType = MutableStateFlow("АИ-95")
     val selectedFuelType: StateFlow<String> = _selectedFuelType.asStateFlow()
-
     private val _stations = MutableStateFlow<List<GasStation>>(emptyList())
     val stations: StateFlow<List<GasStation>> = _stations.asStateFlow()
-
     private val _bestStation = MutableStateFlow<GasStation?>(null)
     val bestStation: StateFlow<GasStation?> = _bestStation.asStateFlow()
-
     private val _analysis = MutableStateFlow<String?>(null)
     val analysis: StateFlow<String?> = _analysis.asStateFlow()
-
     private val _isAnalyzing = MutableStateFlow(false)
     val isAnalyzing: StateFlow<Boolean> = _isAnalyzing.asStateFlow()
-
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
-
     private val _vehicles = MutableStateFlow<List<VehicleEntity>>(emptyList())
     val vehicles: StateFlow<List<VehicleEntity>> = _vehicles.asStateFlow()
-
     private val _selectedVehicleId = MutableStateFlow<Long?>(null)
     val selectedVehicleId: StateFlow<Long?> = _selectedVehicleId.asStateFlow()
-
     init {
         loadVehicles()
         loadStations()
         loadMetrics()
     }
-
     fun selectVehicle(vehicleId: Long) {
         _selectedVehicleId.value = vehicleId
         loadMetrics()
     }
-
     fun selectFuelType(fuelType: String) {
         _selectedFuelType.value = fuelType
         updateBestStation()
     }
-
     private fun loadVehicles() {
         viewModelScope.launch {
             vehicleRepository.getAllVehicles()
@@ -86,7 +66,6 @@ class DashboardViewModel @Inject constructor(
                 }
         }
     }
-
     private fun loadStations() {
         viewModelScope.launch {
             try {
@@ -97,7 +76,6 @@ class DashboardViewModel @Inject constructor(
             }
         }
     }
-
     private fun updateBestStation() {
         val fuelType = _selectedFuelType.value
         val best = _stations.value
@@ -108,7 +86,6 @@ class DashboardViewModel @Inject constructor(
             }
         _bestStation.value = best
     }
-
     private fun loadMetrics() {
         viewModelScope.launch {
             val vehicleId = _selectedVehicleId.value
@@ -122,10 +99,8 @@ class DashboardViewModel @Inject constructor(
                 .collect { records -> _metrics.value = computeMetrics(records) }
         }
     }
-
     private fun computeMetrics(records: List<FuelRecordEntity>): DashboardMetrics {
         if (records.isEmpty()) return DashboardMetrics()
-
         val sorted = records.sortedByDescending { it.date }
         var totalLiters = 0.0
         var totalKm = 0.0
@@ -139,18 +114,14 @@ class DashboardViewModel @Inject constructor(
             }
         }
         val consumption = if (totalKm > 0) (totalLiters / totalKm * 100).toFloat() else 0f
-
         val efficiency = (100f - (consumption - 6f) * 10f).coerceIn(0f, 100f).toInt()
-
         val totalCost = records.sumOf { it.totalCost }
         val sortedByDate = records.sortedBy { it.date }
         val totalKmAll = if (sortedByDate.size >= 2) {
             (sortedByDate.last().mileage - sortedByDate.first().mileage).coerceAtLeast(0.0)
         } else 0.0
         val rubPerKm = if (totalKmAll > 0) (totalCost / totalKmAll).toFloat() else 0f
-
         val sparkline = computeSparkline(records.sortedByDescending { it.date }.take(14))
-
         return DashboardMetrics(
             fillCount = records.size,
             consumption = consumption,
@@ -159,7 +130,6 @@ class DashboardViewModel @Inject constructor(
             sparklineData = sparkline,
         )
     }
-
     private fun computeSparkline(records: List<FuelRecordEntity>): List<Float> {
         if (records.size < 2) return emptyList()
         val sorted = records.sortedByDescending { it.date }
@@ -174,14 +144,11 @@ class DashboardViewModel @Inject constructor(
         }
         return result.reversed()
     }
-
     fun askAi() {
         if (_isAnalyzing.value) return
-
         viewModelScope.launch {
             _isAnalyzing.value = true
             _error.value = null
-
             try {
                 val vehicleId = _selectedVehicleId.value
                 val records = if (vehicleId != null && vehicleId > 0) {
@@ -190,12 +157,10 @@ class DashboardViewModel @Inject constructor(
                     fuelRecordRepository.getAll().first()
                 }
                 val vehicle = _vehicles.value.firstOrNull { it.id == vehicleId }
-
                 val prompt = FuelAnalysisPromptBuilder.build(
                     vehicle = vehicle,
                     records = records
                 )
-
                 _analysis.value = aiRouter.ask(prompt)
             } catch (e: Throwable) {
                 _error.value = e.message ?: "Не удалось получить AI-анализ"

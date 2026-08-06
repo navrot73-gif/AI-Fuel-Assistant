@@ -1,5 +1,4 @@
 package com.navrot.aifuelassistant.features.dashboard
-
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -26,11 +25,18 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
+import androidx.compose.material3.ExposedDropdownMenuDefaults.exposedDropdownMenuBorder
+import androidx.compose.material3.ExposedDropdownMenuDefaults.outlinedTextFieldColors
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,7 +53,6 @@ import com.navrot.aifuelassistant.ui.components.ConsumptionGauge
 import com.navrot.aifuelassistant.ui.components.Sparkline
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
-
 @Composable
 fun DashboardScreen(modifier: Modifier = Modifier) {
     val viewModel: DashboardViewModel = hiltViewModel()
@@ -55,7 +60,10 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
     val analysis by viewModel.analysis.collectAsStateWithLifecycle()
     val isAnalyzing by viewModel.isAnalyzing.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
-
+    val vehicles by viewModel.vehicles.collectAsStateWithLifecycle()
+    val selectedVehicleId by viewModel.selectedVehicleId.collectAsStateWithLifecycle()
+    var expanded by remember { mutableStateOf(false) }
+    val selectedVehicle = vehicles.firstOrNull { it.id == selectedVehicleId }
     val consumption = metrics.consumption
     val efficiency = metrics.efficiency
     val rubPerKm = metrics.rubPerKm
@@ -63,9 +71,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
         if (metrics.sparklineData.size >= 2) metrics.sparklineData
         else listOf(0f)
     }
-
     val isEmpty = metrics.fillCount == 0
-
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -106,7 +112,37 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
-
+        ExposedDropdownMenuBox(
+            expanded = expanded,
+            onExpandedChange = { expanded = !expanded },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            OutlinedTextField(
+                value = selectedVehicle?.name ?: "",
+                onValueChange = {},
+                readOnly = true,
+                label = { Text("Выберите автомобиль") },
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded)
+                },
+                colors = outlinedTextFieldColors(),
+                modifier = Modifier.menuAnchor()
+            )
+            ExposedDropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false }
+            ) {
+                vehicles.forEach { vehicle ->
+                    DropdownMenuItem(
+                        text = { Text(vehicle.name) },
+                        onClick = {
+                            viewModel.selectVehicle(vehicle.id)
+                            expanded = false
+                        }
+                    )
+                }
+            }
+        }
         Row(
             modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -142,7 +178,6 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
-
         Panel(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -174,14 +209,13 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text("мин ${"%.1f".format(spark.min())}", fontSize = 11.5.sp, color = FueldeckColors.InkFaint)
-                    Text("средн ${"%.1f".format(spark.average())}",
+                    Text("мин ${'%.1f'.format(spark.min())}", fontSize = 11.5.sp, color = FueldeckColors.InkFaint)
+                    Text("средн ${'%.1f'.format(spark.average())}",
                         fontSize = 11.5.sp, color = FueldeckColors.InkFaint)
-                    Text("макс ${"%.1f".format(spark.max())}", fontSize = 11.5.sp, color = FueldeckColors.InkFaint)
+                    Text("макс ${'%.1f'.format(spark.max())}", fontSize = 11.5.sp, color = FueldeckColors.InkFaint)
                 }
             }
         }
-
         if (analysis == null && !isAnalyzing) {
             Box(
                 modifier = Modifier
@@ -199,7 +233,6 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 )
             }
         }
-
         analysis?.let { text ->
             Surface(
                 shape = FueldeckShapes.Md,
@@ -223,11 +256,9 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
-
         error?.let {
             Text(it, color = FueldeckColors.Coral, fontSize = 13.sp)
         }
-
         Button(
             onClick = { viewModel.askAi() },
             enabled = !isAnalyzing && !isEmpty,
@@ -258,7 +289,6 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
         }
     }
 }
-
 @Composable
 private fun Panel(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     Surface(
@@ -270,7 +300,6 @@ private fun Panel(modifier: Modifier = Modifier, content: @Composable () -> Unit
         Column(modifier = Modifier.padding(16.dp)) { content() }
     }
 }
-
 @Composable
 private fun MiniRing(value: Int) {
     val progress by animateFloatAsState(
@@ -284,14 +313,4 @@ private fun MiniRing(value: Int) {
             drawArc(color = FueldeckColors.Line, startAngle = 135f, sweepAngle = 270f,
                 useCenter = false, style = stroke)
             drawArc(color = FueldeckColors.Teal, startAngle = 135f,
-                sweepAngle = 270f * progress, useCenter = false, style = stroke)
-        }
-        Text(
-            "$value",
-            fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.Bold,
-            fontSize = 21.sp,
-            color = FueldeckColors.Ink,
-        )
-    }
-}
+                sweepAngle = 270f * progress, useCent
