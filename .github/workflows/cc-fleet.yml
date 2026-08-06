@@ -145,14 +145,13 @@ jobs:
               return "".join(blocks)
 
           def compile_project():
-    # Делаем gradlew исполняемым (стандартная проблема в GitHub Actions)
-    subprocess.run(["chmod", "+x", "./gradlew"], check=False)
-    print("🔨 Компиляция :app:compileDebugKotlin ...")
-    p = subprocess.run(
-        ["./gradlew", ":app:compileDebugKotlin", "--console=plain"],
-        capture_output=True, text=True)
-    out = (p.stdout or "") + (p.stderr or "")
-    return p.returncode, out
+              subprocess.run(["chmod", "+x", "./gradlew"], check=False)
+              print("🔨 Компиляция :app:compileDebugKotlin ...")
+              p = subprocess.run(
+                  ["./gradlew", ":app:compileDebugKotlin", "--console=plain"],
+                  capture_output=True, text=True)
+              out = (p.stdout or "") + (p.stderr or "")
+              return p.returncode, out
 
           def extract_errors(out):
               lines = [l for l in out.splitlines() if l.strip().startswith("e:")]
@@ -280,7 +279,6 @@ jobs:
                       f.write("fail")
                   sys.exit(0)
 
-              # --- Авто-валидация: компиляция ---
               rc, out = compile_project()
 
               if rc != 0:
