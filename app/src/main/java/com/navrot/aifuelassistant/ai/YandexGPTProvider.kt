@@ -11,12 +11,12 @@ import org.json.JSONObject
 
 class YandexGPTProvider(
     private val apiKey: String,
-    private val folderId: String
+    private val folderId: String,
+    private val httpClient: OkHttpClient = OkHttpClient()
 ) : AiProvider {
 
     override val name: String = "YandexGPT"
 
-    private val client = OkHttpClient()
     private val apiUrl = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion"
 
     override suspend fun ask(prompt: String): String = withContext(Dispatchers.IO) {
@@ -47,7 +47,7 @@ class YandexGPTProvider(
                 .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
                 .build()
 
-            client.newCall(request).execute().use { response ->
+            httpClient.newCall(request).execute().use { response ->
                 val responseBody = response.body?.string()
                 if (!response.isSuccessful) {
                     throw Exception("YandexGPT API error: ${response.code} - ${responseBody ?: "Неизвестная ошибка"}")
