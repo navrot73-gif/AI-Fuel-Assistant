@@ -1,6 +1,5 @@
 package com.navrot.aifuelassistant.ui.map
 
-import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -33,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -40,6 +40,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.ui.components.NetworkImage
 
 @Composable
 fun StationDetailCard(
@@ -83,7 +84,8 @@ fun StationDetailCard(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }                IconButton(onClick = onClose) {
+                }
+                IconButton(onClick = onClose) {
                     Icon(Icons.Default.Close, contentDescription = "Закрыть")
                 }
             }
@@ -98,7 +100,7 @@ fun StationDetailCard(
                     fontWeight = FontWeight.SemiBold
                 )
                 Spacer(modifier = Modifier.height(4.dp))
-                com.navrot.aifuelassistant.ui.components.NetworkImage(
+                NetworkImage(
                     url = station.monumentPhotoUrl,
                     modifier = Modifier
                         .fillMaxWidth()
