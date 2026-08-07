@@ -13,8 +13,6 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
-import java.util.concurrent.TimeUnit
-import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
@@ -27,14 +25,21 @@ import javax.inject.Singleton
  *  4) assets/stations.json — офлайн-фолбэк.
  *
  * Управляется Hilt (синглтон), потокобезопасен через [Mutex].
+ * OkHttpClient и UserPriceRepository приходят из DI (AppModule) — единый клиент
+ * на всё приложение, без отдельных инстансов на каждый репозиторий.
+ *
+ * ВАЖНО: конструктор намеренно БЕЗ @Inject — экземпляр собирается явно через
+ * @Provides в AppModule (нужно смешивание @ApplicationContext + двух зависимостей
+ * без квалификатора). Если добавить @Inject constructor здесь, Dagger увидит два
+ * конфликтующих binding'а для одного и того же конкретного типа GasStationRepository
+ * и сборка сломается ("GasStationRepository is bound multiple times").
  */
 @Singleton
-class GasStationRepository @Inject constructor(
-    private val context: Context
+class GasStationRepository constructor(
+    private val context: Context,
+    private val httpClient: OkHttpClient,
+    private val userPrices: UserPriceRepository
 ) {
-
-    // Создаём вручную, чтобы не трогать ручной @Provides в AppModule
-    private val userPrices: UserPriceRepository = UserPriceRepository(context)
 
     companion object {
         private const val REMOTE_URL =
@@ -42,11 +47,6 @@ class GasStationRepository @Inject constructor(
         private const val CACHE_FILE = "stations_cache.json"
         private const val REFRESH_INTERVAL_MS = 10 * 60 * 1000L
     }
-
-    private val httpClient: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
-        .build()
 
     private val loadMutex = Mutex()
     private var cachedStations: List<GasStation>? = null
