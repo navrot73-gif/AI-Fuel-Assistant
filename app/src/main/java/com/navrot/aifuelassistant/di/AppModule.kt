@@ -7,6 +7,7 @@ import com.navrot.aifuelassistant.ai.router.AiRouter
 import com.navrot.aifuelassistant.data.FuelRecordRepository
 import com.navrot.aifuelassistant.data.FuelRecordRepositoryImpl
 import com.navrot.aifuelassistant.data.GasStationRepository
+import com.navrot.aifuelassistant.data.UserPriceRepository
 import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.data.VehicleRepositoryImpl
 import com.navrot.aifuelassistant.data.database.AppDatabase
@@ -62,17 +63,25 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideGasStationRepository(@ApplicationContext context: Context): GasStationRepository {
-        return GasStationRepository(context)
-    }
-
-    @Provides
-    @Singleton
     fun provideOkHttpClient(): OkHttpClient {
         return OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .build()
+    }
+
+    // UserPriceRepository не нуждается в отдельном @Provides — у неё уже есть
+    // @Inject constructor, Hilt резолвит её автоматически. Явный @Provides здесь
+    // создал бы дублирующий binding и сломал бы сборку.
+
+    @Provides
+    @Singleton
+    fun provideGasStationRepository(
+        @ApplicationContext context: Context,
+        okHttpClient: OkHttpClient,
+        userPriceRepository: UserPriceRepository
+    ): GasStationRepository {
+        return GasStationRepository(context, okHttpClient, userPriceRepository)
     }
 
     @Provides

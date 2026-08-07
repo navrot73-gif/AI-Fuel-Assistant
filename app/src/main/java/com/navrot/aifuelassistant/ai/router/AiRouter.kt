@@ -5,23 +5,28 @@ import com.navrot.aifuelassistant.ai.AiProvider
 import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
 
-class AiRouter(private val providers: List<AiProvider>) {
+class AiRouter(
+    private val providers: List<AiProvider>,
+    private val perProviderTimeoutMs: Long = 8_000L
+) {
 
     suspend fun ask(prompt: String): String = coroutineScope {
-        Log.d("AiRouter", "🚀 Гонка: запускаю ${providers.size} провайдеров параллельно")
+        Log.d("AiRouter", "🚀 Гонка: запускаю ${providers.size} провайдеров параллельно (таймаут ${perProviderTimeoutMs}мс)")
         
         val channel = Channel<Result<String>>(providers.size)
         
         providers.forEach { provider ->
             launch {
+                val name = provider.javaClass.simpleName
                 try {
-                    val name = provider.javaClass.simpleName
                     Log.d("AiRouter", "→ $name стартует")
-                    val answer = provider.ask(prompt)
+                    val answer = withTimeout(perProviderTimeoutMs) { provider.ask(prompt) }
                     Log.d("AiRouter", "✅ $name финишировал первым!")
                     channel.send(Result.success(answer))
+                } catch (e: TimeoutCancellationException) {
+                    Log.e("AiRouter", "⏱ $name не уложился в ${perProviderTimeoutMs}мс")
+                    channel.send(Result.failure(e))
                 } catch (e: Exception) {
-                    val name = provider.javaClass.simpleName
                     Log.e("AiRouter", "❌ $name упал: ${e.message}", e)
                     channel.send(Result.failure(e))
                 }
