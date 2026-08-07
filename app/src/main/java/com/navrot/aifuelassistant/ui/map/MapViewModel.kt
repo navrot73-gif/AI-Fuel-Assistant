@@ -47,6 +47,9 @@ class MapViewModel @Inject constructor(
     private val _selectedFuelTypes = MutableStateFlow<Set<String>>(setOf("АИ-95"))
     val selectedFuelTypes: StateFlow<Set<String>> = _selectedFuelTypes.asStateFlow()
 
+    private val _selectedBrands = MutableStateFlow<Set<String>>(emptySet())
+    val selectedBrands: StateFlow<Set<String>> = _selectedBrands.asStateFlow()
+
     private val _openOnly = MutableStateFlow(false)
     val openOnly: StateFlow<Boolean> = _openOnly.asStateFlow()
 
@@ -146,9 +149,19 @@ class MapViewModel @Inject constructor(
         }
     }
 
-    fun toggleOpenOnly() {
+        fun toggleOpenOnly() {
         _openOnly.value = !_openOnly.value
     }
+
+    fun toggleBrand(brand: String) {
+        val current = _selectedBrands.value.toMutableSet()
+        if (current.contains(brand)) current.remove(brand) else current.add(brand)
+        _selectedBrands.value = current
+    }
+
+    /** Все уникальные бренды в текущем списке АЗС (для UI-фильтра). */
+    fun availableBrands(): List<String> =
+        _stations.value.map { it.brand }.distinct().sorted()
 
     /**
      * Сообщить пользовательскую цену. Цена сохраняется в SharedPreferences
@@ -277,3 +290,7 @@ class MapViewModel @Inject constructor(
 
     fun clearError() { _error.value = null }
 }
+    fun filterStationsByBrands(stations: List<GasStation>): List<GasStation> {
+        val brands = _selectedBrands.value
+        return if (brands.isEmpty()) stations else stations.filter { it.brand in brands }
+    }
