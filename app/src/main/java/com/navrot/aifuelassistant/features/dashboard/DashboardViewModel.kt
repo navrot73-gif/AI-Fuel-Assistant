@@ -46,6 +46,12 @@ class DashboardViewModel @Inject constructor(
     private val _analysis = MutableStateFlow<String?>(null)
     val analysis: StateFlow<String?> = _analysis.asStateFlow()
 
+    private val _userQuestion = MutableStateFlow("")
+    val userQuestion: StateFlow<String> = _userQuestion.asStateFlow()
+
+    private val _userAnswer = MutableStateFlow<String?>(null)
+    val userAnswer: StateFlow<String?> = _userAnswer.asStateFlow()
+
     private val _isAnalyzing = MutableStateFlow(false)
     val isAnalyzing: StateFlow<Boolean> = _isAnalyzing.asStateFlow()
 
@@ -219,6 +225,28 @@ class DashboardViewModel @Inject constructor(
                 _analysis.value = aiRouter.ask(prompt)
             } catch (e: Throwable) {
                 _error.value = e.message ?: "Не удалось получить AI-анализ"
+            } finally {
+                _isAnalyzing.value = false
+            }
+        }
+   }
+        fun setUserQuestion(text: String) {
+        _userQuestion.value = text
+    }
+
+    fun askUserQuestion() {
+        val question = _userQuestion.value.trim()
+        if (question.isEmpty() || _isAnalyzing.value) return
+
+        viewModelScope.launch {
+            _isAnalyzing.value = true
+            _error.value = null
+            _userAnswer.value = null
+            try {
+                val answer = aiRouter.ask(question)
+                _userAnswer.value = answer
+            } catch (e: Throwable) {
+                _error.value = e.message ?: "Не удалось получить ответ"
             } finally {
                 _isAnalyzing.value = false
             }
