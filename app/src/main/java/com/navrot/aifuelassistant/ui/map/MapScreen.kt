@@ -71,12 +71,9 @@ import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import org.osmdroid.util.GeoPoint
 
 /**
- * Экран карты АЗС.
- *
- * Маршрут строится двумя способами:
- * 1. Через параметр [routeTarget] — когда экран вызван с аргументом навигации.
- * 2. Через callback [onRouteHandled] — используется для сигнализации навигации.
+ * Команда для карты: построить маршрут до АЗС (ставится экраном АЗС).
  */
+var pendingRouteStation: GasStation? = null
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
@@ -96,6 +93,7 @@ fun MapScreen(
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val selectedFuelTypes by viewModel.selectedFuelTypes.collectAsStateWithLifecycle()
+    val selectedBrands by viewModel.selectedBrands.collectAsStateWithLifecycle()
     val sortMode by viewModel.sortMode.collectAsStateWithLifecycle()
     val route by viewModel.route.collectAsStateWithLifecycle()
     val isRouting by viewModel.isRouting.collectAsStateWithLifecycle()
@@ -135,6 +133,18 @@ fun MapScreen(
             viewModel.buildRouteTo(routeTarget)
             routeStation = routeTarget
             onRouteHandled()
+        }
+    }
+
+    // Команда с детального экрана (через статическую переменную)
+    LaunchedEffect(Unit) {
+        pendingRouteStation?.let { st ->
+            pendingRouteStation = null
+            userLocation?.let { loc ->
+                viewModel.updateUserLocation(loc.latitude, loc.longitude)
+            }
+            viewModel.buildRouteTo(st)
+            routeStation = st
         }
     }
 
@@ -268,38 +278,42 @@ fun MapScreen(
             }
 
             Box(modifier = Modifier.fillMaxSize()) {
-                if (!showStationList) {
-                    val arrowPulse = rememberInfiniteTransition(label = "pl").animateFloat(
-                        0f, 1f, infiniteRepeatable(tween(1100), RepeatMode.Reverse), label = "pl"
-                    )
-                    Surface(
+                // Кнопка "▲ АЗС рядом" — всегда видна поверх карты
+                val arrowPulse = rememberInfiniteTransition(label = "pl").animateFloat(
+                    0f, 1f, infiniteRepeatable(tween(1100), RepeatMode.Reverse), label = "pl"
+                )
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(
+                            bottom = if (showStationList) 470.dp else 16.dp,
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = 16.dp
+                        ),
+                    shape = RoundedCornerShape(20.dp),
+                    color = FueldeckColors.Surface,
+                    border = BorderStroke(1.dp, FueldeckColors.Line),
+                    shadowElevation = 6.dp
+                ) {
+                    Row(
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(16.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        color = FueldeckColors.Surface,
-                        border = BorderStroke(1.dp, FueldeckColors.Line),
-                        shadowElevation = 6.dp
+                            .clickable { showStationList = true }
+                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Row(
-                            modifier = Modifier
-                                .clickable { showStationList = true }
-                                .padding(horizontal = 20.dp, vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                "▲",
-                                color = FueldeckColors.Amber.copy(alpha = 0.5f + 0.5f * arrowPulse.value),
-                                fontWeight = FontWeight.Bold, fontSize = 13.sp
-                            )
-                            Text(
-                                "АЗС рядом",
-                                color = FueldeckColors.Ink,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 14.sp
-                            )
-                        }
+                        Text(
+                            "▲",
+                            color = FueldeckColors.Amber.copy(alpha = 0.5f + 0.5f * arrowPulse.value),
+                            fontWeight = FontWeight.Bold, fontSize = 13.sp
+                        )
+                        Text(
+                            "АЗС рядом",
+                            color = FueldeckColors.Ink,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp
+                        )
                     }
                 }
 
@@ -439,32 +453,21 @@ fun MapScreen(
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                 ) {
-                    // Карточка AI скрывается, пока активен маршрут
-                    AnimatedVisibility(
-                        visible = !showStationList && recommendation != null && route == null,
-                        enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
-                        exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 })
-                    ) {
-                        AiRecommendationCard(
-                            recommendation = recommendation,
-                            onExpandList = {
-                                // Тап по рекомендации открывает карточку именно этой АЗС
-                                selectedStation = recommendation?.first
-                            }
-                        )
-                    }
-
                     StationBottomSheet(
                         visible = showStationList,
                         isLoading = isLoading,
-                        stations = stations,
+                        stations = viewModel.filterStationsByBrands(stations),
+                        aiRecommendation = recommendation?.first,
                         selectedFuelTypes = selectedFuelTypes,
                         sortMode = sortMode,
                         userLocation = userLocation,
                         fuelTypes = fuelTypes,
+                        brands = viewModel.availableBrands(),
+                        selectedBrands = selectedBrands,
                         openOnly = openOnly,
                         onToggleOpenOnly = { viewModel.toggleOpenOnly() },
                         onToggleFuelType = { viewModel.toggleFuelType(it) },
+                        onToggleBrand = { viewModel.toggleBrand(it) },
                         onSortChange = { mode ->
                             viewModel.setSortMode(mode, userLocation?.latitude, userLocation?.longitude)
                         },
