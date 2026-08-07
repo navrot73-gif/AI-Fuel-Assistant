@@ -38,7 +38,7 @@ fun OsmMapView(
             Configuration.getInstance().osmdroidTileCache = File(ctx.cacheDir, "osmdroid/tiles")
 
             MapView(ctx).apply {
-                setTileSource(TileSourceFactory.MAPNIK)
+                setTileSource(darkTileSource())
                 setMultiTouchControls(true)
                 val centerPoint = userLocation ?: GeoPoint(55.1644, 61.4368)
                 controller.setZoom(13.0)
@@ -83,7 +83,7 @@ fun OsmMapView(
                     if (osmPoints.size >= 2) {
                         val polyline = Polyline()
                         polyline.setPoints(osmPoints)
-                        polyline.outlinePaint.color = android.graphics.Color.parseColor("#E53935")
+                        polyline.outlinePaint.color = android.graphics.Color.parseColor("#4DB6AC")
                         polyline.outlinePaint.strokeWidth = 12f
                         mapView.overlays.add(polyline)
 
@@ -133,3 +133,18 @@ fun OsmMapView(
         }
     }
 }
+
+/**
+ * Тёмные тайлы CartoDB Dark Matter — единый стиль с тёмной темой приложения
+ * и с Google Maps в тёмном режиме.
+ */
+private fun darkTileSource(): org.osmdroid.tileprovider.tilesource.XYTileSource =
+    org.osmdroid.tileprovider.tilesource.XYTileSource(
+        "CartoDB_Dark", 1, 20, 256, ".png",
+        arrayOf(
+            "https://a.basemaps.cartocdn.com/dark_all/",
+            "https://b.basemaps.cartocdn.com/dark_all/",
+            "https://c.basemaps.cartocdn.com/dark_all/"
+        ),
+        "© OpenStreetMap contributors, © CARTO"
+    )
