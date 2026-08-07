@@ -48,8 +48,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-        name: lint-report
-        path: app/build/reports/lint-results-debug.html
+          name: lint-report
+          path: app/build/reports/lint-results-debug.html
 
   unit-tests:
     name: Unit Tests
@@ -87,8 +87,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-        name: unit-test-results
-        path: app/build/reports/tests/testDebugUnitTest/
+          name: unit-test-results
+          path: app/build/reports/tests/testDebugUnitTest/
 
   build:
     name: Build Debug APK
