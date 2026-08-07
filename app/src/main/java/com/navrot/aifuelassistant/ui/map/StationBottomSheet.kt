@@ -41,30 +41,25 @@ import org.osmdroid.util.GeoPoint
 private const val PAGE_SIZE = 20
 
 @Composable
-                    StationBottomSheet(
-                        visible = showStationList,
-                        isLoading = isLoading,
-                        stations = viewModel.filterStationsByBrands(stations),
-                        aiRecommendation = recommendation?.first,
-                        selectedFuelTypes = selectedFuelTypes,
-                        sortMode = sortMode,
-                        userLocation = userLocation,
-                        fuelTypes = fuelTypes,
-                        brands = viewModel.availableBrands(),
-                        selectedBrands = viewModel.selectedBrands.collectAsStateWithLifecycle().value,
-                        openOnly = openOnly,
-                        onToggleOpenOnly = { viewModel.toggleOpenOnly() },
-                        onToggleFuelType = { viewModel.toggleFuelType(it) },
-                        onToggleBrand = { viewModel.toggleBrand(it) },
-                        onSortChange = { mode ->
-                            viewModel.setSortMode(mode, userLocation?.latitude, userLocation?.longitude)
-                        },
-                        onStationClick = {
-                            selectedStation = it
-                            onStationClick(it)
-                        },
-                        onToggleVisibility = { showStationList = !showStationList }
-                    )
+fun StationBottomSheet(
+    visible: Boolean,
+    isLoading: Boolean,
+    stations: List<GasStation>,
+    aiRecommendation: GasStation?,
+    selectedFuelTypes: Set<String>,
+    sortMode: MapViewModel.SortMode,
+    userLocation: GeoPoint?,
+    fuelTypes: List<String>,
+    brands: List<String>,
+    selectedBrands: Set<String>,
+    openOnly: Boolean,
+    onToggleOpenOnly: () -> Unit,
+    onToggleFuelType: (String) -> Unit,
+    onToggleBrand: (String) -> Unit,
+    onSortChange: (MapViewModel.SortMode) -> Unit,
+    onStationClick: (GasStation) -> Unit,
+    onToggleVisibility: () -> Unit
+) {
     // AI-рекомендация всегда первой, дальше — отсортированный список без неё
     val displayList = remember(stations, aiRecommendation) {
         val rec = aiRecommendation
