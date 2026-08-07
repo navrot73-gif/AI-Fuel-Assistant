@@ -2,27 +2,32 @@ package com.navrot.aifuelassistant.ai
 
 import com.navrot.aifuelassistant.BuildConfig
 import com.navrot.aifuelassistant.ai.router.AiRouter
+import okhttp3.OkHttpClient
 
 object AiRouterFactory {
-    fun create(): AiRouter {
+    fun create(okHttpClient: OkHttpClient = OkHttpClient()): AiRouter {
 
         // 1. DeepSeek
         val deepSeekProvider = BuildConfig.DEEPSEEK_API_KEY
             .takeIf { it.isNotBlank() }
-            ?.let { DeepSeekAiProvider() }
+            ?.let { DeepSeekAiProvider(httpClient = okHttpClient) }
 
         // 2. HuggingFace (Qwen 2.5)
         val huggingFaceProvider = BuildConfig.HUGGINGFACE_TOKEN
             .takeIf { it.isNotBlank() }
-            ?.let { HuggingFaceAiProvider() }
+            ?.let { HuggingFaceAiProvider(httpClient = okHttpClient) }
 
         // 3. GigaChat (Сбер) - поддерживает оба варианта
         val gigaChatProvider = if (BuildConfig.GIGACHAT_AUTHORIZATION_KEY.isNotBlank()) {
-            GigaChatAiProvider(authorizationKey = BuildConfig.GIGACHAT_AUTHORIZATION_KEY)
+            GigaChatAiProvider(
+                authorizationKey = BuildConfig.GIGACHAT_AUTHORIZATION_KEY,
+                httpClient = okHttpClient
+            )
         } else if (BuildConfig.GIGACHAT_CLIENT_ID.isNotBlank() && BuildConfig.GIGACHAT_CLIENT_SECRET.isNotBlank()) {
             GigaChatAiProvider(
                 clientId = BuildConfig.GIGACHAT_CLIENT_ID,
-                clientSecret = BuildConfig.GIGACHAT_CLIENT_SECRET
+                clientSecret = BuildConfig.GIGACHAT_CLIENT_SECRET,
+                httpClient = okHttpClient
             )
         } else {
             null
@@ -37,7 +42,8 @@ object AiRouterFactory {
                     ?.let { folderId ->
                         YandexGPTProvider(
                             apiKey = apiKey,
-                            folderId = folderId
+                            folderId = folderId,
+                            httpClient = okHttpClient
                         )
                     }
             }
