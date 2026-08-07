@@ -122,6 +122,8 @@ class AppDatabaseMigrationTest {
             }
 
             // Verify ON DELETE CASCADE: deleting a vehicle removes its fuel records
+            // Foreign keys must be explicitly enabled in SQLite (off by default)
+            db.execSQL("PRAGMA foreign_keys = ON")
             db.execSQL("DELETE FROM vehicles WHERE id = $vehicleId")
             db.query("SELECT COUNT(*) FROM fuel_records WHERE vehicleId = $vehicleId")
                 .use { cursor ->
