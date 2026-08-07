@@ -198,7 +198,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(80.dp),
+                        .height(56.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
@@ -377,7 +377,7 @@ private fun MiniRing(value: Int) {
         label = "mini",
     )
     Box(contentAlignment = Alignment.Center) {
-        Canvas(modifier = Modifier.size(84.dp)) {
+        Canvas(modifier = Modifier.size(72.dp)) {
             val stroke = Stroke(width = 9.dp.toPx(), cap = StrokeCap.Round)
             drawArc(color = FueldeckColors.Line, startAngle = 135f, sweepAngle = 270f,
                 useCenter = false, style = stroke)
