@@ -98,13 +98,9 @@ fun MapScreen(
     val route by viewModel.route.collectAsStateWithLifecycle()
     val isRouting by viewModel.isRouting.collectAsStateWithLifecycle()
     val openOnly by viewModel.openOnly.collectAsStateWithLifecycle()
-    val selectedBrands by viewModel.selectedBrands.collectAsStateWithLifecycle()
-    val selectedBrands by viewModel.selectedBrands.collectAsStateWithLifecycle()
-    val selectedBrands by viewModel.selectedBrands.collectAsStateWithLifecycle()
 
     val fuelTypes = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ", "Газ")
 
-    // Виртуальный фильтр "только открытые" (пока все станции считаются открытыми 24/7)
     val filteredStations = if (!openOnly) stations else stations
 
     var userLocation by remember { mutableStateOf<GeoPoint?>(null) }
@@ -117,7 +113,6 @@ fun MapScreen(
     var routeStation by remember { mutableStateOf<GasStation?>(null) }
     var recenterTick by remember { mutableIntStateOf(0) }
 
-    // Построить маршрут в приложении и закрыть большую карточку
     val buildRouteAndClose: (GasStation) -> Unit = { st ->
         userLocation?.let { loc ->
             viewModel.updateUserLocation(loc.latitude, loc.longitude)
@@ -127,7 +122,6 @@ fun MapScreen(
         selectedStation = null
     }
 
-    // Команда с детального экрана (через параметр)
     LaunchedEffect(routeTarget) {
         if (routeTarget != null) {
             userLocation?.let { loc ->
@@ -139,7 +133,6 @@ fun MapScreen(
         }
     }
 
-    // Команда с детального экрана (через статическую переменную)
     LaunchedEffect(Unit) {
         pendingRouteStation?.let { st ->
             pendingRouteStation = null
@@ -351,7 +344,6 @@ fun MapScreen(
                 val yellowRouteVisible =
                     selectedStation != null || (route != null && routeStation != null)
 
-                // Фаза 1: карточка АЗС открыта — строим маршрут в приложении
                 if (selectedStation != null) {
                     ExtendedFloatingActionButton(
                         onClick = { selectedStation?.let { buildRouteAndClose(it) } },
@@ -364,7 +356,6 @@ fun MapScreen(
                         text = { Text("Маршрут", fontWeight = FontWeight.Bold) }
                     )
                 } else if (route != null && routeStation != null) {
-                    // Фаза 2: маршрут построен — открываем навигатор (Google Maps)
                     ExtendedFloatingActionButton(
                         onClick = {
                             routeStation?.let { st ->
@@ -381,7 +372,6 @@ fun MapScreen(
                     )
                 }
 
-                // Сброс маршрута (✕) — всегда выше жёлтой кнопки
                 if (route != null) {
                     SmallFloatingActionButton(
                         onClick = {
@@ -405,7 +395,6 @@ fun MapScreen(
                     }
                 }
 
-                // Возврат к моему местоположению (📍)
                 FloatingActionButton(
                     onClick = {
                         if (userLocation != null) recenterTick++
@@ -502,7 +491,6 @@ fun MapScreen(
                                 },
                                 onReportPrice = { stationId, fuelType, price ->
                                     viewModel.reportPrice(stationId, fuelType, price)
-                                    // Мгновенно обновляем карточку новой ценой
                                     selectedStation = selectedStation?.let { st ->
                                         if (st.id == stationId) {
                                             st.copy(
