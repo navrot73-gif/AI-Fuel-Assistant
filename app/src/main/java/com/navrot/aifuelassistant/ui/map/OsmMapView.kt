@@ -40,6 +40,19 @@ fun OsmMapView(
             MapView(ctx).apply {
                 setTileSource(darkTileSource())
                 setMultiTouchControls(true)
+                // Ночной тёмно-синий тон в стиле Google Maps:
+                // приглушаем светлый Voyager цветофильтром
+                overlayManager.tilesOverlay.colorFilter =
+                    android.graphics.ColorMatrixColorFilter(
+                        android.graphics.ColorMatrix(
+                            floatArrayOf(
+                                0.20f, 0f, 0f, 0f, 8f,
+                                0f, 0.22f, 0f, 0f, 12f,
+                                0f, 0f, 0.30f, 0f, 28f,
+                                0f, 0f, 0f, 1f, 0f
+                            )
+                        )
+                    )
                 val centerPoint = userLocation ?: GeoPoint(55.1644, 61.4368)
                 controller.setZoom(13.0)
                 controller.setCenter(centerPoint)
