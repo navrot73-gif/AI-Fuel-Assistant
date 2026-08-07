@@ -60,7 +60,7 @@ fun StationBottomSheet(
     onStationClick: (GasStation) -> Unit,
     onToggleVisibility: () -> Unit
 ) {
-    // AI-рекомендация всегда первой, дальше — отсортированный список без неё
+    // AI-рекомендация всегда первая, дальше — список без неё
     val displayList = remember(stations, aiRecommendation) {
         val rec = aiRecommendation
         if (rec == null) stations else listOf(rec) + stations.filter { it.id != rec.id }
@@ -105,7 +105,6 @@ fun StationBottomSheet(
 
             Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 4.dp) {
                 Column {
-                    // ===== Топливо =====
                     FuelTypeFilter(
                         fuelTypes = fuelTypes,
                         selectedFuelTypes = selectedFuelTypes,
@@ -189,9 +188,8 @@ fun StationBottomSheet(
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         items(displayList.take(visibleCount), key = { it.id }) { station ->
-                            val isAiPick = station.id == aiRecommendation?.id
+                            val isAiPick = aiRecommendation != null && station.id == aiRecommendation.id
                             if (isAiPick) {
-                                // AI-рекомендация — закреплённая карточка сверху
                                 Box {
                                     StationListItem(
                                         station = station,
@@ -203,13 +201,13 @@ fun StationBottomSheet(
                                         "✨ AI рекомендует",
                                         fontSize = 10.sp,
                                         fontWeight = FontWeight.Bold,
-                                        color = Color.White,
+                                        color = Color(0xFF1A1205),
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
                                             .padding(top = 4.dp, end = 4.dp)
                                             .background(
                                                 FueldeckColors.Amber,
-                                                RoundedCornerShape(topEnd = 12.dp, bottomStart = 8.dp)
+                                                RoundedCornerShape(8.dp)
                                             )
                                             .padding(horizontal = 8.dp, vertical = 3.dp)
                                     )
@@ -227,7 +225,7 @@ fun StationBottomSheet(
                         if (hasMore) {
                             item {
                                 TextButton(
-                                    onClick = { /* TODO: показать весь список */ },
+                                    onClick = onToggleVisibility,
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
