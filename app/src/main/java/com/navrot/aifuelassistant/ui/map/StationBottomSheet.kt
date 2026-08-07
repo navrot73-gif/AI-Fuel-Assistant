@@ -6,6 +6,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -39,25 +41,39 @@ import org.osmdroid.util.GeoPoint
 private const val PAGE_SIZE = 20
 
 @Composable
-fun StationBottomSheet(
-    visible: Boolean,
-    isLoading: Boolean,
-    stations: List<GasStation>,
-    selectedFuelTypes: Set<String>,
-    sortMode: MapViewModel.SortMode,
-    userLocation: GeoPoint?,
-    fuelTypes: List<String>,
-    openOnly: Boolean,
-    onToggleOpenOnly: () -> Unit,
-    onToggleFuelType: (String) -> Unit,
-    onSortChange: (MapViewModel.SortMode) -> Unit,
-    onStationClick: (GasStation) -> Unit,
-    onToggleVisibility: () -> Unit
-) {
-    val visibleCount = remember(stations.size) {
-        if (stations.size <= PAGE_SIZE) stations.size else PAGE_SIZE
+                    StationBottomSheet(
+                        visible = showStationList,
+                        isLoading = isLoading,
+                        stations = viewModel.filterStationsByBrands(stations),
+                        aiRecommendation = recommendation?.first,
+                        selectedFuelTypes = selectedFuelTypes,
+                        sortMode = sortMode,
+                        userLocation = userLocation,
+                        fuelTypes = fuelTypes,
+                        brands = viewModel.availableBrands(),
+                        selectedBrands = viewModel.selectedBrands.collectAsStateWithLifecycle().value,
+                        openOnly = openOnly,
+                        onToggleOpenOnly = { viewModel.toggleOpenOnly() },
+                        onToggleFuelType = { viewModel.toggleFuelType(it) },
+                        onToggleBrand = { viewModel.toggleBrand(it) },
+                        onSortChange = { mode ->
+                            viewModel.setSortMode(mode, userLocation?.latitude, userLocation?.longitude)
+                        },
+                        onStationClick = {
+                            selectedStation = it
+                            onStationClick(it)
+                        },
+                        onToggleVisibility = { showStationList = !showStationList }
+                    )
+    // AI-рекомендация всегда первой, дальше — отсортированный список без неё
+    val displayList = remember(stations, aiRecommendation) {
+        val rec = aiRecommendation
+        if (rec == null) stations else listOf(rec) + stations.filter { it.id != rec.id }
     }
-    val hasMore = stations.size > PAGE_SIZE
+    val visibleCount = remember(displayList.size) {
+        if (displayList.size <= PAGE_SIZE) displayList.size else PAGE_SIZE
+    }
+    val hasMore = displayList.size > PAGE_SIZE
 
     AnimatedVisibility(
         visible = visible,
@@ -68,7 +84,7 @@ fun StationBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 380.dp)
+                .heightIn(max = 460.dp)
         ) {
             Box(
                 modifier = Modifier
@@ -94,11 +110,42 @@ fun StationBottomSheet(
 
             Surface(color = MaterialTheme.colorScheme.surface, shadowElevation = 4.dp) {
                 Column {
+                    // ===== Топливо =====
                     FuelTypeFilter(
                         fuelTypes = fuelTypes,
                         selectedFuelTypes = selectedFuelTypes,
                         onFuelTypeToggled = onToggleFuelType
                     )
+
+                    // ===== Бренды (горизонтальный скролл) =====
+                    if (brands.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState())
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            brands.forEach { brand ->
+                                val selected = selectedBrands.contains(brand)
+                                Surface(
+                                    shape = RoundedCornerShape(14.dp),
+                                    color = if (selected) FueldeckColors.Amber else FueldeckColors.Surface,
+                                    border = if (selected) null else BorderStroke(1.dp, FueldeckColors.Line),
+                                    modifier = Modifier.clickable { onToggleBrand(brand) }
+                                ) {
+                                    Text(
+                                        text = brand,
+                                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                        color = if (selected) Color(0xFF1A1205) else FueldeckColors.InkDim,
+                                        fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+
                     // ===== Чип "Открытые" + сортировка в одну строку =====
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -146,23 +193,50 @@ fun StationBottomSheet(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(stations.take(visibleCount), key = { it.id }) { station ->
-                            StationListItem(
-                                station = station,
-                                selectedFuelTypes = selectedFuelTypes,
-                                userLocation = userLocation,
-                                onClick = { onStationClick(station) }
-                            )
+                        items(displayList.take(visibleCount), key = { it.id }) { station ->
+                            val isAiPick = station.id == aiRecommendation?.id
+                            if (isAiPick) {
+                                // AI-рекомендация — закреплённая карточка сверху
+                                Box {
+                                    StationListItem(
+                                        station = station,
+                                        selectedFuelTypes = selectedFuelTypes,
+                                        userLocation = userLocation,
+                                        onClick = { onStationClick(station) }
+                                    )
+                                    Text(
+                                        "✨ AI рекомендует",
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White,
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(top = 4.dp, end = 4.dp)
+                                            .background(
+                                                FueldeckColors.Amber,
+                                                RoundedCornerShape(topEnd = 12.dp, bottomStart = 8.dp)
+                                            )
+                                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                                    )
+                                }
+                            } else {
+                                StationListItem(
+                                    station = station,
+                                    selectedFuelTypes = selectedFuelTypes,
+                                    userLocation = userLocation,
+                                    onClick = { onStationClick(station) }
+                                )
+                            }
                         }
 
                         if (hasMore) {
                             item {
                                 TextButton(
-                                    onClick = { onToggleVisibility() },
+                                    onClick = { /* TODO: показать весь список */ },
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
-                                        "Показать все (${stations.size} АЗС)",
+                                        "Показать все (${displayList.size} АЗС)",
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                 }
