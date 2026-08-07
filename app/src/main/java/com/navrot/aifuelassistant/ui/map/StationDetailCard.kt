@@ -1,5 +1,6 @@
 package com.navrot.aifuelassistant.ui.map
 
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -82,10 +83,29 @@ fun StationDetailCard(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                }
-                IconButton(onClick = onClose) {
+                }                IconButton(onClick = onClose) {
                     Icon(Icons.Default.Close, contentDescription = "Закрыть")
                 }
+            }
+
+            // ===== Стелла АЗС (Visual Fuel Navigation) =====
+            if (station.monumentPhotoUrl.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    "📷 Стелла",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                com.navrot.aifuelassistant.ui.components.NetworkImage(
+                    url = station.monumentPhotoUrl,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(140.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                )
+                Spacer(modifier = Modifier.height(8.dp))
             }
 
             Spacer(modifier = Modifier.height(10.dp))
