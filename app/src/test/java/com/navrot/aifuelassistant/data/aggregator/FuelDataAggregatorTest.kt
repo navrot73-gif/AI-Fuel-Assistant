@@ -170,7 +170,7 @@ class FuelDataAggregatorTest {
         val incoming = listOf(
             FuelPrice(
                 type = "АИ-95", price = 63.0, available = true,
-                updatedAt = 9999L, source = FuelDataSource.USER_REPORT
+                confidence = 90, updatedAt = 9999L, source = FuelDataSource.USER_REPORT
             )
         )
         val result = FuelDataAggregator.enrichStation(

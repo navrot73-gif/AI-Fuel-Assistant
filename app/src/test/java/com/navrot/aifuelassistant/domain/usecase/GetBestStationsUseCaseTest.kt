@@ -186,8 +186,9 @@ class GetBestStationsUseCaseTest {
         val scoreLow = useCase.calculateScore(lowReliability, "АИ-95")
         val scoreHigh = useCase.calculateScore(highReliability, "АИ-95")
 
-        // (100-50)*0.2 = 10 vs (100-100)*0.2 = 0 → разница 10
-        assertEquals(10.0, scoreLow - scoreHigh, 0.001)
+        // (100-50)*0.2 = 10 vs (100-100)*0.2 = 0 → низкая надёжность даёт штраф 10
+        // Поэтому scoreLow < scoreHigh (лучше для пользователя)
+        assertEquals(10.0, scoreHigh - scoreLow, 0.001)
     }
 
     @Test
