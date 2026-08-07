@@ -47,10 +47,10 @@ fun OsmMapView(
                 overlayManager.tilesOverlay.setColorFilter(
                     ColorMatrixColorFilter(
                         ColorMatrix(
-                            floatArrayOf(
-                                0.20f, 0f, 0f, 0f, 8f,
-                                0f, 0.22f, 0f, 0f, 12f,
-                                0f, 0f, 0.30f, 0f, 28f,
+                                floatArrayOf(
+                                1.45f, 0f, 0f, 0f, 14f,
+                                0f, 1.45f, 0f, 0f, 16f,
+                                0f, 0f, 1.60f, 0f, 24f,
                                 0f, 0f, 0f, 1f, 0f
                             )
                         )
@@ -160,11 +160,11 @@ fun OsmMapView(
  */
 private fun darkTileSource(): org.osmdroid.tileprovider.tilesource.XYTileSource =
     org.osmdroid.tileprovider.tilesource.XYTileSource(
-        "CartoDB_Voyager", 1, 20, 256, ".png",
+        "CartoDB_Dark", 1, 20, 256, ".png",
         arrayOf(
-            "https://a.basemaps.cartocdn.com/rastertiles/voyager/",
-            "https://b.basemaps.cartocdn.com/rastertiles/voyager/",
-            "https://c.basemaps.cartocdn.com/rastertiles/voyager/"
+            "https://a.basemaps.cartocdn.com/dark_all/",
+            "https://b.basemaps.cartocdn.com/dark_all/",
+            "https://c.basemaps.cartocdn.com/dark_all/"
         ),
         "© OpenStreetMap contributors, © CARTO"
     )
