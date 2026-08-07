@@ -50,11 +50,15 @@ fun OsmMapView(
         update = { mapView ->
             mapView.overlays.removeAll { it is Marker || it is Polyline }
 
-            userLocation?.let { location ->
+                        userLocation?.let { location ->
                 val userMarker = Marker(mapView)
                 userMarker.position = location
                 userMarker.title = "📍 Вы здесь"
-                userMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                userMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                userMarker.icon = createColoredMarker(
+                    context,
+                    android.graphics.Color.parseColor("#1E88E5")
+                )
                 mapView.overlays.add(userMarker)
             }
 
@@ -140,11 +144,11 @@ fun OsmMapView(
  */
 private fun darkTileSource(): org.osmdroid.tileprovider.tilesource.XYTileSource =
     org.osmdroid.tileprovider.tilesource.XYTileSource(
-        "CartoDB_Dark", 1, 20, 256, ".png",
+        "CartoDB_Voyager", 1, 20, 256, ".png",
         arrayOf(
-            "https://a.basemaps.cartocdn.com/dark_all/",
-            "https://b.basemaps.cartocdn.com/dark_all/",
-            "https://c.basemaps.cartocdn.com/dark_all/"
+            "https://a.basemaps.cartocdn.com/rastertiles/voyager/",
+            "https://b.basemaps.cartocdn.com/rastertiles/voyager/",
+            "https://c.basemaps.cartocdn.com/rastertiles/voyager/"
         ),
         "© OpenStreetMap contributors, © CARTO"
     )
