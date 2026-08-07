@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
     <domain-config>
-        <domain includeSubdomains="true">giga.chat</domain>
         <domain includeSubdomains="true">devices.sberbank.ru</domain>
         <trust-anchors>
             <certificates src="@raw/russian_trusted_root_ca" />

@@ -10,10 +10,11 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 
-class DeepSeekAiProvider : AiProvider {
+class DeepSeekAiProvider(
+    private val httpClient: OkHttpClient = OkHttpClient()
+) : AiProvider {
     override val name: String = "DeepSeek"
 
-    private val client = OkHttpClient()
     private val apiUrl = "https://api.deepseek.com/chat/completions"
     private val model = "deepseek-chat"
 
@@ -43,7 +44,7 @@ class DeepSeekAiProvider : AiProvider {
                 .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
                 .build()
 
-            client.newCall(request).execute().use { response ->
+            httpClient.newCall(request).execute().use { response ->
                 val responseBody = response.body?.string()
                 if (!response.isSuccessful) {
                     throw Exception("DeepSeek API error: ${response.code} ${responseBody ?: response.message}")

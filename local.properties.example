@@ -1,5 +1,27 @@
-# Local-only secrets. Copy values to local.properties on your machine.
+# Local-only secrets. Copy this file to local.properties on your machine and fill in the values.
 # NEVER commit local.properties to Git.
+
+# === AI-провайдеры ===
+
+# DeepSeek — https://platform.deepseek.com/api_keys
+DEEPSEEK_API_KEY=your_deepseek_api_key_here
+
+# HuggingFace — https://huggingface.co/settings/tokens
+HUGGINGFACE_TOKEN=your_huggingface_token_here
+
+# GigaChat (Сбер) — вариант 1: готовый Base64-ключ авторизации
+# Получить: https://developers.sber.ru/studio/gigachat
 GIGACHAT_AUTHORIZATION_KEY=your_base64_authorization_key_here
-# Бесплатный ключ: https://openrouteservice.org/dev/#/signup
+
+# GigaChat (Сбер) — вариант 2: clientId + clientSecret (если нет готового ключа)
+GIGACHAT_CLIENT_ID=your_gigachat_client_id_here
+GIGACHAT_CLIENT_SECRET=your_gigachat_client_secret_here
+
+# YandexGPT — https://cloud.yandex.ru/docs/iam/operations/api-key/create
+YANDEX_API_KEY=your_yandex_api_key_here
+YANDEX_FOLDER_ID=your_yandex_folder_id_here
+
+# === Геокодирование и маршрутизация ===
+
+# OpenRouteService (бесплатный ключ) — https://openrouteservice.org/dev/#/signup
 ORS_API_KEY=your_openrouteservice_api_key_here
