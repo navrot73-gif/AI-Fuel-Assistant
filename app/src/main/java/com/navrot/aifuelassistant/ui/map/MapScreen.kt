@@ -274,44 +274,7 @@ fun MapScreen(
             }
 
             Box(modifier = Modifier.fillMaxSize()) {
-                // Кнопка "▲ АЗС рядом" — всегда видна поверх карты
-                val arrowPulse = rememberInfiniteTransition(label = "pl").animateFloat(
-                    0f, 1f, infiniteRepeatable(tween(1100), RepeatMode.Reverse), label = "pl"
-                )
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(
-                            bottom = if (showStationList) 470.dp else 16.dp,
-                            start = 16.dp,
-                            end = 16.dp,
-                            top = 16.dp
-                        ),
-                    shape = RoundedCornerShape(20.dp),
-                    color = FueldeckColors.Surface,
-                    border = BorderStroke(1.dp, FueldeckColors.Line),
-                    shadowElevation = 6.dp
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .clickable { showStationList = true }
-                            .padding(horizontal = 20.dp, vertical = 12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Text(
-                            "▲",
-                            color = FueldeckColors.Amber.copy(alpha = 0.5f + 0.5f * arrowPulse.value),
-                            fontWeight = FontWeight.Bold, fontSize = 13.sp
-                        )
-                        Text(
-                            "АЗС рядом",
-                            color = FueldeckColors.Ink,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
+               
 
                 OsmMapView(
                     userLocation = userLocation,
@@ -445,6 +408,46 @@ fun MapScreen(
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                 ) {
+                    if (!showStationList) {
+                        val arrowPulse = rememberInfiniteTransition(label = "pl").animateFloat(
+                            0f, 1f, infiniteRepeatable(tween(1100), RepeatMode.Reverse), label = "pl"
+                        )
+                        Surface(
+                            modifier = Modifier.padding(16.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            color = FueldeckColors.Surface,
+                            border = BorderStroke(1.dp, FueldeckColors.Line),
+                            shadowElevation = 6.dp
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .clickable { showStationList = true }
+                                    .padding(horizontal = 20.dp, vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Text(
+                                    "▲",
+                                    color = FueldeckColors.Amber.copy(alpha = 0.5f + 0.5f * arrowPulse.value),
+                                    fontWeight = FontWeight.Bold, fontSize = 13.sp
+                                )
+                                Text(
+                                    "АЗС рядом",
+                                    color = FueldeckColors.Ink,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+
+                        if (recommendation != null && route == null) {
+                            AiRecommendationCard(
+                                recommendation = recommendation,
+                                onExpandList = { selectedStation = recommendation?.first }
+                            )
+                        }
+                    }
+
                     StationBottomSheet(
                         visible = showStationList,
                         isLoading = isLoading,
