@@ -85,8 +85,7 @@ class CsvBackupManager @Inject constructor(
 
     private fun parseVehicle(line: String): VehicleEntity? = try {
         val p = splitLine(line)
-        if (p.size < 8) return null
-        VehicleEntity(
+        if (p.size < 8) null else VehicleEntity(
             id = p[0].toLongOrNull() ?: 0L,
             name = p[1],
             brand = p[2],
@@ -100,8 +99,7 @@ class CsvBackupManager @Inject constructor(
 
     private fun parseFill(line: String): FuelRecordEntity? = try {
         val p = splitLine(line)
-        if (p.size < 8) return null
-        FuelRecordEntity(
+        if (p.size < 8) null else FuelRecordEntity(
             id = p[0].toLongOrNull() ?: 0L,
             vehicleId = p[1].toLongOrNull() ?: 0L,
             date = p[2].toLongOrNull() ?: 0L,
