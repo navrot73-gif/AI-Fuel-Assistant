@@ -1,5 +1,7 @@
 package com.navrot.aifuelassistant.ui.map
 
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,10 +43,10 @@ fun OsmMapView(
                 setTileSource(darkTileSource())
                 setMultiTouchControls(true)
                 // Ночной тёмно-синий тон в стиле Google Maps:
-                // приглушаем светлый Voyager цветофильтром
-                overlayManager.tilesOverlay.colorFilter =
-                    android.graphics.ColorMatrixColorFilter(
-                        android.graphics.ColorMatrix(
+                // приглушаем светлый Voyager цветофильтром через сеттер
+                overlayManager.tilesOverlay.setColorFilter(
+                    ColorMatrixColorFilter(
+                        ColorMatrix(
                             floatArrayOf(
                                 0.20f, 0f, 0f, 0f, 8f,
                                 0f, 0.22f, 0f, 0f, 12f,
@@ -53,6 +55,7 @@ fun OsmMapView(
                             )
                         )
                     )
+                )
                 val centerPoint = userLocation ?: GeoPoint(55.1644, 61.4368)
                 controller.setZoom(13.0)
                 controller.setCenter(centerPoint)
