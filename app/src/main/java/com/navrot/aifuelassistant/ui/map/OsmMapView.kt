@@ -57,7 +57,7 @@ fun OsmMapView(
                 userMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                 userMarker.icon = createColoredMarker(
                     context,
-                    android.graphics.Color.parseColor("#1E88E5")
+                                    androidx.compose.ui.graphics.Color(0xFF1E88E5)
                 )
                 mapView.overlays.add(userMarker)
             }
