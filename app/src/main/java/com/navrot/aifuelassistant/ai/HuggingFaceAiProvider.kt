@@ -10,11 +10,12 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 
-class HuggingFaceAiProvider : AiProvider {
+class HuggingFaceAiProvider(
+    private val httpClient: OkHttpClient = OkHttpClient()
+) : AiProvider {
     override val name: String = "HuggingFace (Qwen 2.5)"
 
-    private val client = OkHttpClient()
-    private val modelUrl = "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-72B-Instruct/v1/chat/completions"
+    private val modelUrl = "https://router.huggingface.co/v1/chat/completions"
 
     override suspend fun ask(prompt: String): String = withContext(Dispatchers.IO) {
         try {
@@ -43,7 +44,7 @@ class HuggingFaceAiProvider : AiProvider {
                 .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
                 .build()
 
-            client.newCall(request).execute().use { response ->
+            httpClient.newCall(request).execute().use { response ->
                 val responseBody = response.body?.string()
                 if (!response.isSuccessful) {
                     throw Exception("HuggingFace API error: ${response.code} - ${responseBody ?: "Неизвестная ошибка"}")
