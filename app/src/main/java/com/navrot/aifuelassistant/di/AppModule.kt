@@ -83,5 +83,5 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideAiRouter(): AiRouter = AiRouterFactory.create()
+    fun provideAiRouter(okHttpClient: OkHttpClient): AiRouter = AiRouterFactory.create(okHttpClient)
 }
