@@ -17,7 +17,7 @@ class AiRouter(
 
     private fun logError(tag: String, msg: String, e: Exception? = null) {
         if (logger != null) {
-            logger(tag, msg)
+            logger?.invoke(tag, msg)
         } else {
             if (e != null) Log.e(tag, msg, e) else Log.e(tag, msg)
         }
