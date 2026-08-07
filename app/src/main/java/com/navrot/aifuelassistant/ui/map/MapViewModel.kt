@@ -149,7 +149,7 @@ class MapViewModel @Inject constructor(
         }
     }
 
-        fun toggleOpenOnly() {
+    fun toggleOpenOnly() {
         _openOnly.value = !_openOnly.value
     }
 
@@ -159,9 +159,15 @@ class MapViewModel @Inject constructor(
         _selectedBrands.value = current
     }
 
-    /** Все уникальные бренды в текущем списке АЗС (для UI-фильтра). */
+    /** Все уникальные бренды текущего списка АЗС (для чипов-фильтров). */
     fun availableBrands(): List<String> =
         _stations.value.map { it.brand }.distinct().sorted()
+
+    /** Фильтр списка АЗС по выбранным брендам. */
+    fun filterStationsByBrands(list: List<GasStation>): List<GasStation> {
+        val brands = _selectedBrands.value
+        return if (brands.isEmpty()) list else list.filter { it.brand in brands }
+    }
 
     /**
      * Сообщить пользовательскую цену. Цена сохраняется в SharedPreferences
@@ -290,7 +296,3 @@ class MapViewModel @Inject constructor(
 
     fun clearError() { _error.value = null }
 }
-    fun filterStationsByBrands(stations: List<GasStation>): List<GasStation> {
-        val brands = _selectedBrands.value
-        return if (brands.isEmpty()) stations else stations.filter { it.brand in brands }
-    }
