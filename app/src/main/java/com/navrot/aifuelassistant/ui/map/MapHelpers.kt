@@ -11,19 +11,44 @@ import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 
 fun openMapsRoute(context: Context, lat: Double, lon: Double, label: String) {
-    val uri = android.net.Uri.parse("https://maps.google.com/maps?daddr=$lat,$lon($label)")
-    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, uri)
-    intent.setPackage("com.google.android.apps.maps")
     try {
-        if (intent.resolveActivity(context.packageManager) != null) {
-            context.startActivity(intent)
-        } else {
-            val browserUri = android.net.Uri.parse("https://maps.google.com/maps?daddr=$lat,$lon")
-            val browserIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, browserUri)
-            context.startActivity(browserIntent)
+        // 1. Пробуем открыть маршрут через Яндекс.Навигатор (если установлен)
+        val yandexUri = android.net.Uri.parse(
+            "yandexnavi://build_route_on_map?lat_to=$lat&lon_to=$lon"
+        )
+        val yandexIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, yandexUri).apply {
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-    } catch (e: android.content.ActivityNotFoundException) {
-        Toast.makeText(context, "Не найдено приложение для навигации", Toast.LENGTH_SHORT).show()
+        if (yandexIntent.resolveActivity(context.packageManager) != null) {
+            context.startActivity(yandexIntent)
+            return
+        }
+
+        // 2. Fallback: Google Maps (с URL-encoding label)
+        val encodedLabel = java.net.URLEncoder.encode(label, "UTF-8")
+        val googleUri = android.net.Uri.parse(
+            "google.navigation:q=$lat,$lon"
+        )
+        val googleIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, googleUri).apply {
+            setPackage("com.google.android.apps.maps")
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        if (googleIntent.resolveActivity(context.packageManager) != null) {
+            context.startActivity(googleIntent)
+            return
+        }
+
+        // 3. Fallback: веб Google Maps
+        val webUri = android.net.Uri.parse(
+            "https://www.google.com/maps/dir/?api=1&destination=$lat,$lon"
+        )
+        val webIntent = android.content.Intent(android.content.Intent.ACTION_VIEW, webUri).apply {
+            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(webIntent)
+    } catch (e: Exception) {
+        android.util.Log.e("MapRoute", "openMapsRoute failed", e)
+        Toast.makeText(context, "Не удалось открыть навигатор: ${e.message}", Toast.LENGTH_LONG).show()
     }
 }
 
