@@ -98,6 +98,9 @@ fun MapScreen(
     val route by viewModel.route.collectAsStateWithLifecycle()
     val isRouting by viewModel.isRouting.collectAsStateWithLifecycle()
     val openOnly by viewModel.openOnly.collectAsStateWithLifecycle()
+    val selectedBrands by viewModel.selectedBrands.collectAsStateWithLifecycle()
+    val selectedBrands by viewModel.selectedBrands.collectAsStateWithLifecycle()
+    val selectedBrands by viewModel.selectedBrands.collectAsStateWithLifecycle()
 
     val fuelTypes = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ", "Газ")
 
