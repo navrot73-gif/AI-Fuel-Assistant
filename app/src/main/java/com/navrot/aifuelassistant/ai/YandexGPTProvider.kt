@@ -31,7 +31,7 @@ class YandexGPTProvider(
                 put("messages", JSONArray().apply {
                     put(JSONObject().apply {
                         put("role", "system")
-                        put("text", "Ты полезный помощник по анализу расхода топлива автомобиля. Отвечай кратко и по делу.")
+                        put("text", AiProvider.SYSTEM_PROMPT)
                     })
                     put(JSONObject().apply {
                         put("role", "user")

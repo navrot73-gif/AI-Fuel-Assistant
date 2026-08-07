@@ -22,7 +22,7 @@ class HuggingFaceAiProvider(
             val messages = JSONArray().apply {
                 put(JSONObject().apply {
                     put("role", "system")
-                    put("content", "Ты полезный помощник по анализу расхода топлива автомобиля. Отвечай кратко и по делу.")
+                    put("content", AiProvider.SYSTEM_PROMPT)
                 })
                 put(JSONObject().apply {
                     put("role", "user")

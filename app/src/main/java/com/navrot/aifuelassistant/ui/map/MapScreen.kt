@@ -71,9 +71,12 @@ import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import org.osmdroid.util.GeoPoint
 
 /**
- * Команда для карты: построить маршрут до АЗС (ставится экраном АЗС).
+ * Экран карты АЗС.
+ *
+ * Маршрут строится двумя способами:
+ * 1. Через параметр [routeTarget] — когда экран вызван с аргументом навигации.
+ * 2. Через callback [onRouteHandled] — используется для сигнализации навигации.
  */
-var pendingRouteStation: GasStation? = null
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
@@ -135,18 +138,6 @@ fun MapScreen(
         }
     }
 
-    // Команда с детального экрана (через статическую переменную)
-    LaunchedEffect(Unit) {
-        pendingRouteStation?.let { st ->
-            pendingRouteStation = null
-            userLocation?.let { loc ->
-                viewModel.updateUserLocation(loc.latitude, loc.longitude)
-            }
-            viewModel.buildRouteTo(st)
-            routeStation = st
-        }
-    }
-
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissions ->
@@ -157,7 +148,7 @@ fun MapScreen(
                 getCurrentLocation(context) { location ->
                     userLocation = GeoPoint(location.latitude, location.longitude)
                     locationStatus = "📍 Вы здесь"
-                    currentCity = detectCity(location.latitude, location.longitude)
+                    currentCity = GeoUtils.hardcodedDetectCity(location.latitude, location.longitude)
                     viewModel.updateUserLocation(location.latitude, location.longitude)
                     viewModel.loadNearbyStations(location.latitude, location.longitude, 50.0)
                 }
@@ -175,7 +166,7 @@ fun MapScreen(
                 getCurrentLocation(context) { location ->
                     userLocation = GeoPoint(location.latitude, location.longitude)
                     locationStatus = "📍 Вы здесь"
-                    currentCity = detectCity(location.latitude, location.longitude)
+                    currentCity = GeoUtils.hardcodedDetectCity(location.latitude, location.longitude)
                     viewModel.updateUserLocation(location.latitude, location.longitude)
                     viewModel.loadNearbyStations(location.latitude, location.longitude, 50.0)
                 }
@@ -184,7 +175,7 @@ fun MapScreen(
                 getCurrentLocation(context) { location ->
                     userLocation = GeoPoint(location.latitude, location.longitude)
                     locationStatus = "📍 Вы здесь"
-                    currentCity = detectCity(location.latitude, location.longitude)
+                    currentCity = GeoUtils.hardcodedDetectCity(location.latitude, location.longitude)
                     viewModel.updateUserLocation(location.latitude, location.longitude)
                     viewModel.loadNearbyStations(location.latitude, location.longitude, 50.0)
                 }
@@ -536,19 +527,4 @@ fun MapScreen(
             )
         }
     }
-}
-
-private fun detectCity(lat: Double, lon: Double): String = when {
-    lat in 55.1..55.3 && lon in 61.2..61.6 -> "Челябинске"
-    lat in 54.0..54.2 && lon in 61.4..61.7 -> "Троицке"
-    lat in 55.0..55.1 && lon in 60.0..60.2 -> "Миассе"
-    lat in 55.1..55.2 && lon in 59.5..59.8 -> "Златоусте"
-    lat in 53.3..53.5 && lon in 58.9..59.2 -> "Магнитогорске"
-    lat in 55.0..55.1 && lon in 61.5..61.7 -> "Копейске"
-    lat in 56.0..56.1 && lon in 60.6..60.8 -> "Снежинске"
-    lat in 55.7..55.8 && lon in 60.6..60.8 -> "Озёрске"
-    lat in 54.4..54.5 && lon in 61.1..61.3 -> "Южноуральске"
-    lat in 54.9..55.0 && lon in 57.2..57.4 -> "Аше"
-    lat in 55.7..55.8 && lon in 37.5..37.7 -> "Москве"
-    else -> "вашем районе"
 }

@@ -28,7 +28,6 @@ import com.navrot.aifuelassistant.ui.fuel.AddFuelRecordScreen
 import com.navrot.aifuelassistant.ui.fuel.FuelRecordListScreen
 import com.navrot.aifuelassistant.ui.fuel.GasStationDetailScreen
 import com.navrot.aifuelassistant.ui.map.MapScreen
-import com.navrot.aifuelassistant.ui.map.pendingRouteStation
 import com.navrot.aifuelassistant.ui.vehicles.AddVehicleScreen
 import com.navrot.aifuelassistant.ui.vehicles.VehicleListScreen
 
@@ -97,7 +96,14 @@ fun AppNavigation() {
             modifier = Modifier.padding(padding)
         ) {
             composable("map") {
+                val routeTarget = navController.currentBackStackEntry
+                    ?.savedStateHandle
+                    ?.remove<GasStation>("route_target")
                 MapScreen(
+                    routeTarget = routeTarget,
+                    onRouteHandled = {
+                        // Маршрут принят, состояние очищено
+                    },
                     onStationClick = { station ->
                         navController.currentBackStackEntry?.savedStateHandle?.set("station", station)
                         navController.navigate("station_detail")
@@ -130,8 +136,10 @@ fun AppNavigation() {
                         station = station,
                         onBack = { navController.popBackStack() },
                         onRouteClick = {
-                            // Команда карте: построить маршрут после возврата
-                            pendingRouteStation = station
+                            // Передаём станцию карте через savedStateHandle вместо глобальной переменной
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.set("route_target", station)
                             navController.popBackStack()
                         }
                     )

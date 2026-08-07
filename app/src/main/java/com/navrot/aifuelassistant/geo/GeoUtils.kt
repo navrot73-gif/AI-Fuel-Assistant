@@ -52,9 +52,10 @@ object GeoUtils {
     }
 
     /**
-     * Хардкод-фоллбэк для городов Челябинской области.
+     * Хардкод-фоллбэк для городов Челябинской области и Москвы.
+     * Internal для использования из UI (MapScreen) напрямую.
      */
-    private fun hardcodedDetectCity(lat: Double, lon: Double): String {
+    internal fun hardcodedDetectCity(lat: Double, lon: Double): String {
         return when {
             lat in 55.1..55.3 && lon in 61.2..61.6 -> "Челябинске"
             lat in 54.0..54.2 && lon in 61.4..61.7 -> "Троицке"

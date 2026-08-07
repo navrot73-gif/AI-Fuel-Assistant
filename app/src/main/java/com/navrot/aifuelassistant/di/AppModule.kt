@@ -1,7 +1,10 @@
 package com.navrot.aifuelassistant.di
 
 import android.content.Context
+import android.util.Log
 import androidx.room.Room
+import androidx.room.RoomDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.navrot.aifuelassistant.ai.AiRouterFactory
 import com.navrot.aifuelassistant.ai.router.AiRouter
 import com.navrot.aifuelassistant.data.FuelRecordRepository
@@ -14,6 +17,7 @@ import com.navrot.aifuelassistant.data.database.AppDatabase
 import com.navrot.aifuelassistant.data.database.DatabaseMigrations
 import com.navrot.aifuelassistant.data.database.dao.FuelRecordDao
 import com.navrot.aifuelassistant.data.database.dao.VehicleDao
+import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.geo.NominatimGeocodingProvider
 import dagger.Module
 import dagger.Provides
@@ -37,7 +41,12 @@ object AppModule {
             "ai_fuel_assistant_db"
         )
             .addMigrations(DatabaseMigrations.MIGRATION_2_3)
-            .fallbackToDestructiveMigration()
+            .addCallback(object : RoomDatabase.Callback() {
+                override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
+                    Log.w("AppDatabase", "⚠️ Деструктивная миграция БД! Все данные пользователя удалены.")
+                }
+            })
+            .fallbackToDestructiveMigrationOnDowngrade()
             .build()
     }
 
@@ -79,9 +88,10 @@ object AppModule {
     fun provideGasStationRepository(
         @ApplicationContext context: Context,
         okHttpClient: OkHttpClient,
-        userPriceRepository: UserPriceRepository
+        userPriceRepository: UserPriceRepository,
+        getBestStationsUseCase: GetBestStationsUseCase
     ): GasStationRepository {
-        return GasStationRepository(context, okHttpClient, userPriceRepository)
+        return GasStationRepository(context, okHttpClient, userPriceRepository, getBestStationsUseCase)
     }
 
     @Provides

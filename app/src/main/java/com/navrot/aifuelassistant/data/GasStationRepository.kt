@@ -3,6 +3,7 @@ package com.navrot.aifuelassistant.data
 import android.content.Context
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.geo.GeoUtils
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -38,7 +39,8 @@ import javax.inject.Singleton
 class GasStationRepository constructor(
     private val context: Context,
     private val httpClient: OkHttpClient,
-    private val userPrices: UserPriceRepository
+    private val userPrices: UserPriceRepository,
+    private val getBestStationsUseCase: GetBestStationsUseCase
 ) {
 
     companion object {
@@ -132,13 +134,7 @@ class GasStationRepository constructor(
             getStationsNearLocation(lat, lon, radiusKm, stations)
         } else stations
 
-        nearby.filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
-            .sortedBy { s ->
-                val fuel = s.fuelTypes.find { it.type == fuelType }?.price ?: Double.MAX_VALUE
-                val queuePenalty = s.queueTime * 0.5
-                val reliabilityBonus = (100 - s.reliability) * 0.2
-                fuel + queuePenalty - reliabilityBonus
-            }
+        getBestStationsUseCase.execute(nearby, fuelType)
     }
 
     suspend fun getCheapestStation(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): GasStation? = withContext(Dispatchers.IO) {
