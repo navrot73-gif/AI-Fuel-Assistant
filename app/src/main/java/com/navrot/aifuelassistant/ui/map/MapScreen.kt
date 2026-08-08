@@ -135,10 +135,17 @@ fun MapScreen(
 
     LaunchedEffect(Unit) {
         pendingRouteStation?.let { st ->
-            pendingRouteStation = null
+            // Карта пересоздана — ждём определения местоположения (до 5 сек),
+            // иначе buildRouteTo не сможет построить маршрут
+            var attempts = 0
+            while (userLocation == null && attempts < 50) {
+                kotlinx.coroutines.delay(100)
+                attempts++
+            }
             userLocation?.let { loc ->
                 viewModel.updateUserLocation(loc.latitude, loc.longitude)
             }
+            pendingRouteStation = null
             viewModel.buildRouteTo(st)
             routeStation = st
         }
