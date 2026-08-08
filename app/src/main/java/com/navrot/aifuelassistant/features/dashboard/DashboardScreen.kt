@@ -1,9 +1,5 @@
 package com.navrot.aifuelassistant.features.dashboard
 
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Icon
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Send
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
@@ -28,11 +24,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -66,6 +66,8 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
     val error by viewModel.error.collectAsStateWithLifecycle()
     val vehicles by viewModel.vehicles.collectAsStateWithLifecycle()
     val selectedVehicleId by viewModel.selectedVehicleId.collectAsStateWithLifecycle()
+    val userQuestion by viewModel.userQuestion.collectAsStateWithLifecycle()
+    val userAnswer by viewModel.userAnswer.collectAsStateWithLifecycle()
     var expanded by remember { mutableStateOf(false) }
 
     val consumption = metrics.consumption
@@ -81,7 +83,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
             .verticalScroll(rememberScrollState())
             .statusBarsPadding()
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         // ===== Шапка =====
         Column {
@@ -137,6 +139,63 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                                 expanded = false
                             }
                         )
+                    }
+                }
+            }
+        }
+
+        // ===== Свободный вопрос (сразу виден без скролла) =====
+        Panel(modifier = Modifier.fillMaxWidth()) {
+            Text("Задать AI любой вопрос", fontSize = 11.sp, color = FueldeckColors.InkFaint,
+                letterSpacing = 1.2.sp)
+            Spacer(Modifier.height(8.dp))
+            OutlinedTextField(
+                value = userQuestion,
+                onValueChange = { viewModel.setUserQuestion(it) },
+                placeholder = { Text("Например: какая АЗС дешевле рядом?") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 1,
+                maxLines = 4,
+            )
+            Spacer(Modifier.height(10.dp))
+            Button(
+                onClick = { viewModel.askUserQuestion() },
+                enabled = !isAnalyzing && userQuestion.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = FueldeckColors.Teal,
+                    contentColor = Color.White,
+                    disabledContainerColor = FueldeckColors.Teal.copy(alpha = 0.4f),
+                ),
+                shape = FueldeckShapes.Md,
+                modifier = Modifier.fillMaxWidth().height(46.dp),
+            ) {
+                Icon(Icons.Default.Send, contentDescription = null,
+                    modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Спросить", fontWeight = FontWeight.SemiBold)
+            }
+        }
+
+        // ===== Ответ на свободный вопрос =====
+        userAnswer?.let { answer ->
+            Surface(
+                shape = FueldeckShapes.Md,
+                color = FueldeckColors.Surface,
+                border = BorderStroke(1.dp, FueldeckColors.Line),
+            ) {
+                Row(modifier = Modifier.height(IntrinsicSize.Min)) {
+                    Box(
+                        Modifier
+                            .fillMaxHeight()
+                            .width(3.dp)
+                            .background(FueldeckColors.Amber)
+                    )
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Text("AI ответил", fontSize = 11.sp, color = FueldeckColors.Amber,
+                            letterSpacing = 1.2.sp)
+                        Spacer(Modifier.height(6.dp))
+                        Text(answer, fontSize = 13.5.sp, color = FueldeckColors.Ink,
+                            lineHeight = 19.sp)
                     }
                 }
             }
@@ -269,62 +328,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
         error?.let {
             Text(it, color = FueldeckColors.Coral, fontSize = 13.sp)
         }
-        // ===== Свободный вопрос =====
-        Panel(modifier = Modifier.fillMaxWidth()) {
-            Text("Задать AI любой вопрос", fontSize = 11.sp, color = FueldeckColors.InkFaint,
-                letterSpacing = 1.2.sp)
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = viewModel.userQuestion.collectAsStateWithLifecycle().value,
-                onValueChange = { viewModel.setUserQuestion(it) },
-                placeholder = { Text("Например: какая АЗС дешевле рядом?") },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 1,
-                maxLines = 4,
-            )
-            Spacer(Modifier.height(10.dp))
-            Button(
-                onClick = { viewModel.askUserQuestion() },
-                enabled = !isAnalyzing && viewModel.userQuestion.collectAsStateWithLifecycle().value.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = FueldeckColors.Teal,
-                    contentColor = Color.White,
-                    disabledContainerColor = FueldeckColors.Teal.copy(alpha = 0.4f),
-                ),
-                shape = FueldeckShapes.Md,
-                modifier = Modifier.fillMaxWidth().height(46.dp),
-            ) {
-                Icon(Icons.Default.Send, contentDescription = null,
-                    modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Спросить", fontWeight = FontWeight.SemiBold)
-            }
-        }
 
-        // ===== Ответ на свободный вопрос =====
-        viewModel.userAnswer.collectAsStateWithLifecycle().value?.let { answer ->
-            Surface(
-                shape = FueldeckShapes.Md,
-                color = FueldeckColors.Surface,
-                border = BorderStroke(1.dp, FueldeckColors.Line),
-            ) {
-                Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-                    Box(
-                        Modifier
-                            .fillMaxHeight()
-                            .width(3.dp)
-                            .background(FueldeckColors.Amber)
-                    )
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Text("AI ответил", fontSize = 11.sp, color = FueldeckColors.Amber,
-                            letterSpacing = 1.2.sp)
-                        Spacer(Modifier.height(6.dp))
-                        Text(answer, fontSize = 13.5.sp, color = FueldeckColors.Ink,
-                            lineHeight = 19.sp)
-                    }
-                }
-            }
-        }
         // ===== Кнопка AI-анализа =====
         Button(
             onClick = { viewModel.askAi() },
