@@ -90,7 +90,7 @@ object AppModule {
         okHttpClient: OkHttpClient,
         userPriceRepository: UserPriceRepository,
         getBestStationsUseCase: GetBestStationsUseCase
-    ): GasStationRepository {
+    ): GasStationRepositoryInterface {
         return GasStationRepository(context, okHttpClient, userPriceRepository, getBestStationsUseCase)
     }
 

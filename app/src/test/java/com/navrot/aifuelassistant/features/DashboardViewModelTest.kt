@@ -2,7 +2,7 @@ package com.navrot.aifuelassistant.features
 
 import com.navrot.aifuelassistant.ai.router.AiRouter
 import com.navrot.aifuelassistant.data.FuelRecordRepository
-import com.navrot.aifuelassistant.data.GasStationRepository
+import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
@@ -21,7 +21,7 @@ class DashboardViewModelTest {
 
     private val mockRecordRepo = mock<FuelRecordRepository>()
     private val mockVehicleRepo = mock<VehicleRepository>()
-    private val mockStationRepo = mock<GasStationRepository>()
+    private val mockStationRepo = mock<GasStationRepositoryInterface>()
     private val mockAiRouter = mock<AiRouter>()
     
     private val testDispatcher = StandardTestDispatcher()

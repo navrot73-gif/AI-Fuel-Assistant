@@ -65,15 +65,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
-import com.navrot.aifuelassistant.geo.GeoUtils
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import org.osmdroid.util.GeoPoint
-
-/**
- * Команда для карты: построить маршрут до АЗС (ставится экраном АЗС).
- */
-var pendingRouteStation: GasStation? = null
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
@@ -98,6 +93,7 @@ fun MapScreen(
     val route by viewModel.route.collectAsStateWithLifecycle()
     val isRouting by viewModel.isRouting.collectAsStateWithLifecycle()
     val openOnly by viewModel.openOnly.collectAsStateWithLifecycle()
+    val aiRecommendation by viewModel.aiRecommendation.collectAsStateWithLifecycle()
 
     val fuelTypes = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ", "Газ")
 
@@ -124,19 +120,8 @@ fun MapScreen(
 
     LaunchedEffect(routeTarget) {
         if (routeTarget != null) {
-            userLocation?.let { loc ->
-                viewModel.updateUserLocation(loc.latitude, loc.longitude)
-            }
-            viewModel.buildRouteTo(routeTarget)
-            routeStation = routeTarget
-            onRouteHandled()
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        pendingRouteStation?.let { st ->
-            // Карта пересоздана — ждём определения местоположения (до 5 сек),
-            // иначе buildRouteTo не сможет построить маршрут
+            // Ждём определения местоположения (до 5 сек),
+            // иначе buildRouteTo не сможет построить маршрут.
             var attempts = 0
             while (userLocation == null && attempts < 50) {
                 kotlinx.coroutines.delay(100)
@@ -145,9 +130,9 @@ fun MapScreen(
             userLocation?.let { loc ->
                 viewModel.updateUserLocation(loc.latitude, loc.longitude)
             }
-            pendingRouteStation = null
-            viewModel.buildRouteTo(st)
-            routeStation = st
+            viewModel.buildRouteTo(routeTarget)
+            routeStation = routeTarget
+            onRouteHandled()
         }
     }
 
@@ -389,25 +374,9 @@ fun MapScreen(
                     )
                 }
 
-                val recommendation = remember(filteredStations, selectedFuelTypes, userLocation) {
-                    filteredStations
-                        .mapNotNull { st ->
-                            val fuel = st.fuelTypes.firstOrNull {
-                                (selectedFuelTypes.isEmpty() || selectedFuelTypes.contains(it.type)) && it.available
-                            } ?: return@mapNotNull null
-                            val dist = userLocation?.let {
-                                GeoUtils.calculateDistance(
-                                    it.latitude, it.longitude,
-                                    st.latitude, st.longitude
-                                )
-                            } ?: Double.MAX_VALUE
-                            Triple(st, fuel, dist)
-                        }
-                        .minByOrNull { (st, fuel, dist) ->
-                            fuel.price +
-                                    st.queueTime * 0.4 +
-                                    (if (dist == Double.MAX_VALUE) 0.0 else dist * 1.2)
-                        }
+                // AI-рекомендация вычисляется в ViewModel единым скорингом (GetBestStationsUseCase + расстояние).
+                val recommendation = aiRecommendation?.let {
+                    Triple(it.station, it.fuel, it.distanceKm)
                 }
 
                 Column(

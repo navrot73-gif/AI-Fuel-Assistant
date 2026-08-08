@@ -1,6 +1,7 @@
 package com.navrot.aifuelassistant.data
 
 import android.content.Context
+import android.util.Log
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
@@ -41,9 +42,10 @@ class GasStationRepository constructor(
     private val httpClient: OkHttpClient,
     private val userPrices: UserPriceRepository,
     private val getBestStationsUseCase: GetBestStationsUseCase
-) {
+) : GasStationRepositoryInterface {
 
     companion object {
+        private const val TAG = "GasStationRepo"
         private const val REMOTE_URL =
             "https://raw.githubusercontent.com/navrot73-gif/AI-Fuel-Assistant/main/app/src/main/assets/stations.json"
         private const val CACHE_FILE = "stations_cache.json"
@@ -72,7 +74,7 @@ class GasStationRepository constructor(
     }
 
     /** Принудительное обновление из сети + применение пользовательских цен. */
-    suspend fun refresh(): List<GasStation> = loadMutex.withLock {
+    override suspend fun refresh(): List<GasStation> = loadMutex.withLock {
         lastRemoteCheckMs = System.currentTimeMillis()
         val stations = loadFromRemote() ?: loadFromCache() ?: loadFromAssets()
         val withUserPrices = applyUserPrices(stations)
@@ -83,7 +85,7 @@ class GasStationRepository constructor(
     /**
      * Сообщить пользовательскую цену. Цена немедленно применяется к кешу.
      */
-    suspend fun reportUserPrice(stationId: Int, fuelType: String, price: Double): List<GasStation> =
+    override suspend fun reportUserPrice(stationId: Int, fuelType: String, price: Double): List<GasStation> =
         loadMutex.withLock {
             userPrices.report(stationId, fuelType, price)
             val updated = applyUserPrices(cachedStations ?: emptyList())
@@ -94,7 +96,7 @@ class GasStationRepository constructor(
     /**
      * Очистить пользовательскую цену (когда пришёл новый json с актуальной ценой).
      */
-    suspend fun clearUserPrice(stationId: Int, fuelType: String): List<GasStation> =
+    override suspend fun clearUserPrice(stationId: Int, fuelType: String): List<GasStation> =
         loadMutex.withLock {
             userPrices.clear(stationId, fuelType)
             val updated = applyUserPrices(cachedStations ?: emptyList())
@@ -104,21 +106,21 @@ class GasStationRepository constructor(
 
     // ==================== ПУБЛИЧНЫЕ МЕТОДЫ ====================
 
-    suspend fun getAllStations(): List<GasStation> = withContext(Dispatchers.IO) {
+    override suspend fun getAllStations(): List<GasStation> = withContext(Dispatchers.IO) {
         ensureLoaded()
     }
 
-    suspend fun getNearbyStations(lat: Double, lon: Double, radiusKm: Double): List<GasStation> = withContext(Dispatchers.IO) {
+    override suspend fun getNearbyStations(lat: Double, lon: Double, radiusKm: Double): List<GasStation> = withContext(Dispatchers.IO) {
         val stations = ensureLoaded()
         getStationsNearLocation(lat, lon, radiusKm, stations)
     }
 
-    suspend fun getStationsByCity(city: String): List<GasStation> = withContext(Dispatchers.IO) {
+    override suspend fun getStationsByCity(city: String): List<GasStation> = withContext(Dispatchers.IO) {
         val stations = ensureLoaded()
         stations.filter { it.address.contains(city, ignoreCase = true) }
     }
 
-    suspend fun searchStations(query: String): List<GasStation> = withContext(Dispatchers.IO) {
+    override suspend fun searchStations(query: String): List<GasStation> = withContext(Dispatchers.IO) {
         val stations = ensureLoaded()
         val q = query.lowercase()
         stations.filter {
@@ -128,7 +130,7 @@ class GasStationRepository constructor(
         }
     }
 
-    suspend fun getBestStations(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): List<GasStation> = withContext(Dispatchers.IO) {
+    override suspend fun getBestStations(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): List<GasStation> = withContext(Dispatchers.IO) {
         val stations = ensureLoaded()
         val nearby = if (lat != null && lon != null) {
             getStationsNearLocation(lat, lon, radiusKm, stations)
@@ -137,7 +139,7 @@ class GasStationRepository constructor(
         getBestStationsUseCase.execute(nearby, fuelType)
     }
 
-    suspend fun getCheapestStation(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): GasStation? = withContext(Dispatchers.IO) {
+    override suspend fun getCheapestStation(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): GasStation? = withContext(Dispatchers.IO) {
         val stations = ensureLoaded()
         val nearby = if (lat != null && lon != null) {
             getStationsNearLocation(lat, lon, radiusKm, stations)
@@ -148,7 +150,7 @@ class GasStationRepository constructor(
             .minByOrNull { s -> s.fuelTypes.find { it.type == fuelType }?.price ?: Double.MAX_VALUE }
     }
 
-    suspend fun getStationsSortedByPriceAsc(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): List<GasStation> = withContext(Dispatchers.IO) {
+    override suspend fun getStationsSortedByPriceAsc(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): List<GasStation> = withContext(Dispatchers.IO) {
         val stations = ensureLoaded()
         val nearby = if (lat != null && lon != null) {
             getStationsNearLocation(lat, lon, radiusKm, stations)
@@ -158,7 +160,7 @@ class GasStationRepository constructor(
             .sortedBy { s -> s.fuelTypes.find { it.type == fuelType }?.price ?: Double.MAX_VALUE }
     }
 
-    suspend fun getStationsSortedByPriceDesc(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): List<GasStation> = withContext(Dispatchers.IO) {
+    override suspend fun getStationsSortedByPriceDesc(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): List<GasStation> = withContext(Dispatchers.IO) {
         val stations = ensureLoaded()
         val nearby = if (lat != null && lon != null) {
             getStationsNearLocation(lat, lon, radiusKm, stations)
@@ -168,7 +170,7 @@ class GasStationRepository constructor(
             .sortedByDescending { s -> s.fuelTypes.find { it.type == fuelType }?.price ?: Double.MAX_VALUE }
     }
 
-    suspend fun getStationsByQueue(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): List<GasStation> = withContext(Dispatchers.IO) {
+    override suspend fun getStationsByQueue(fuelType: String, lat: Double?, lon: Double?, radiusKm: Double): List<GasStation> = withContext(Dispatchers.IO) {
         val stations = ensureLoaded()
         val nearby = if (lat != null && lon != null) {
             getStationsNearLocation(lat, lon, radiusKm, stations)
@@ -221,7 +223,8 @@ class GasStationRepository constructor(
                 }
                 stations.takeIf { it.isNotEmpty() }
             }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "Не удалось загрузить станции из сети: ${e.message}")
             null
         }
     }
@@ -231,7 +234,8 @@ class GasStationRepository constructor(
             val file = cacheFile()
             if (!file.exists()) return@withContext null
             parseJson(file.readText()).takeIf { it.isNotEmpty() }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "Не удалось загрузить станции из кеша: ${e.message}")
             null
         }
     }
