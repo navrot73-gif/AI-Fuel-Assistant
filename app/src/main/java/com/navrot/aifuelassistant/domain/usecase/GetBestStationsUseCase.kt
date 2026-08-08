@@ -66,12 +66,11 @@ class GetBestStationsUseCase @Inject constructor() {
  * - (100 - reliability) * RELIABILITY_WEIGHT: бонус за надёжность
  */
     fun calculateScore(station: GasStation, fuelType: String): Double {
-        val fuelPrice = station.fuelTypes
-            .find { it.type == fuelType }
-            ?.price ?: Double.MAX_VALUE
+        val fuel = station.fuelTypes.find { it.type == fuelType }
+        if (fuel == null || !fuel.available) return Double.MAX_VALUE
         val queuePenalty = station.queueTime * QUEUE_WEIGHT
         val reliabilityBonus = (100 - station.reliability) * RELIABILITY_WEIGHT
-        return fuelPrice + queuePenalty - reliabilityBonus
+        return fuel.price + queuePenalty - reliabilityBonus
     }
 
     companion object {
