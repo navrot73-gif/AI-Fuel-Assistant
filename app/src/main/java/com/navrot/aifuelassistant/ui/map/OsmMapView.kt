@@ -48,9 +48,9 @@ fun OsmMapView(
                     ColorMatrixColorFilter(
                         ColorMatrix(
                                 floatArrayOf(
-                                1.45f, 0f, 0f, 0f, 14f,
-                                0f, 1.45f, 0f, 0f, 16f,
-                                0f, 0f, 1.60f, 0f, 24f,
+                                3.2f, 0f, 0f, 0f, 30f,
+                                0f, 3.2f, 0f, 0f, 36f,
+                                0f, 0f, 3.6f, 0f, 60f,
                                 0f, 0f, 0f, 1f, 0f
                             )
                         )
