@@ -3,27 +3,27 @@ package com.navrot.aifuelassistant.ui.map
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.navrot.aifuelassistant.BuildConfig
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
-import com.navrot.aifuelassistant.geo.GeocodingProvider
 import com.navrot.aifuelassistant.geo.GeoPoint
 import com.navrot.aifuelassistant.geo.GeoUtils
+import com.navrot.aifuelassistant.geo.OpenRouteServiceProvider
 import com.navrot.aifuelassistant.geo.RoutingProvider
+import okhttp3.OkHttpClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
-import javax.inject.Nullable
 
 @HiltViewModel
 class MapViewModel @Inject constructor(
     private val repository: GasStationRepositoryInterface,
-    @Nullable private val routingProvider: RoutingProvider?,
-    @Nullable private val geocodingProvider: GeocodingProvider?,
+    private val okHttpClient: OkHttpClient,
     private val getBestStationsUseCase: GetBestStationsUseCase
 ) : ViewModel() {
 
@@ -31,6 +31,11 @@ class MapViewModel @Inject constructor(
         private const val TAG = "MapViewModel"
         private const val DISTANCE_WEIGHT = 1.2
     }
+
+    private val routingProvider: RoutingProvider? =
+        BuildConfig.ORS_API_KEY
+            .takeIf { it.isNotBlank() }
+            ?.let { OpenRouteServiceProvider(apiKey = it, httpClient = okHttpClient) }
 
     private val _stations = MutableStateFlow<List<GasStation>>(emptyList())
     val stations: StateFlow<List<GasStation>> = _stations.asStateFlow()
@@ -95,9 +100,9 @@ class MapViewModel @Inject constructor(
         updateAiRecommendation(lat, lon)
     }
 
-    /** Определить город через Nominatim (с fallback на хардкод). */
+    /** Определить город по координатам (хардкод-фоллбэк). */
     suspend fun detectCity(lat: Double, lon: Double): String {
-        return GeoUtils.detectCity(lat, lon, geocodingProvider)
+        return GeoUtils.detectCity(lat, lon)
     }
 
     fun loadNearbyStations(lat: Double, lon: Double, radiusKm: Double = 50.0) {
