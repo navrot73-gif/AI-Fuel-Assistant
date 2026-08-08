@@ -55,6 +55,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -66,14 +67,10 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.navrot.aifuelassistant.data.model.GasStation
-import com.navrot.aifuelassistant.geo.GeoUtils
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import org.osmdroid.util.GeoPoint
-
-/**
- * Команда для карты: построить маршрут до АЗС (ставится экраном АЗС).
- */
-var pendingRouteStation: GasStation? = null
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalAnimationApi::class)
 @Composable
@@ -88,6 +85,7 @@ fun MapScreen(
     viewModel: MapViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     val stations by viewModel.stations.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
@@ -98,6 +96,7 @@ fun MapScreen(
     val route by viewModel.route.collectAsStateWithLifecycle()
     val isRouting by viewModel.isRouting.collectAsStateWithLifecycle()
     val openOnly by viewModel.openOnly.collectAsStateWithLifecycle()
+    val aiRecommendation by viewModel.aiRecommendation.collectAsStateWithLifecycle()
 
     val fuelTypes = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ", "Газ")
 
@@ -113,6 +112,21 @@ fun MapScreen(
     var routeStation by remember { mutableStateOf<GasStation?>(null) }
     var recenterTick by remember { mutableIntStateOf(0) }
 
+    val onLocationReady: (GeoPoint) -> Unit = { loc ->
+        userLocation = loc
+        locationStatus = "📍 Вы здесь"
+        viewModel.updateUserLocation(loc.latitude, loc.longitude)
+        viewModel.loadNearbyStations(loc.latitude, loc.longitude, 50.0)
+        // Определяем город через Nominatim асинхронно
+        scope.launch {
+            try {
+                currentCity = viewModel.detectCity(loc.latitude, loc.longitude)
+            } catch (_: Exception) {
+                // Оставляем предыдущее значение currentCity
+            }
+        }
+    }
+
     val buildRouteAndClose: (GasStation) -> Unit = { st ->
         userLocation?.let { loc ->
             viewModel.updateUserLocation(loc.latitude, loc.longitude)
@@ -122,32 +136,22 @@ fun MapScreen(
         selectedStation = null
     }
 
+    // Обработка routeTarget из savedStateHandle (приходит от station_detail)
     LaunchedEffect(routeTarget) {
         if (routeTarget != null) {
+            // Ждём определения местоположения (до 5 сек),
+            // иначе buildRouteTo не сможет построить маршрут.
+            var attempts = 0
+            while (userLocation == null && attempts < 50) {
+                delay(100)
+                attempts++
+            }
             userLocation?.let { loc ->
                 viewModel.updateUserLocation(loc.latitude, loc.longitude)
             }
             viewModel.buildRouteTo(routeTarget)
             routeStation = routeTarget
             onRouteHandled()
-        }
-    }
-
-    LaunchedEffect(Unit) {
-        pendingRouteStation?.let { st ->
-            // Карта пересоздана — ждём определения местоположения (до 5 сек),
-            // иначе buildRouteTo не сможет построить маршрут
-            var attempts = 0
-            while (userLocation == null && attempts < 50) {
-                kotlinx.coroutines.delay(100)
-                attempts++
-            }
-            userLocation?.let { loc ->
-                viewModel.updateUserLocation(loc.latitude, loc.longitude)
-            }
-            pendingRouteStation = null
-            viewModel.buildRouteTo(st)
-            routeStation = st
         }
     }
 
@@ -159,11 +163,7 @@ fun MapScreen(
                     permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false) -> {
                 locationStatus = "Получение координат..."
                 getCurrentLocation(context) { location ->
-                    userLocation = GeoPoint(location.latitude, location.longitude)
-                    locationStatus = "📍 Вы здесь"
-                    currentCity = GeoUtils.hardcodedDetectCity(location.latitude, location.longitude)
-                    viewModel.updateUserLocation(location.latitude, location.longitude)
-                    viewModel.loadNearbyStations(location.latitude, location.longitude, 50.0)
+                    onLocationReady(GeoPoint(location.latitude, location.longitude))
                 }
             }
             else -> {
@@ -177,20 +177,12 @@ fun MapScreen(
         when {
             context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED -> {
                 getCurrentLocation(context) { location ->
-                    userLocation = GeoPoint(location.latitude, location.longitude)
-                    locationStatus = "📍 Вы здесь"
-                    currentCity = GeoUtils.hardcodedDetectCity(location.latitude, location.longitude)
-                    viewModel.updateUserLocation(location.latitude, location.longitude)
-                    viewModel.loadNearbyStations(location.latitude, location.longitude, 50.0)
+                    onLocationReady(GeoPoint(location.latitude, location.longitude))
                 }
             }
             context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED -> {
                 getCurrentLocation(context) { location ->
-                    userLocation = GeoPoint(location.latitude, location.longitude)
-                    locationStatus = "📍 Вы здесь"
-                    currentCity = GeoUtils.hardcodedDetectCity(location.latitude, location.longitude)
-                    viewModel.updateUserLocation(location.latitude, location.longitude)
-                    viewModel.loadNearbyStations(location.latitude, location.longitude, 50.0)
+                    onLocationReady(GeoPoint(location.latitude, location.longitude))
                 }
             }
             else -> {
@@ -281,8 +273,6 @@ fun MapScreen(
             }
 
             Box(modifier = Modifier.fillMaxSize()) {
-               
-
                 OsmMapView(
                     userLocation = userLocation,
                     stations = stations,
@@ -310,7 +300,7 @@ fun MapScreen(
                     }
                 }
 
-                // ===== Кнопки справа: аккуратная колонка без перекрытий =====
+                // ===== Кнопки справа =====
                 val yellowRouteVisible =
                     selectedStation != null || (route != null && routeStation != null)
 
@@ -389,25 +379,9 @@ fun MapScreen(
                     )
                 }
 
-                val recommendation = remember(filteredStations, selectedFuelTypes, userLocation) {
-                    filteredStations
-                        .mapNotNull { st ->
-                            val fuel = st.fuelTypes.firstOrNull {
-                                (selectedFuelTypes.isEmpty() || selectedFuelTypes.contains(it.type)) && it.available
-                            } ?: return@mapNotNull null
-                            val dist = userLocation?.let {
-                                GeoUtils.calculateDistance(
-                                    it.latitude, it.longitude,
-                                    st.latitude, st.longitude
-                                )
-                            } ?: Double.MAX_VALUE
-                            Triple(st, fuel, dist)
-                        }
-                        .minByOrNull { (st, fuel, dist) ->
-                            fuel.price +
-                                    st.queueTime * 0.4 +
-                                    (if (dist == Double.MAX_VALUE) 0.0 else dist * 1.2)
-                        }
+                // AI-рекомендация из ViewModel (централизованный скоринг)
+                val recommendationTriple = aiRecommendation?.let {
+                    Triple(it.station, it.fuel, it.distanceKm)
                 }
 
                 Column(
@@ -447,10 +421,10 @@ fun MapScreen(
                             }
                         }
 
-                        if (recommendation != null && route == null) {
+                        if (recommendationTriple != null && route == null) {
                             AiRecommendationCard(
-                                recommendation = recommendation,
-                                onExpandList = { selectedStation = recommendation?.first }
+                                recommendation = recommendationTriple,
+                                onExpandList = { selectedStation = recommendationTriple.first }
                             )
                         }
                     }
@@ -459,7 +433,7 @@ fun MapScreen(
                         visible = showStationList,
                         isLoading = isLoading,
                         stations = viewModel.filterStationsByBrands(stations),
-                        aiRecommendation = recommendation?.first,
+                        aiRecommendation = recommendationTriple?.first,
                         selectedFuelTypes = selectedFuelTypes,
                         sortMode = sortMode,
                         userLocation = userLocation,
@@ -531,4 +505,3 @@ fun MapScreen(
             )
         }
     }
-}

@@ -136,11 +136,12 @@ fun AppNavigation() {
                         station = station,
                         onBack = { navController.popBackStack() },
                         onRouteClick = {
-                            // Устанавливаем станцию для маршрута
-                            com.navrot.aifuelassistant.ui.map.pendingRouteStation = station
-                            // Переходим на вкладку карты, пересоздавая её,
-                            // чтобы LaunchedEffect(Unit) в MapScreen заново
-                            // обработал pendingRouteStation и построил маршрут.
+                            // Передаём станцию через savedStateHandle — безопасно при
+                            // смерти процесса (process death), в отличие от глобальной var.
+                            navController.currentBackStackEntry?.savedStateHandle?.set(
+                                "route_target", station
+                            )
+                            // Переходим на вкладку карты, пересоздавая её.
                             navController.navigate("map") {
                                 popUpTo("map") { inclusive = true }
                                 launchSingleTop = true

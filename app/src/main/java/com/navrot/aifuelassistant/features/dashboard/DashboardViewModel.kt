@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.navrot.aifuelassistant.ai.FuelAnalysisPromptBuilder
 import com.navrot.aifuelassistant.ai.router.AiRouter
 import com.navrot.aifuelassistant.data.FuelRecordRepository
-import com.navrot.aifuelassistant.data.GasStationRepository
+import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
@@ -27,7 +27,7 @@ data class DashboardMetrics(
 class DashboardViewModel @Inject constructor(
     private val fuelRecordRepository: FuelRecordRepository,
     private val vehicleRepository: VehicleRepository,
-    private val gasStationRepository: GasStationRepository,
+    private val gasStationRepository: GasStationRepositoryInterface,
     private val aiRouter: AiRouter,
 ) : ViewModel() {
 

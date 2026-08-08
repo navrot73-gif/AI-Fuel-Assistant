@@ -10,6 +10,7 @@ import com.navrot.aifuelassistant.ai.router.AiRouter
 import com.navrot.aifuelassistant.data.FuelRecordRepository
 import com.navrot.aifuelassistant.data.FuelRecordRepositoryImpl
 import com.navrot.aifuelassistant.data.GasStationRepository
+import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.UserPriceRepository
 import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.data.VehicleRepositoryImpl
@@ -18,7 +19,10 @@ import com.navrot.aifuelassistant.data.database.DatabaseMigrations
 import com.navrot.aifuelassistant.data.database.dao.FuelRecordDao
 import com.navrot.aifuelassistant.data.database.dao.VehicleDao
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
+import com.navrot.aifuelassistant.geo.GeocodingProvider
 import com.navrot.aifuelassistant.geo.NominatimGeocodingProvider
+import com.navrot.aifuelassistant.geo.OpenRouteServiceProvider
+import com.navrot.aifuelassistant.geo.RoutingProvider
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -90,14 +94,28 @@ object AppModule {
         okHttpClient: OkHttpClient,
         userPriceRepository: UserPriceRepository,
         getBestStationsUseCase: GetBestStationsUseCase
-    ): GasStationRepository {
+    ): GasStationRepositoryInterface {
         return GasStationRepository(context, okHttpClient, userPriceRepository, getBestStationsUseCase)
     }
 
     @Provides
     @Singleton
-    fun provideNominatimGeocodingProvider(okHttpClient: OkHttpClient): NominatimGeocodingProvider {
+    fun provideGeocodingProvider(okHttpClient: OkHttpClient): GeocodingProvider {
         return NominatimGeocodingProvider(httpClient = okHttpClient)
+    }
+
+    /**
+     * RoutingProvider может быть null, если ORS_API_KEY не задан.
+     * Оборачиваем в Optional-подобный подход: Hilt注入ит nullable
+     * через @Nullable (kotlinx nullable).
+     */
+    @Provides
+    @Singleton
+    fun provideRoutingProvider(okHttpClient: OkHttpClient): RoutingProvider? {
+        val apiKey = com.navrot.aifuelassistant.BuildConfig.ORS_API_KEY
+        return if (apiKey.isNotBlank()) {
+            OpenRouteServiceProvider(apiKey = apiKey, httpClient = okHttpClient)
+        } else null
     }
 
     @Provides

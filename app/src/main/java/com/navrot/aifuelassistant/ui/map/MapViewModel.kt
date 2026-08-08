@@ -1,39 +1,43 @@
 package com.navrot.aifuelassistant.ui.map
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.navrot.aifuelassistant.BuildConfig
-import com.navrot.aifuelassistant.data.GasStationRepository
+import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.UserPriceRepository
+import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
+import com.navrot.aifuelassistant.geo.GeocodingProvider
 import com.navrot.aifuelassistant.geo.GeoPoint
 import com.navrot.aifuelassistant.geo.GeoUtils
-import com.navrot.aifuelassistant.geo.OpenRouteServiceProvider
 import com.navrot.aifuelassistant.geo.RoutingProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import okhttp3.OkHttpClient
 import javax.inject.Inject
 
 @HiltViewModel
 class MapViewModel @Inject constructor(
-    private val repository: GasStationRepository,
-    private val okHttpClient: OkHttpClient,
-    private val userPriceRepository: UserPriceRepository
+    private val repository: GasStationRepositoryInterface,
+    private val userPriceRepository: UserPriceRepository,
+    private val routingProvider: RoutingProvider?,
+    private val geocodingProvider: GeocodingProvider?,
+    private val getBestStationsUseCase: GetBestStationsUseCase
 ) : ViewModel() {
 
-    private val routingProvider: RoutingProvider? =
-        BuildConfig.ORS_API_KEY
-            .takeIf { it.isNotBlank() }
-            ?.let {
-                OpenRouteServiceProvider(
-                    apiKey = it,
-                    httpClient = okHttpClient
-                )
-            }
+    companion object {
+        private const val TAG = "MapViewModel"
+    }
+
+    /** Данные для AI-рекомендации (лучшая станция + расстояние). */
+    data class AiRecommendation(
+        val station: GasStation,
+        val fuel: FuelPrice,
+        val distanceKm: Double
+    )
 
     private val _stations = MutableStateFlow<List<GasStation>>(emptyList())
     val stations: StateFlow<List<GasStation>> = _stations.asStateFlow()
@@ -65,6 +69,10 @@ class MapViewModel @Inject constructor(
     private val _userLocation = MutableStateFlow<Pair<Double, Double>?>(null)
     val userLocation: StateFlow<Pair<Double, Double>?> = _userLocation.asStateFlow()
 
+    /** AI-рекомендация лучшей станции из текущего списка. */
+    private val _aiRecommendation = MutableStateFlow<AiRecommendation?>(null)
+    val aiRecommendation: StateFlow<AiRecommendation?> = _aiRecommendation.asStateFlow()
+
     data class RouteUiState(
         val points: List<GeoPoint>,
         val distanceText: String,
@@ -87,6 +95,11 @@ class MapViewModel @Inject constructor(
         _userLocation.value = lat to lon
     }
 
+    /** Определить город через Nominatim (с fallback на хардкод). */
+    suspend fun detectCity(lat: Double, lon: Double): String {
+        return GeoUtils.detectCity(lat, lon, geocodingProvider)
+    }
+
     fun loadNearbyStations(lat: Double, lon: Double, radiusKm: Double = 50.0) {
         viewModelScope.launch {
             _isLoading.value = true
@@ -94,6 +107,7 @@ class MapViewModel @Inject constructor(
             try {
                 _stations.value = repository.getNearbyStations(lat, lon, radiusKm)
                 updateBestAndCheapest(lat, lon, radiusKm)
+                updateAiRecommendation(lat, lon)
             } catch (e: Exception) {
                 _error.value = "Ошибка загрузки: ${e.message}"
             } finally {
@@ -121,6 +135,7 @@ class MapViewModel @Inject constructor(
             _isLoading.value = true
             try {
                 _stations.value = repository.searchStations(query)
+                updateAiRecommendation()
             } catch (e: Exception) {
                 _error.value = "Ошибка поиска: ${e.message}"
             } finally {
@@ -138,14 +153,20 @@ class MapViewModel @Inject constructor(
         }
         _selectedFuelTypes.value = current
         viewModelScope.launch {
-            _userLocation.value?.let { (lat, lon) -> updateBestAndCheapest(lat, lon, 50.0) }
+            _userLocation.value?.let { (lat, lon) ->
+                updateBestAndCheapest(lat, lon, 50.0)
+                updateAiRecommendation(lat, lon)
+            } ?: updateAiRecommendation()
         }
     }
 
     fun setFuelType(fuelType: String) {
         _selectedFuelTypes.value = setOf(fuelType)
         viewModelScope.launch {
-            _userLocation.value?.let { (lat, lon) -> updateBestAndCheapest(lat, lon, 50.0) }
+            _userLocation.value?.let { (lat, lon) ->
+                updateBestAndCheapest(lat, lon, 50.0)
+                updateAiRecommendation(lat, lon)
+            } ?: updateAiRecommendation()
         }
     }
 
@@ -180,6 +201,7 @@ class MapViewModel @Inject constructor(
                 _stations.value = updated
                 _userLocation.value?.let { (lat, lon) ->
                     updateBestAndCheapest(lat, lon, 50.0)
+                    updateAiRecommendation(lat, lon)
                 }
             } catch (e: Exception) {
                 _error.value = "Не удалось сохранить цену: ${e.message}"
@@ -209,6 +231,7 @@ class MapViewModel @Inject constructor(
                         _selectedFuelTypes.value.first(), lat, lon, 50.0
                     )
                 }
+                updateAiRecommendation(lat, lon)
             } catch (e: Exception) {
                 _error.value = "Ошибка сортировки: ${e.message}"
             } finally {
@@ -267,7 +290,8 @@ class MapViewModel @Inject constructor(
                     durationText = formatDuration(result.durationSeconds),
                     destination = station.brand
                 )
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to build route via ORS", e)
             } finally {
                 _isRouting.value = false
             }
@@ -291,6 +315,39 @@ class MapViewModel @Inject constructor(
             _cheapestStation.value = repository.getCheapestStation(
                 _selectedFuelTypes.value.first(), lat, lon, radiusKm
             )
+        }
+    }
+
+    /**
+     * Обновляет AI-рекомендацию: находит лучшую станцию по текущим
+     * критериям (цена + очередь * 0.5 - надёжность + расстояние * 1.2).
+     *
+     * Веса совпадают с [GetBestStationsUseCase], плюс добавляется
+     * расстояние с весом 1.2 руб/км для визуальной рекомендации.
+     */
+    private fun updateAiRecommendation(lat: Double? = null, lon: Double? = null) {
+        val stationList = _stations.value
+        val fuelFilter = _selectedFuelTypes.value
+
+        val best = stationList
+            .mapNotNull { st ->
+                val fuel = st.fuelTypes.firstOrNull {
+                    (fuelFilter.isEmpty() || fuelFilter.contains(it.type)) && it.available
+                } ?: return@mapNotNull null
+                val dist = if (lat != null && lon != null) {
+                    GeoUtils.calculateDistance(lat, lon, st.latitude, st.longitude)
+                } else Double.MAX_VALUE
+                Triple(st, fuel, dist)
+            }
+            .minByOrNull { (st, fuel, dist) ->
+                fuel.price
+                        + st.queueTime * GetBestStationsUseCase.QUEUE_WEIGHT
+                        - (100 - st.reliability) * GetBestStationsUseCase.RELIABILITY_WEIGHT
+                        + (if (dist == Double.MAX_VALUE) 0.0 else dist * 1.2)
+            }
+
+        _aiRecommendation.value = best?.let { (st, fuel, dist) ->
+            AiRecommendation(station = st, fuel = fuel, distanceKm = dist)
         }
     }
 
