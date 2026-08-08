@@ -136,11 +136,14 @@ fun AppNavigation() {
                         station = station,
                         onBack = { navController.popBackStack() },
                         onRouteClick = {
-                            // Передаём станцию карте через savedStateHandle вместо глобальной переменной
-                            navController.previousBackStackEntry
-                                ?.savedStateHandle
-                                ?.set("route_target", station)
-                            navController.popBackStack()
+                            // Устанавливаем станцию для маршрута
+                            com.navrot.aifuelassistant.ui.map.pendingRouteStation = station
+                            // Переходим на вкладку карты
+                            navController.navigate("map") {
+                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
                     )
                 } else {
