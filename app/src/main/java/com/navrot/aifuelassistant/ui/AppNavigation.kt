@@ -138,11 +138,11 @@ fun AppNavigation() {
                         onRouteClick = {
                             // Устанавливаем станцию для маршрута
                             com.navrot.aifuelassistant.ui.map.pendingRouteStation = station
-                            // Переходим на вкладку карты
+                            // Переходим на вкладку карты, пересоздавая её
+                            // (чтобы LaunchedEffect(Unit) заново обработал pendingRouteStation)
                             navController.navigate("map") {
-                                popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+                                popUpTo("map") { inclusive = true }
                                 launchSingleTop = true
-                                restoreState = true
                             }
                         }
                     )
