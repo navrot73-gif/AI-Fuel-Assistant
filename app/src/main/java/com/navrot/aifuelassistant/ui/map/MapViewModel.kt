@@ -23,7 +23,7 @@ import javax.inject.Nullable
 class MapViewModel @Inject constructor(
     private val repository: GasStationRepositoryInterface,
     @Nullable private val routingProvider: RoutingProvider?,
-    @Nullable private val geocodingProvider: GeocodingProvider?,
+    private val geocodingProvider: GeocodingProvider,
     private val getBestStationsUseCase: GetBestStationsUseCase
 ) : ViewModel() {
 

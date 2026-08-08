@@ -100,8 +100,6 @@ fun MapScreen(
 
     val fuelTypes = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ", "Газ")
 
-    val filteredStations = if (!openOnly) stations else stations
-
     var userLocation by remember { mutableStateOf<GeoPoint?>(null) }
     var locationStatus by remember { mutableStateOf("Определение местоположения...") }
     var currentCity by remember { mutableStateOf("Рядом с вами") }

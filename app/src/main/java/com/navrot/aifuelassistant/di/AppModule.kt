@@ -30,6 +30,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
+import javax.inject.Nullable
 import javax.inject.Singleton
 
 @Module
@@ -106,9 +107,8 @@ object AppModule {
 
     /**
      * RoutingProvider может быть null, если ORS_API_KEY не задан.
-     * Оборачиваем в Optional-подобный подход: Hilt注入ит nullable
-     * через @Nullable (kotlinx nullable).
      */
+    @Nullable
     @Provides
     @Singleton
     fun provideRoutingProvider(okHttpClient: OkHttpClient): RoutingProvider? {
