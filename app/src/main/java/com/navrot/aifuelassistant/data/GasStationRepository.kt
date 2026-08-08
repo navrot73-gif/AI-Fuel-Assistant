@@ -38,6 +38,9 @@ import javax.inject.Singleton
  */
 @Singleton
 class GasStationRepository constructor(
+    // Оставлен без @Inject — собирается через @Provides в AppModule
+    // (смешивание @ApplicationContext + двух зависимостей без квалификатора).
+
     private val context: Context,
     private val httpClient: OkHttpClient,
     private val userPrices: UserPriceRepository,

@@ -1,50 +1,36 @@
 package com.navrot.aifuelassistant.ui.map
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.navrot.aifuelassistant.BuildConfig
-import android.util.Log
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
-import com.navrot.aifuelassistant.data.UserPriceRepository
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
+import com.navrot.aifuelassistant.geo.GeocodingProvider
 import com.navrot.aifuelassistant.geo.GeoPoint
 import com.navrot.aifuelassistant.geo.GeoUtils
-import com.navrot.aifuelassistant.geo.OpenRouteServiceProvider
 import com.navrot.aifuelassistant.geo.RoutingProvider
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import okhttp3.OkHttpClient
 import javax.inject.Inject
+import javax.inject.Nullable
 
 @HiltViewModel
 class MapViewModel @Inject constructor(
     private val repository: GasStationRepositoryInterface,
-    private val okHttpClient: OkHttpClient,
-    private val userPriceRepository: UserPriceRepository,
+    @Nullable private val routingProvider: RoutingProvider?,
+    @Nullable private val geocodingProvider: GeocodingProvider?,
     private val getBestStationsUseCase: GetBestStationsUseCase
 ) : ViewModel() {
 
     companion object {
         private const val TAG = "MapViewModel"
-
-        /** Штраф за расстояние в AI-рекомендации: 1 км ≈ 1.2 руб. */
         private const val DISTANCE_WEIGHT = 1.2
     }
-
-    private val routingProvider: RoutingProvider? =
-        BuildConfig.ORS_API_KEY
-            .takeIf { it.isNotBlank() }
-            ?.let {
-                OpenRouteServiceProvider(
-                    apiKey = it,
-                    httpClient = okHttpClient
-                )
-            }
 
     private val _stations = MutableStateFlow<List<GasStation>>(emptyList())
     val stations: StateFlow<List<GasStation>> = _stations.asStateFlow()
@@ -76,6 +62,16 @@ class MapViewModel @Inject constructor(
     private val _userLocation = MutableStateFlow<Pair<Double, Double>?>(null)
     val userLocation: StateFlow<Pair<Double, Double>?> = _userLocation.asStateFlow()
 
+    /** AI-рекомендация лучшей станции из текущего списка. */
+    data class AiRecommendation(
+        val station: GasStation,
+        val fuel: FuelPrice,
+        val distanceKm: Double
+    )
+
+    private val _aiRecommendation = MutableStateFlow<AiRecommendation?>(null)
+    val aiRecommendation: StateFlow<AiRecommendation?> = _aiRecommendation.asStateFlow()
+
     data class RouteUiState(
         val points: List<GeoPoint>,
         val distanceText: String,
@@ -90,24 +86,18 @@ class MapViewModel @Inject constructor(
     private val _isRouting = MutableStateFlow(false)
     val isRouting: StateFlow<Boolean> = _isRouting.asStateFlow()
 
-    /** AI-рекомендация: лучшая АЗС с учётом цены, очереди, надёжности и расстояния.
-     *  Вычисляется единым скорингом через [GetBestStationsUseCase] веса + расстояние. */
-    data class AiRecommendation(
-        val station: GasStation,
-        val fuel: FuelPrice,
-        val distanceKm: Double
-    )
-
-    private val _aiRecommendation = MutableStateFlow<AiRecommendation?>(null)
-    val aiRecommendation: StateFlow<AiRecommendation?> = _aiRecommendation.asStateFlow()
-
     enum class SortMode {
         BEST, PRICE_ASC, PRICE_DESC, NEARBY, QUEUE
     }
 
     fun updateUserLocation(lat: Double, lon: Double) {
         _userLocation.value = lat to lon
-        updateAiRecommendation()
+        updateAiRecommendation(lat, lon)
+    }
+
+    /** Определить город через Nominatim (с fallback на хардкод). */
+    suspend fun detectCity(lat: Double, lon: Double): String {
+        return GeoUtils.detectCity(lat, lon, geocodingProvider)
     }
 
     fun loadNearbyStations(lat: Double, lon: Double, radiusKm: Double = 50.0) {
@@ -117,7 +107,7 @@ class MapViewModel @Inject constructor(
             try {
                 _stations.value = repository.getNearbyStations(lat, lon, radiusKm)
                 updateBestAndCheapest(lat, lon, radiusKm)
-                updateAiRecommendation()
+                updateAiRecommendation(lat, lon)
             } catch (e: Exception) {
                 _error.value = "Ошибка загрузки: ${e.message}"
             } finally {
@@ -163,16 +153,20 @@ class MapViewModel @Inject constructor(
         }
         _selectedFuelTypes.value = current
         viewModelScope.launch {
-            _userLocation.value?.let { (lat, lon) -> updateBestAndCheapest(lat, lon, 50.0) }
-            updateAiRecommendation()
+            _userLocation.value?.let { (lat, lon) ->
+                updateBestAndCheapest(lat, lon, 50.0)
+                updateAiRecommendation(lat, lon)
+            } ?: updateAiRecommendation()
         }
     }
 
     fun setFuelType(fuelType: String) {
         _selectedFuelTypes.value = setOf(fuelType)
         viewModelScope.launch {
-            _userLocation.value?.let { (lat, lon) -> updateBestAndCheapest(lat, lon, 50.0) }
-            updateAiRecommendation()
+            _userLocation.value?.let { (lat, lon) ->
+                updateBestAndCheapest(lat, lon, 50.0)
+                updateAiRecommendation(lat, lon)
+            } ?: updateAiRecommendation()
         }
     }
 
@@ -196,10 +190,6 @@ class MapViewModel @Inject constructor(
         return if (brands.isEmpty()) list else list.filter { it.brand in brands }
     }
 
-    /**
-     * Сообщить пользовательскую цену. Цена сохраняется в SharedPreferences
-     * и немедленно применяется к списку станций (переживёт рестарт приложения).
-     */
     fun reportPrice(stationId: Int, fuelType: String, price: Double) {
         viewModelScope.launch {
             try {
@@ -207,8 +197,8 @@ class MapViewModel @Inject constructor(
                 _stations.value = updated
                 _userLocation.value?.let { (lat, lon) ->
                     updateBestAndCheapest(lat, lon, 50.0)
+                    updateAiRecommendation(lat, lon)
                 }
-                updateAiRecommendation()
             } catch (e: Exception) {
                 _error.value = "Не удалось сохранить цену: ${e.message}"
             }
@@ -237,6 +227,7 @@ class MapViewModel @Inject constructor(
                         _selectedFuelTypes.value.first(), lat, lon, 50.0
                     )
                 }
+                updateAiRecommendation(lat, lon)
             } catch (e: Exception) {
                 _error.value = "Ошибка сортировки: ${e.message}"
             } finally {
@@ -323,39 +314,37 @@ class MapViewModel @Inject constructor(
         }
     }
 
-    /** Пересчитывает AI-рекомендацию по текущим станциям, фильтрам и локации.
-     *  Скоринг использует те же веса, что и [GetBestStationsUseCase],
-     *  плюс штраф за расстояние (DISTANCE_WEIGHT руб./км). */
-    private fun updateAiRecommendation() {
-        val stations = _stations.value
-        val fuelTypes = _selectedFuelTypes.value
-        val loc = _userLocation.value
+    /**
+     * Обновляет AI-рекомендацию: находит лучшую станцию по текущим
+     * критериям (цена + очередь * 0.5 - надёжность + расстояние * 1.2).
+     *
+     * Веса совпадают с [GetBestStationsUseCase], плюс добавляется
+     * расстояние с весом 1.2 руб/км для визуальной рекомендации.
+     */
+    private fun updateAiRecommendation(lat: Double? = null, lon: Double? = null) {
+        val stationList = _stations.value
+        val fuelFilter = _selectedFuelTypes.value
 
-        val recommendation = stations
+        val best = stationList
             .mapNotNull { st ->
                 val fuel = st.fuelTypes.firstOrNull {
-                    (fuelTypes.isEmpty() || fuelTypes.contains(it.type)) && it.available
+                    (fuelFilter.isEmpty() || fuelFilter.contains(it.type)) && it.available
                 } ?: return@mapNotNull null
-                val dist = loc?.let {
-                    GeoUtils.calculateDistance(it.first, it.second, st.latitude, st.longitude)
-                } ?: Double.MAX_VALUE
+                val dist = if (lat != null && lon != null) {
+                    GeoUtils.calculateDistance(lat, lon, st.latitude, st.longitude)
+                } else Double.MAX_VALUE
                 Triple(st, fuel, dist)
             }
             .minByOrNull { (st, fuel, dist) ->
-                // Единый скоринг: цена + очередь + расстояние − надёжность.
-                // Веса очереди и надёжности совпадают с GetBestStationsUseCase.
-                val score = getBestStationsUseCase.calculateScore(st, fuel.type)
-                score + if (dist == Double.MAX_VALUE) 0.0 else dist * DISTANCE_WEIGHT
-            }
-            ?.let { (st, fuel, dist) ->
-                AiRecommendation(
-                    station = st,
-                    fuel = fuel,
-                    distanceKm = if (dist == Double.MAX_VALUE) 0.0 else dist
-                )
+                fuel.price
+                        + st.queueTime * GetBestStationsUseCase.QUEUE_WEIGHT
+                        - (100 - st.reliability) * GetBestStationsUseCase.RELIABILITY_WEIGHT
+                        + (if (dist == Double.MAX_VALUE) 0.0 else dist * DISTANCE_WEIGHT)
             }
 
-        _aiRecommendation.value = recommendation
+        _aiRecommendation.value = best?.let { (st, fuel, dist) ->
+            AiRecommendation(station = st, fuel = fuel, distanceKm = dist)
+        }
     }
 
     fun clearError() { _error.value = null }
