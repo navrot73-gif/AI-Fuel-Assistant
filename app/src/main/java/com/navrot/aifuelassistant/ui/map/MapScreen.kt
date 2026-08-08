@@ -490,17 +490,18 @@ fun MapScreen(
                 }
             }
         }
-
-        error?.let { errorMsg ->
-            AlertDialog(
-                onDismissRequest = { viewModel.clearError() },
-                title = { Text("Ошибка") },
-                text = { Text(errorMsg) },
-                confirmButton = {
-                    Button(onClick = { viewModel.clearError() }) {
-                        Text("OK")
-                    }
-                }
-            )
-        }
     }
+
+    error?.let { errorMsg ->
+        AlertDialog(
+            onDismissRequest = { viewModel.clearError() },
+            title = { Text("Ошибка") },
+            text = { Text(errorMsg) },
+            confirmButton = {
+                Button(onClick = { viewModel.clearError() }) {
+                    Text("OK")
+                }
+            }
+        )
+    }
+}
