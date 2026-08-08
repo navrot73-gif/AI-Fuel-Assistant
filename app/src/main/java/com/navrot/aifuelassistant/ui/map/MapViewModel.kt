@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
-import com.navrot.aifuelassistant.data.UserPriceRepository
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
@@ -18,13 +17,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import javax.inject.Nullable
 
 @HiltViewModel
 class MapViewModel @Inject constructor(
     private val repository: GasStationRepositoryInterface,
-    private val userPriceRepository: UserPriceRepository,
-    private val routingProvider: RoutingProvider?,
-    private val geocodingProvider: GeocodingProvider?,
+    @Nullable private val routingProvider: RoutingProvider?,
+    @Nullable private val geocodingProvider: GeocodingProvider?,
     private val getBestStationsUseCase: GetBestStationsUseCase
 ) : ViewModel() {
 
