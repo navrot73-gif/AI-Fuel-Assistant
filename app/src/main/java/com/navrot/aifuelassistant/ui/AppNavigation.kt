@@ -138,8 +138,9 @@ fun AppNavigation() {
                         onRouteClick = {
                             // Устанавливаем станцию для маршрута
                             com.navrot.aifuelassistant.ui.map.pendingRouteStation = station
-                            // Переходим на вкладку карты, пересоздавая её
-                            // (чтобы LaunchedEffect(Unit) заново обработал pendingRouteStation)
+                            // Переходим на вкладку карты, пересоздавая её,
+                            // чтобы LaunchedEffect(Unit) в MapScreen заново
+                            // обработал pendingRouteStation и построил маршрут.
                             navController.navigate("map") {
                                 popUpTo("map") { inclusive = true }
                                 launchSingleTop = true
