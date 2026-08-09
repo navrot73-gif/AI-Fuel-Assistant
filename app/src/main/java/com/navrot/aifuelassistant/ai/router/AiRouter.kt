@@ -26,7 +26,9 @@ class AiRouter(
     }
 
     suspend fun ask(prompt: String): String = coroutineScope {
-        require(providers.isNotEmpty()) { "Нет доступных AI-провайдеров" }
+        if (providers.isEmpty()) {
+            throw IllegalStateException("Нет доступных AI-провайдеров")
+        }
 
         log("AiRouter", "Запускаю ${providers.size} AI-провайдеров параллельно, таймаут ${perProviderTimeoutMs}мс")
         val channel = Channel<Result<String>>(providers.size)
