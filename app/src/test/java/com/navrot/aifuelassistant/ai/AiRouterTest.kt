@@ -20,7 +20,6 @@ class AiRouterTest {
         }
     }
 
-    /** No-op logger — заменяет android.util.Log в unit-тестах */
     private val noOpLogger: (String, String) -> Unit = { _, _ -> }
 
     private fun router(vararg providers: AiProvider, timeoutMs: Long = 5000) =
@@ -30,38 +29,39 @@ class AiRouterTest {
     fun `first successful provider wins`() = runTest {
         val fast = FakeProvider("Fast", Result.success("Ответ от Fast"))
         val slow = FakeProvider("Slow", Result.success("Ответ от Slow"), delayMs = 2000)
-
-        val answer = router(fast, slow).ask("test")
-        assertEquals("Ответ от Fast", answer)
+        assertEquals("Ответ от Fast", router(fast, slow).ask("test"))
     }
 
     @Test
     fun `returns from second provider if first fails`() = runTest {
         val failing = FakeProvider("Failing", Result.failure(RuntimeException("down")))
         val working = FakeProvider("Working", Result.success("Ответ от Working"))
-
-        val answer = router(failing, working).ask("test")
-        assertEquals("Ответ от Working", answer)
+        assertEquals("Ответ от Working", router(failing, working).ask("test"))
     }
 
     @Test(expected = IllegalStateException::class)
     fun `throws when all providers fail`() = runTest {
-        val p1 = FakeProvider("P1", Result.failure(RuntimeException("err1")))
-        val p2 = FakeProvider("P2", Result.failure(RuntimeException("err2")))
-        router(p1, p2).ask("test")
+        router(
+            FakeProvider("P1", Result.failure(RuntimeException("err1"))),
+            FakeProvider("P2", Result.failure(RuntimeException("err2")))
+        ).ask("test")
     }
 
     @Test(expected = IllegalStateException::class)
     fun `throws when all providers timeout`() = runTest {
-        val slow1 = FakeProvider("Slow1", Result.success("never"), delayMs = 10_000)
-        val slow2 = FakeProvider("Slow2", Result.success("never"), delayMs = 10_000)
-        router(slow1, slow2, timeoutMs = 100).ask("test")
+        router(
+            FakeProvider("Slow1", Result.success("never"), delayMs = 10_000),
+            FakeProvider("Slow2", Result.success("never"), delayMs = 10_000),
+            timeoutMs = 100
+        ).ask("test")
     }
 
     @Test
     fun `single provider returns its answer`() = runTest {
-        val provider = FakeProvider("Only", Result.success("Единственный ответ"))
-        assertEquals("Единственный ответ", router(provider).ask("test"))
+        assertEquals(
+            "Единственный ответ",
+            router(FakeProvider("Only", Result.success("Единственный ответ"))).ask("test")
+        )
     }
 
     @Test(expected = IllegalStateException::class)
@@ -70,8 +70,15 @@ class AiRouterTest {
     }
 
     @Test
+    fun `empty answer is skipped in favor of working provider`() = runTest {
+        val empty = FakeProvider("Empty", Result.success("   "))
+        val working = FakeProvider("Working", Result.success("Нормальный ответ"))
+        assertEquals("Нормальный ответ", router(empty, working).ask("test"))
+    }
+
+    @Test
     fun `UnavailableAiProvider always throws`() = runTest {
-        val provider = com.navrot.aifuelassistant.ai.UnavailableAiProvider("Нет провайдеров")
+        val provider = UnavailableAiProvider("Нет провайдеров")
         try {
             provider.ask("test")
             fail("Should have thrown")
