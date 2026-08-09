@@ -50,11 +50,11 @@ class YandexGPTProvider(
             httpClient.newCall(request).execute().use { response ->
                 val responseBody = response.body?.string()
                 if (!response.isSuccessful) {
-                    throw Exception("YandexGPT API error: ${response.code} - ${responseBody ?: "Неизвестная ошибка"}")
+                    throw AiException.ApiError("YandexGPT API error: ${response.code} - ${responseBody ?: "Неизвестная ошибка"}")
                 }
 
                 if (responseBody.isNullOrBlank()) {
-                    throw Exception("YandexGPT response body is empty")
+                    throw AiException.EmptyResponse("YandexGPT response body is empty")
                 }
 
                 val jsonResponse = JSONObject(responseBody)
@@ -66,7 +66,7 @@ class YandexGPTProvider(
                     .getString("text")
             }
         } catch (e: Exception) {
-            throw Exception("Ошибка YandexGPT: ${e.message}", e)
+            throw AiException.NetworkError("YandexGPT error: ${e.message}", e)
         }
     }
 }

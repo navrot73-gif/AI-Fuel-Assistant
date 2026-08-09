@@ -47,11 +47,11 @@ class HuggingFaceAiProvider(
             httpClient.newCall(request).execute().use { response ->
                 val responseBody = response.body?.string()
                 if (!response.isSuccessful) {
-                    throw Exception("HuggingFace API error: ${response.code} - ${responseBody ?: "Неизвестная ошибка"}")
+                    throw AiException.ApiError("HuggingFace API error: ${response.code} - ${responseBody ?: "Неизвестная ошибка"}")
                 }
 
                 if (responseBody.isNullOrBlank()) {
-                    throw Exception("HuggingFace response body is empty")
+                    throw AiException.EmptyResponse("HuggingFace response body is empty")
                 }
 
                 val jsonResponse = JSONObject(responseBody)
@@ -62,7 +62,7 @@ class HuggingFaceAiProvider(
                     .getString("content")
             }
         } catch (e: Exception) {
-            throw Exception("Ошибка HuggingFace: ${e.message}", e)
+            throw AiException.NetworkError("HuggingFace error: ${e.message}", e)
         }
     }
 }

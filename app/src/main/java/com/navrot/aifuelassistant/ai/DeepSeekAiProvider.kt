@@ -47,11 +47,11 @@ class DeepSeekAiProvider(
             httpClient.newCall(request).execute().use { response ->
                 val responseBody = response.body?.string()
                 if (!response.isSuccessful) {
-                    throw Exception("DeepSeek API error: ${response.code} ${responseBody ?: response.message}")
+                    throw AiException.ApiError("DeepSeek API error: ${response.code} ${responseBody ?: response.message}")
                 }
 
                 if (responseBody.isNullOrBlank()) {
-                    throw Exception("DeepSeek response body is empty")
+                    throw AiException.EmptyResponse("DeepSeek response body is empty")
                 }
 
                 val jsonResponse = JSONObject(responseBody)
@@ -62,7 +62,7 @@ class DeepSeekAiProvider(
                     .getString("content")
             }
         } catch (e: Exception) {
-            throw Exception("Ошибка DeepSeek: ${e.message}", e)
+            throw AiException.NetworkError("DeepSeek error: ${e.message}", e)
         }
     }
 }
