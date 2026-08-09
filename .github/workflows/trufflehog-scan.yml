@@ -26,9 +26,11 @@ jobs:
           pip install truffleHog
 
       - name: Run truffleHog
+        shell: bash
         run: |
           # Run scan over full git history and save JSON report
-          trufflehog git --json --max_depth=200 . > trufflehog-report.json || true
+          REPO_PATH="$GITHUB_WORKSPACE"
+          trufflehog git "file://$REPO_PATH" --json --max_depth=200 > trufflehog-report.json || true
 
       - name: Upload report
         uses: actions/upload-artifact@v4
