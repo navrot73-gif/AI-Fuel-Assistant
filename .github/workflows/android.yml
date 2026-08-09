@@ -57,9 +57,9 @@ jobs:
           force-avd-creation: true
           emulator-options: -no-snapshot -no-window -no-audio -no-boot-anim -camera-back none -gpu swiftshader_indirect
           disable-animations: true
-          disable-linux-hw-accel: true
+          disable-linux-hw-accel: false
           cores: 2
-          emulator-boot-timeout: 900
+          emulator-boot-timeout: 600
           script: ./gradlew connectedDebugAndroidTest --stacktrace
 
       - name: Upload lint report
