@@ -52,12 +52,12 @@ jobs:
         with:
           api-level: 35
           target: google_apis
-          arch: x86_64
+          arch: arm64-v8a
           profile: pixel_2
           force-avd-creation: true
           emulator-options: -no-snapshot -no-window -no-audio -no-boot-anim -camera-back none -gpu swiftshader_indirect
           disable-animations: true
-          disable-linux-hw-accel: false
+          disable-linux-hw-accel: true
           cores: 2
           emulator-boot-timeout: 600
           script: ./gradlew connectedDebugAndroidTest --stacktrace
