@@ -25,6 +25,7 @@ import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
+import com.navrot.aifuelassistant.network.RetryInterceptor
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -76,6 +77,7 @@ object AppModule {
         return OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
+            .addInterceptor(RetryInterceptor())
             .build()
     }
 

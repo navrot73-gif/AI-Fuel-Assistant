@@ -64,11 +64,11 @@ class GigaChatAiProvider(
         httpClient.newCall(request).execute().use { response ->
             val body = response.body?.string()
             if (!response.isSuccessful) {
-                throw IllegalStateException("GigaChat request failed: HTTP ${response.code} - ${body.orEmpty()}")
+                throw AiException.ApiError("GigaChat request failed: HTTP ${response.code} - ${body.orEmpty()}")
             }
 
             if (body.isNullOrBlank()) {
-                throw IllegalStateException("GigaChat response body is empty")
+                throw AiException.EmptyResponse("GigaChat response body is empty")
             }
 
             JSONObject(body)
@@ -95,7 +95,7 @@ class GigaChatAiProvider(
             val base64Credentials = Base64.encodeToString(credentials.toByteArray(), Base64.NO_WRAP)
             "Basic $base64Credentials"
         } else {
-            throw IllegalStateException("GigaChat credentials are not configured")
+            throw AiException.AuthError("GigaChat credentials are not configured")
         }
 
         val formBody = FormBody.Builder()
@@ -113,11 +113,11 @@ class GigaChatAiProvider(
         httpClient.newCall(request).execute().use { response ->
             val body = response.body?.string()
             if (!response.isSuccessful) {
-                throw IllegalStateException("GigaChat token request failed: HTTP ${response.code} - ${body.orEmpty()}")
+                throw AiException.ApiError("GigaChat token request failed: HTTP ${response.code} - ${body.orEmpty()}")
             }
 
             if (body.isNullOrBlank()) {
-                throw IllegalStateException("GigaChat token response body is empty")
+                throw AiException.EmptyResponse("GigaChat token response body is empty")
             }
 
             val json = JSONObject(body)
