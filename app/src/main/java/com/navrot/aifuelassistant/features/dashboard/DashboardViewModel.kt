@@ -11,6 +11,7 @@ import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.data.model.GasStation
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -99,7 +100,8 @@ class DashboardViewModel @Inject constructor(
                 _stations.value = gasStationRepository.getAllStations()
                 updateBestStation()
             } catch (_: Exception) {
-                // Если не удалось загрузить — оставляем пустой список
+                _stations.value = emptyList()
+                _bestStation.value = null
             }
         }
     }
@@ -110,7 +112,9 @@ class DashboardViewModel @Inject constructor(
             .filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
             .minByOrNull { s ->
                 val price = s.fuelTypes.find { it.type == fuelType }?.price ?: Double.MAX_VALUE
-                price + s.queueTime * 0.5 - (100 - s.reliability) * 0.2
+                val queuePenalty = s.queueTime.coerceAtLeast(0) * 0.5
+                val reliabilityPenalty = (100 - s.reliability.coerceIn(0, 100)) * 0.2
+                price + queuePenalty + reliabilityPenalty
             }
         _bestStation.value = best
     }
@@ -145,7 +149,6 @@ class DashboardViewModel @Inject constructor(
             }
         }
         val consumption = if (totalKm > 0) (totalLiters / totalKm * 100).toFloat() else 0f
-
         val efficiency = (100f - (consumption - 6f) * 10f).coerceIn(0f, 100f).toInt()
 
         val totalCost = records.sumOf { it.totalCost }
@@ -154,7 +157,6 @@ class DashboardViewModel @Inject constructor(
             (sortedByDate.last().mileage - sortedByDate.first().mileage).coerceAtLeast(0.0)
         } else 0.0
         val rubPerKm = if (totalKmAll > 0) (totalCost / totalKmAll).toFloat() else 0f
-
         val sparkline = computeSparkline(records.sortedByDescending { it.date }.take(14))
 
         return DashboardMetrics(
@@ -168,8 +170,6 @@ class DashboardViewModel @Inject constructor(
 
     private fun computeSparkline(records: List<FuelRecordEntity>): List<Float> {
         if (records.size < 2) return emptyList()
-
-        // От старых к новым — пары «предыдущая → следующая» корректны
         val sorted = records.sortedBy { it.date }
         val result = mutableListOf<Float>()
 
@@ -180,34 +180,26 @@ class DashboardViewModel @Inject constructor(
             val liters = curr.fuelAmount
             if (km > 0 && liters > 0) {
                 val consumption = (liters / km * 100).toFloat()
-                // Отбрасываем аномалии датчика (< 2 или > 50 л/100км)
-                if (consumption in 2f..50f) {
-                    result.add(consumption)
-                }
+                if (consumption in 2f..50f) result.add(consumption)
             }
         }
 
-        // Если ни одной валидной точки — fallback на средний расход
         if (result.isEmpty()) {
             val totalLiters = sorted.sumOf { it.fuelAmount }
-            val totalKm = (sorted.last().mileage - sorted.first().mileage)
-                .coerceAtLeast(0.0)
+            val totalKm = (sorted.last().mileage - sorted.first().mileage).coerceAtLeast(0.0)
             if (totalKm > 0) {
                 val avg = (totalLiters / totalKm * 100).toFloat()
                 result.addAll(List(3) { avg })
             }
         }
-
         return result
     }
 
     fun askAi() {
         if (_isAnalyzing.value) return
-
         viewModelScope.launch {
             _isAnalyzing.value = true
             _error.value = null
-
             try {
                 val vehicleId = _selectedVehicleId.value
                 val records = if (vehicleId != null && vehicleId > 0) {
@@ -216,36 +208,34 @@ class DashboardViewModel @Inject constructor(
                     fuelRecordRepository.getAll().first()
                 }
                 val vehicle = _vehicles.value.firstOrNull { it.id == vehicleId }
-
-                val prompt = FuelAnalysisPromptBuilder.build(
-                    vehicle = vehicle,
-                    records = records
-                )
-
+                val prompt = FuelAnalysisPromptBuilder.build(vehicle = vehicle, records = records)
                 _analysis.value = aiRouter.ask(prompt)
-            } catch (e: Throwable) {
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                 _error.value = e.message ?: "Не удалось получить AI-анализ"
             } finally {
                 _isAnalyzing.value = false
             }
         }
-   }
-        fun setUserQuestion(text: String) {
+    }
+
+    fun setUserQuestion(text: String) {
         _userQuestion.value = text
     }
 
     fun askUserQuestion() {
         val question = _userQuestion.value.trim()
         if (question.isEmpty() || _isAnalyzing.value) return
-
         viewModelScope.launch {
             _isAnalyzing.value = true
             _error.value = null
             _userAnswer.value = null
             try {
-                val answer = aiRouter.ask(question)
-                _userAnswer.value = answer
-            } catch (e: Throwable) {
+                _userAnswer.value = aiRouter.ask(question)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
                 _error.value = e.message ?: "Не удалось получить ответ"
             } finally {
                 _isAnalyzing.value = false
