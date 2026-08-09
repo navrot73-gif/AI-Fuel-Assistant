@@ -3,10 +3,15 @@ package com.navrot.aifuelassistant.ui.map
 import android.content.Context
 import android.graphics.drawable.GradientDrawable
 import android.location.Location
+import android.os.Looper
 import android.widget.Toast
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 
@@ -92,6 +97,26 @@ fun getCurrentLocation(context: Context, onLocation: (Location) -> Unit) {
         fusedLocationClient.lastLocation
             .addOnSuccessListener { location: Location? ->
                 if (location != null) onLocation(location)
+                else requestCurrentLocation(fusedLocationClient, onLocation)
+            }
+            .addOnFailureListener {
+                requestCurrentLocation(fusedLocationClient, onLocation)
             }
     } catch (_: SecurityException) {}
+}
+
+private fun requestCurrentLocation(
+    fusedLocationClient: com.google.android.gms.location.FusedLocationProviderClient,
+    onLocation: (Location) -> Unit
+) {
+    try {
+        val locationRequest = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 10000L).build()
+        val locationCallback = object : LocationCallback() {
+            override fun onLocationResult(result: LocationResult) {
+                result.lastLocation?.let { onLocation(it) }
+                fusedLocationClient.removeLocationUpdates(this)
+            }
+        }
+        fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
+    } catch (e: SecurityException) { }
 }
