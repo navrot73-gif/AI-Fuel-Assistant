@@ -23,10 +23,12 @@ android {
         minSdk = 24
         targetSdk = 34
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
 
+        // Development-only credentials. Release builds must use CI secrets/backend
+        // instead of embedding long-lived provider credentials in the APK.
         buildConfigField("String", "DEEPSEEK_API_KEY", "\"${localProperties.getProperty("DEEPSEEK_API_KEY", "")}\"")
         buildConfigField("String", "HUGGINGFACE_TOKEN", "\"${localProperties.getProperty("HUGGINGFACE_TOKEN", "")}\"")
         buildConfigField("String", "GIGACHAT_CLIENT_ID", "\"${localProperties.getProperty("GIGACHAT_CLIENT_ID", "")}\"")
@@ -74,14 +76,12 @@ kapt {
 }
 
 dependencies {
-    // Core
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
 
-    // Compose
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
@@ -89,35 +89,22 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
-    // Navigation
     implementation(libs.androidx.navigation.compose)
 
-    // Hilt
     implementation(libs.hilt.android)
     kapt(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
-    // Room
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
     kapt(libs.room.compiler)
 
-    // Coroutines
     implementation(libs.kotlinx.coroutines.android)
-
-    // Network
     implementation(libs.okhttp)
-
-    // Location
     implementation(libs.play.services.location)
-
-    // Maps
     implementation(libs.osmdroid)
-
-    // Desugaring
     coreLibraryDesugaring(libs.desugar)
 
-    // Testing
     testImplementation(libs.junit)
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.kotlinx.coroutines.test)
