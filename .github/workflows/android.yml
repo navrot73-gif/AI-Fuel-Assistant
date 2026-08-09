@@ -5,10 +5,14 @@ on:
     branches:
       - main
       - develop
+      - stabilization-v1
   pull_request:
     branches:
       - main
       - develop
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -31,18 +35,10 @@ jobs:
       - name: Make Gradle executable
         run: chmod +x ./gradlew
 
-      - name: Enable KVM group read/write access
-        run: |
-          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm-rules.rules
-          sudo udevadm control --reload-rules
-          sudo udevadm trigger --name-match=kvm
-
       - name: Run lint
-        id: lint
         run: ./gradlew lintDebug --stacktrace
 
       - name: Run unit tests
-        id: test
         run: ./gradlew testDebugUnitTest --stacktrace
 
       - name: Run instrumentation tests
@@ -58,18 +54,10 @@ jobs:
           script: ./gradlew connectedDebugAndroidTest --stacktrace
 
       - name: Build debug APK
-        id: build
-        run: |
-          set -o pipefail
-          ./gradlew assembleDebug --stacktrace --info 2>&1 | tee gradle-build.log
+        run: ./gradlew assembleDebug --stacktrace
 
-      - name: Upload Gradle diagnostic log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: gradle-build-diagnostic
-          path: gradle-build.log
-          if-no-files-found: warn
+      - name: Build release APK
+        run: ./gradlew assembleRelease --stacktrace
 
       - name: Upload lint report
         if: always()
@@ -84,7 +72,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-results
-          path: app/build/reports/tests/
+          path: app/build/test-results/testDebugUnitTest/
           if-no-files-found: warn
 
       - name: Upload instrumentation test results
@@ -92,7 +80,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: instrumentation-test-results
-          path: app/build/reports/androidTests/connected/
+          path: app/build/outputs/androidTest-results/connected/
           if-no-files-found: warn
 
       - name: Upload debug APK
@@ -101,4 +89,12 @@ jobs:
         with:
           name: ai-fuel-assistant-debug-apk
           path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Upload release APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-fuel-assistant-release-unsigned-apk
+          path: app/build/outputs/apk/release/*.apk
           if-no-files-found: error
