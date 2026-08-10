@@ -41,3 +41,8 @@ google-services.json
 
 # Android Profiling
 *.hprof
+
+# Test artifacts
+test-*.txt
+gradle-*.txt
+worker-debug.txt
