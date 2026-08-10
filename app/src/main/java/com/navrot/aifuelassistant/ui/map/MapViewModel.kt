@@ -259,7 +259,7 @@ class MapViewModel @Inject constructor(
     fun buildRouteTo(station: GasStation) {
         val start = _userLocation.value
         if (start == null) {
-            _error.value = "Сначала дождитесь определения местоположения"
+            _error.value = "Определение местоположения... Подождите и попробуйте снова"
             return
         }
 

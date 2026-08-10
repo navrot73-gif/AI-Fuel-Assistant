@@ -141,10 +141,13 @@ fun AppNavigation() {
                             navController.currentBackStackEntry?.savedStateHandle?.set(
                                 "route_target", station
                             )
-                            // Переходим на вкладку карты, пересоздавая её.
+                            // Переходим на вкладку карты, сохраняя её состояние.
                             navController.navigate("map") {
-                                popUpTo("map") { inclusive = true }
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
                                 launchSingleTop = true
+                                restoreState = true
                             }
                         }
                     )
