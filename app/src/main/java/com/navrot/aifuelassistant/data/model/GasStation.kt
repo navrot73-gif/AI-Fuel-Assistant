@@ -18,6 +18,6 @@ data class GasStation(
     val updatedAt: Long = 0L,
     val confidence: Int = 0,
     val photoEvidence: List<PhotoEvidence> = emptyList(),
-    val monumentPhotoUrl: String = "",
-    val entrancePhotoUrl: String = ""
+    val monumentPhotoUrl: String? = null,
+    val entrancePhotoUrl: String? = null
 ) : Parcelable

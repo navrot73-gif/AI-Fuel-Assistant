@@ -277,8 +277,8 @@ class GasStationRepository constructor(
             fuelTypes = fuelTypes,
             queueTime = json.getInt("queueTime"),
             reliability = json.getInt("reliability"),
-            monumentPhotoUrl = json.optString("monumentPhotoUrl", null),
-            entrancePhotoUrl = json.optString("entrancePhotoUrl", null)
+            monumentPhotoUrl = if (json.has("monumentPhotoUrl")) json.getString("monumentPhotoUrl") else null,
+            entrancePhotoUrl = if (json.has("entrancePhotoUrl")) json.getString("entrancePhotoUrl") else null
         )
     }
 }
