@@ -79,4 +79,39 @@ class AiRouterTest {
             assertTrue(e.message?.contains("not configured") == true)
         }
     }
+
+    @Test
+    fun `race: first successful provider wins over failing one`() = runTest {
+        val fast = FakeProvider("Fast", Result.success("Быстрый ответ"), delayMs = 2000)
+        val failing = FakeProvider("Failing", Result.failure(RuntimeException("ошибка")), delayMs = 0)
+
+        val answer = router(fast, failing).ask("test")
+        assertEquals("Быстрый ответ", answer)
+    }
+
+    @Test
+    fun `all providers fail - returns error`() = runTest {
+        val p1 = FakeProvider("P1", Result.failure(RuntimeException("error1")))
+        val p2 = FakeProvider("P2", Result.failure(RuntimeException("error2")))
+        
+        try {
+            router(p1, p2).ask("test")
+            fail("Should have thrown")
+        } catch (e: IllegalStateException) {
+            assertTrue(e.message?.contains("Все AI провайдеры недоступны") == true)
+        }
+    }
+
+    @Test
+    fun `timeout stops the race after 8 seconds`() = runTest {
+        val slow1 = FakeProvider("Slow1", Result.success("never"), delayMs = 9000)
+        val slow2 = FakeProvider("Slow2", Result.success("never"), delayMs = 9000)
+        
+        try {
+            router(slow1, slow2, timeoutMs = 8000).ask("test")
+            fail("Should have thrown")
+        } catch (e: IllegalStateException) {
+            assertTrue(e.message?.contains("Все AI провайдеры недоступны") == true)
+        }
+    }
 }
