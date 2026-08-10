@@ -136,19 +136,16 @@ fun AppNavigation() {
                         station = station,
                         onBack = { navController.popBackStack() },
                         onRouteClick = {
-                            // Передаём станцию через savedStateHandle — безопасно при
-                            // смерти процесса (process death), в отличие от глобальной var.
-                            navController.currentBackStackEntry?.savedStateHandle?.set(
+                            // Сохраняем route_target в savedStateHandle карты
+                            // (previousBackStackEntry = map, она уже в backstack и жива).
+                            // Так state переживает навигацию, в отличие от сохранения
+                            // в собственном entry station_detail, который будет уничтожен.
+                            navController.previousBackStackEntry?.savedStateHandle?.set(
                                 "route_target", station
                             )
-                            // Переходим на вкладку карты, сохраняя её состояние.
-                            navController.navigate("map") {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
+                            // Просто возвращаемся — map уже в backstack и отреагирует
+                            // на route_target через LaunchedEffect в MapScreen.
+                            navController.popBackStack()
                         }
                     )
                 } else {
