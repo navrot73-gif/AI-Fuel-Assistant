@@ -276,7 +276,9 @@ class GasStationRepository constructor(
             longitude = json.getDouble("longitude"),
             fuelTypes = fuelTypes,
             queueTime = json.getInt("queueTime"),
-            reliability = json.getInt("reliability")
+            reliability = json.getInt("reliability"),
+            monumentPhotoUrl = json.optString("monumentPhotoUrl", null),
+            entrancePhotoUrl = json.optString("entrancePhotoUrl", null)
         )
     }
 }

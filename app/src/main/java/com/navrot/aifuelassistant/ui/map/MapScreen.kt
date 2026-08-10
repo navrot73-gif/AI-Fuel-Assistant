@@ -68,6 +68,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.geo.GeoUtils
+import com.navrot.aifuelassistant.location.LocationSmoother
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -162,7 +164,8 @@ fun MapScreen(
                     permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false) -> {
                 locationStatus = "Получение координат..."
                 getCurrentLocation(context) { location ->
-                    onLocationReady(GeoPoint(location.latitude, location.longitude))
+                    val (smoothLat, smoothLon) = LocationSmoother.smooth(location.latitude, location.longitude)
+                    onLocationReady(GeoPoint(smoothLat, smoothLon))
                 }
             }
             else -> {
@@ -176,12 +179,14 @@ fun MapScreen(
         when {
             context.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED -> {
                 getCurrentLocation(context) { location ->
-                    onLocationReady(GeoPoint(location.latitude, location.longitude))
+                    val (smoothLat, smoothLon) = LocationSmoother.smooth(location.latitude, location.longitude)
+                    onLocationReady(GeoPoint(smoothLat, smoothLon))
                 }
             }
             context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED -> {
                 getCurrentLocation(context) { location ->
-                    onLocationReady(GeoPoint(location.latitude, location.longitude))
+                    val (smoothLat, smoothLon) = LocationSmoother.smooth(location.latitude, location.longitude)
+                    onLocationReady(GeoPoint(smoothLat, smoothLon))
                 }
             }
             else -> {

@@ -90,24 +90,66 @@ fun StationDetailCard(
                 }
             }
 
-            // ===== Стелла АЗС (Visual Fuel Navigation) =====
-            if (station.monumentPhotoUrl.isNotBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    "📷 Стелла",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                NetworkImage(
-                    url = station.monumentPhotoUrl,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(140.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                )
-                Spacer(modifier = Modifier.height(8.dp))
+            // ===== Photos Display =====
+            Column {
+                // Monument Photo
+                if (station.monumentPhotoUrl != null) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "📷 Стелла",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    if (station.monumentPhotoUrl.isNotBlank()) {
+                        NetworkImage(
+                            url = station.monumentPhotoUrl,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = "Monument Placeholder",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                // Entrance Photo
+                if (station.entrancePhotoUrl != null) {
+                    Text(
+                        "🚪 Вход",
+                        fontSize = 11.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    if (station.entrancePhotoUrl.isNotBlank()) {
+                        NetworkImage(
+                            url = station.entrancePhotoUrl,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.LocationOn,
+                            contentDescription = "Entrance Placeholder",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(140.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
