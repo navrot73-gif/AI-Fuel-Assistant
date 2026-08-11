@@ -46,3 +46,5 @@ google-services.json
 test-*.txt
 gradle-*.txt
 worker-debug.txt
+# Kotlin 2.0 compiler cache
+.kotlin/
