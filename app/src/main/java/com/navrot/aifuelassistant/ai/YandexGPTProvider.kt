@@ -21,6 +21,7 @@ class YandexGPTProvider(
 
     override suspend fun ask(prompt: String): String = withContext(Dispatchers.IO) {
         try {
+            val sanitizedApiKey = apiKey.filter { it.code in 33..126 }
             val jsonBody = JSONObject().apply {
                 // Правильный формат modelUri для YandexGPT: gpt://<folder-id>/yandexgpt/latest
                 put("modelUri", "gpt://$folderId/yandexgpt/latest")
@@ -42,7 +43,7 @@ class YandexGPTProvider(
 
             val request = Request.Builder()
                 .url(apiUrl)
-                .addHeader("Authorization", "Api-Key $apiKey")
+                .addHeader("Authorization", "Api-Key $sanitizedApiKey")
                 .addHeader("Content-Type", "application/json")
                 .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
                 .build()

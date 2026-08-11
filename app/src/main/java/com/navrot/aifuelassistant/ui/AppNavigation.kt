@@ -136,15 +136,11 @@ fun AppNavigation() {
                         station = station,
                         onBack = { navController.popBackStack() },
                         onRouteClick = {
-                            // Сохраняем route_target в savedStateHandle карты
-                            // (previousBackStackEntry = map, она уже в backstack и жива).
-                            // Так state переживает навигацию, в отличие от сохранения
-                            // в собственном entry station_detail, который будет уничтожен.
+                            // Store route_target in MAP's savedStateHandle (it survives navigation)
                             navController.previousBackStackEntry?.savedStateHandle?.set(
                                 "route_target", station
                             )
-                            // Просто возвращаемся — map уже в backstack и отреагирует
-                            // на route_target через LaunchedEffect в MapScreen.
+                            // Map is already in backstack — just go back to it
                             navController.popBackStack()
                         }
                     )
