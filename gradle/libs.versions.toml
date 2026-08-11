@@ -1,12 +1,12 @@
 [versions]
-agp = "8.4.0"
-kotlin = "1.9.22"
+agp = "8.5.2"
+kotlin = "2.0.21"
 hilt = "2.50"
 room = "2.6.1"
 coreKtx = "1.12.0"
 lifecycle = "2.7.0"
 activityCompose = "1.8.2"
-composeBom = "2024.02.00"
+composeBom = "2024.06.00"
 composeUi = "1.6.1"
 composeMaterial3 = "1.2.0"
 navigationCompose = "2.7.7"
@@ -16,6 +16,7 @@ okhttp = "4.12.0"
 playServicesLocation = "21.0.1"
 osmdroid = "6.1.17"
 desugar = "2.0.4"
+coil = "2.7.0"
 junit = "4.13.2"
 junitExt = "1.1.5"
 espresso = "3.5.1"
@@ -60,6 +61,9 @@ play-services-location = { group = "com.google.android.gms", name = "play-servic
 osmdroid = { group = "org.osmdroid", name = "osmdroid-android", version.ref = "osmdroid" }
 desugar = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref = "desugar" }
 
+# Image loading
+coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitExt" }
@@ -75,4 +79,5 @@ android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
