@@ -128,6 +128,13 @@ fun MapScreen(
         }
     }
 
+    LaunchedEffect(searchQuery) {
+        if (searchQuery.length >= 2) {
+            delay(300)
+            viewModel.searchStations(searchQuery)
+        }
+    }
+
     val buildRouteAndClose: (GasStation) -> Unit = { st ->
         userLocation?.let { loc ->
             viewModel.updateUserLocation(loc.latitude, loc.longitude)
@@ -246,11 +253,9 @@ fun MapScreen(
             AnimatedVisibility(visible = showSearch) {
                 OutlinedTextField(
                     value = searchQuery,
-                    onValueChange = {
-                        searchQuery = it
-                        if (it.length >= 2) {
-                            viewModel.searchStations(it)
-                        } else if (it.isEmpty()) {
+                    onValueChange = { newValue ->
+                        searchQuery = newValue
+                        if (newValue.isEmpty()) {
                             userLocation?.let { loc ->
                                 viewModel.loadNearbyStations(loc.latitude, loc.longitude, 50.0)
                             }
