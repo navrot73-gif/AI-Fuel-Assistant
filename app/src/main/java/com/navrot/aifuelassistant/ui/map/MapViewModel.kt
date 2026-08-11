@@ -321,7 +321,7 @@ class MapViewModel @Inject constructor(
 
     /**
      * Обновляет AI-рекомендацию: находит лучшую станцию по текущим
-     * критериям (цена + очередь * 0.5 - надёжность + расстояние * 1.2).
+     * критериям (цена + очередь * 0.5 + штраф за ненадёжность + расстояние * 1.2).
      *
      * Веса совпадают с [GetBestStationsUseCase], плюс добавляется
      * расстояние с весом 1.2 руб/км для визуальной рекомендации.
@@ -343,7 +343,7 @@ class MapViewModel @Inject constructor(
             .minByOrNull { (st, fuel, dist) ->
                 fuel.price
                         + st.queueTime * GetBestStationsUseCase.QUEUE_WEIGHT
-                        - (100 - st.reliability) * GetBestStationsUseCase.RELIABILITY_WEIGHT
+                        + (100 - st.reliability) * GetBestStationsUseCase.RELIABILITY_WEIGHT
                         + (if (dist == Double.MAX_VALUE) 0.0 else dist * DISTANCE_WEIGHT)
             }
 
