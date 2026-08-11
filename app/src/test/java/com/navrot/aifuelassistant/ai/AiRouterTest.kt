@@ -81,7 +81,7 @@ class AiRouterTest {
     }
 
     @Test
-    fun `race: first successful provider wins over failing one`() = runTest {
+    fun `race - first successful provider wins over failing one`() = runTest {
         val fast = FakeProvider("Fast", Result.success("Быстрый ответ"), delayMs = 2000)
         val failing = FakeProvider("Failing", Result.failure(RuntimeException("ошибка")), delayMs = 0)
 
