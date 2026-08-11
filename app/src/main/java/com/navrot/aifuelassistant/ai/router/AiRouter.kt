@@ -68,6 +68,7 @@ class AiRouter(
                     logError("AiRouter", "⏱ $name не уложился в ${perProviderTimeoutMs}мс")
                     channel.send(Result.failure(e))
                 } catch (e: Exception) {
+                    if (e is CancellationException) throw e
                     logError("AiRouter", "❌ $name упал: ${e.message}", e)
                     channel.send(Result.failure(e))
                 }
