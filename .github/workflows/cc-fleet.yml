@@ -144,14 +144,23 @@ jobs:
                       pass
               return "".join(blocks)
 
-          def compile_project():
+          def verify_project():
+              """Компиляция + юнит-тесты. Возвращает (ok: bool, output: str)."""
               subprocess.run(["chmod", "+x", "./gradlew"], check=False)
               print("🔨 Компиляция :app:compileDebugKotlin ...")
-              p = subprocess.run(
+              p1 = subprocess.run(
                   ["./gradlew", ":app:compileDebugKotlin", "--console=plain"],
                   capture_output=True, text=True)
-              out = (p.stdout or "") + (p.stderr or "")
-              return p.returncode, out
+              out1 = (p1.stdout or "") + (p1.stderr or "")
+              if p1.returncode != 0:
+                  return False, out1
+
+              print("🧪 Юнит-тесты :app:testDebugUnitTest ...")
+              p2 = subprocess.run(
+                  ["./gradlew", ":app:testDebugUnitTest", "--console=plain"],
+                  capture_output=True, text=True)
+              out2 = (p2.stdout or "") + (p2.stderr or "")
+              return p2.returncode == 0, out1 + "\n" + out2
 
           def extract_errors(out):
               lines = [l for l in out.splitlines() if l.strip().startswith("e:")]
@@ -279,51 +288,53 @@ jobs:
                       f.write("fail")
                   sys.exit(0)
 
-              rc, out = compile_project()
+              MAX_ATTEMPTS = 3  # сколько раз агент пробует довести до зелёного
 
-              if rc != 0:
+              ok, out = verify_project()
+              attempt = 1
+              while not ok and attempt < MAX_ATTEMPTS:
+                  attempt += 1
                   errors = extract_errors(out)
-                  print("❌ Компиляция упала. Ошибки:\n" + errors)
-                  print("Отправляю запрос №2 (авто-починка) ...")
+                  print(f"❌ Красный статус (попытка {attempt - 1}). Ошибки:\n{errors}")
+                  print(f"Отправляю запрос №{attempt} (авто-починка) ...")
 
-                  repair_prompt = f"""Ты — AI-агент для Android-проекта. Твои предыдущие правки СЛОМАЛИ компиляцию.
+                  repair_prompt = f"""Ты — AI-агент для Android-проекта. Твои предыдущие правки СЛОМАЛИ компиляцию или юнит-тесты.
 
           ТЕКУЩЕЕ содержимое изменённых файлов:
           {read_files(touched)}
 
-          ОШИБКИ КОМПИЛЯТОРА:
+          ОШИБКИ:
           {errors}
 
           Задача (та же): {task}
 
-          Исправь ТОЛЬКО эти ошибки компиляции в формате search/replace.
+          Исправь ТОЛЬКО эти ошибки в формате search/replace.
           Не меняй ничего, что не относится к ошибкам. {format_rules}"""
 
                   try:
-                      content2 = call_model(url, headers, model, repair_prompt)
+                      content_n = call_model(url, headers, model, repair_prompt)
                   except Exception as e:
-                      print(f"Ошибка запроса №2: {e}")
-                      with open("compile_status.txt", "w") as f:
-                          f.write("fail")
-                      sys.exit(0)
+                      print(f"Ошибка запроса №{attempt}: {e}")
+                      break
 
-                  changes2 = extract_json(content2)
-                  if changes2:
-                      applied2, touched2 = apply_changes(changes2)
-                      print(f"Починка: применено правок {applied2}")
-                      touched = list(set(touched + touched2))
-                  else:
+                  changes_n = extract_json(content_n)
+                  if not changes_n:
                       print("Авто-починка не вернула JSON")
+                      break
 
-                  rc2, out2 = compile_project()
-                  if rc2 != 0:
-                      print("❌ Компиляция всё ещё падает. PR НЕ создаётся.")
-                      print(extract_errors(out2))
-                      with open("compile_status.txt", "w") as f:
-                          f.write("fail")
-                      sys.exit(0)
+                  applied_n, touched_n = apply_changes(changes_n)
+                  print(f"Починка: применено правок {applied_n}")
+                  touched = list(set(touched + touched_n))
+                  ok, out = verify_project()
 
-              print("✅ Компиляция успешна — можно создавать PR")
+              if not ok:
+                  print(f"❌ Не удалось довести до зелёного за {MAX_ATTEMPTS} попыток. PR НЕ создаётся.")
+                  print(extract_errors(out))
+                  with open("compile_status.txt", "w") as f:
+                      f.write("fail")
+                  sys.exit(0)
+
+              print("✅ Компиляция и юнит-тесты успешны — можно создавать PR")
               with open("compile_status.txt", "w") as f:
                   f.write("ok")
 
