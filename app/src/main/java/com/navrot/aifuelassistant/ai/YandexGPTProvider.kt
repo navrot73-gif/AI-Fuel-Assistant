@@ -16,12 +16,11 @@ class YandexGPTProvider(
     private val httpClient: OkHttpClient = OkHttpClient()
 ) : AiProvider {
 
-    override val id: String = "yandexgpt"
     override val name: String = "YandexGPT"
 
     private val apiUrl = "https://llm.api.cloud.yandex.net/foundationModels/v1/completion"
 
-    override suspend fun ask(prompt: String, systemPrompt: String): String = withContext(Dispatchers.IO) {
+    override suspend fun ask(prompt: String): String = withContext(Dispatchers.IO) {
         val key = apiKey.trim()
         val folder = folderId.trim()
 
@@ -38,19 +37,17 @@ class YandexGPTProvider(
 
         try {
             val jsonBody = JSONObject().apply {
-                put("modelUri", "gpt://$folder/yandexgpt/latest")
+                put("modelUri", "gpt://$folder/yandexgpt-lite/latest")
                 put("completionOptions", JSONObject().apply {
                     put("stream", false)
                     put("maxTokens", 2000)
                     put("temperature", 0.6)
                 })
                 put("messages", JSONArray().apply {
-                    if (systemPrompt.isNotBlank()) {
-                        put(JSONObject().apply {
-                            put("role", "system")
-                            put("text", systemPrompt)
-                        })
-                    }
+                    put(JSONObject().apply {
+                        put("role", "system")
+                        put("text", AiProvider.SYSTEM_PROMPT)
+                    })
                     put(JSONObject().apply {
                         put("role", "user")
                         put("text", prompt)
