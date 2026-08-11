@@ -33,7 +33,12 @@ object AiRouterFactory {
             null
         }
 
-        // 4. YandexGPT (Яндекс)
+        // 4. Qwen (Alibaba Cloud DashScope)
+        val qwenProvider = BuildConfig.QWEN_API_KEY
+            .takeIf { it.isNotBlank() }
+            ?.let { QwenAiProvider(httpClient = okHttpClient) }
+
+        // 5. YandexGPT (Яндекс)
         val yandexProvider = BuildConfig.YANDEX_API_KEY
             .takeIf { it.isNotBlank() }
             ?.let { apiKey ->
@@ -52,6 +57,7 @@ object AiRouterFactory {
             deepSeekProvider,
             huggingFaceProvider,
             gigaChatProvider,
+            qwenProvider,
             yandexProvider
         )
 

@@ -6,6 +6,9 @@
 # DeepSeek — https://platform.deepseek.com/api_keys
 DEEPSEEK_API_KEY=your_deepseek_api_key_here
 
+# Qwen (Alibaba Cloud DashScope) — https://dashscope.console.aliyun.com/
+QWEN_API_KEY=your_qwen_api_key_here
+
 # HuggingFace — https://huggingface.co/settings/tokens
 HUGGINGFACE_TOKEN=your_huggingface_token_here
 

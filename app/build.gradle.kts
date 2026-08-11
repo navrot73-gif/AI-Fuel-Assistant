@@ -28,6 +28,7 @@ android {
         vectorDrawables { useSupportLibrary = true }
 
         buildConfigField("String", "DEEPSEEK_API_KEY", "\"${localProperties.getProperty("DEEPSEEK_API_KEY", "")}\"")
+        buildConfigField("String", "QWEN_API_KEY", "\"${localProperties.getProperty("QWEN_API_KEY", "")}\"")
         buildConfigField("String", "HUGGINGFACE_TOKEN", "\"${localProperties.getProperty("HUGGINGFACE_TOKEN", "")}\"")
         buildConfigField("String", "GIGACHAT_CLIENT_ID", "\"${localProperties.getProperty("GIGACHAT_CLIENT_ID", "")}\"")
         buildConfigField("String", "GIGACHAT_CLIENT_SECRET", "\"${localProperties.getProperty("GIGACHAT_CLIENT_SECRET", "")}\"")
