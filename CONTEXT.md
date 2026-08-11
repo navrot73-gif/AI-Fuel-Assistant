@@ -18,15 +18,31 @@ Android-приложение для управления топливом (Kotli
 ```kotlin
 // Газовая станция
 data class GasStation(
-    val id: Long,
+    val id: Int,
     val name: String,
     val brand: String,
     val address: String,
     val latitude: Double,
     val longitude: Double,
-    val fuelTypes: List<FuelType>,  // НЕ fuelPrices!
+    val fuelTypes: List<FuelPrice>,   // НЕ FuelType!
     val queueTime: Int,
-    val reliability: Int
+    val reliability: Int,
+    val dataSources: Set<FuelDataSource> = emptySet(),
+    val updatedAt: Long = 0L,
+    val confidence: Int = 0,
+    val photoEvidence: List<PhotoEvidence> = emptyList(),
+    val monumentPhotoUrl: String? = null,
+    val entrancePhotoUrl: String? = null
+)
+
+data class FuelPrice(
+    val type: String,
+    val price: Double,
+    val available: Boolean,
+    val source: FuelDataSource = FuelDataSource.DEMO,
+    val updatedAt: Long = 0L,
+    val confidence: Int = 0,
+    val photoEvidence: PhotoEvidence? = null
 )
 
 // Автомобиль
