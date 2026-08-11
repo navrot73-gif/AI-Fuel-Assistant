@@ -12,10 +12,8 @@ object AiRouterFactory {
             .takeIf { it.isNotBlank() }
             ?.let { DeepSeekAiProvider(httpClient = okHttpClient) }
 
-        // 2. HuggingFace (Qwen 2.5)
-        val huggingFaceProvider = BuildConfig.HUGGINGFACE_TOKEN
-            .takeIf { it.isNotBlank() }
-            ?.let { HuggingFaceAiProvider(httpClient = okHttpClient) }
+        // 2. HuggingFace (Qwen 2.5) - Disabled 2026-08-11: 402 credits depleted, re-enable next month
+        val huggingFaceProvider = null
 
         // 3. GigaChat (Сбер) - поддерживает оба варианта
         val gigaChatProvider = if (BuildConfig.GIGACHAT_AUTHORIZATION_KEY.isNotBlank()) {
