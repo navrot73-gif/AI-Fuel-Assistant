@@ -9,6 +9,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.navrot.aifuelassistant.data.model.GasStation
@@ -29,11 +30,18 @@ fun BoxScope.StationDetailOverlay(
     onClearRoute: () -> Unit,
     onReportPrice: (stationId: Int, fuelType: String, price: Double) -> Unit
 ) {
+    val enterAnimation = remember {
+        fadeIn() + slideInVertically(initialOffsetY = { it })
+    }
+    val exitAnimation = remember {
+        fadeOut() + slideOutVertically(targetOffsetY = { it })
+    }
+    
     AnimatedVisibility(
         visible = station != null,
         modifier = Modifier.align(Alignment.BottomCenter).fillMaxSize(),
-        enter = fadeIn() + slideInVertically(initialOffsetY = { it }),
-        exit = fadeOut() + slideOutVertically(targetOffsetY = { it })
+        enter = enterAnimation,
+        exit = exitAnimation
     ) {
         station?.let { st ->
             StationDetailCard(
