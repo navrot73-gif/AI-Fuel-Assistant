@@ -43,9 +43,9 @@ class FuelRecordViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val count = backupManager.exportToUri(uri)
-                _backupMessage.value = "✅ Экспортировано заправок: $count"
+                _backupMessage.value = "Экспортировано $count"
             } catch (e: Exception) {
-                _backupMessage.value = "❌ Ошибка экспорта: ${e.message}"
+                _backupMessage.value = "Ошибка экспорта: ${e.message}"
             }
         }
     }
@@ -54,10 +54,10 @@ class FuelRecordViewModel @Inject constructor(
     fun importBackup(uri: Uri) {
         viewModelScope.launch {
             try {
-                val count = backupManager.importFromUri(uri)
-                _backupMessage.value = "✅ Импортировано заправок: $count"
+                val result = backupManager.importFromUri(uri)
+                _backupMessage.value = "Импортировано ${result.imported}, пропущено ${result.skipped}"
             } catch (e: Exception) {
-                _backupMessage.value = "❌ Ошибка импорта: ${e.message}"
+                _backupMessage.value = "Ошибка импорта: ${e.message}"
             }
         }
     }

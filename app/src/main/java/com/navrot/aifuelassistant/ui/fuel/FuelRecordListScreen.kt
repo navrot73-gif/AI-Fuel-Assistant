@@ -18,10 +18,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -44,7 +46,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
@@ -65,6 +66,8 @@ fun FuelRecordListScreen(
     val records by viewModel.records.collectAsStateWithLifecycle()
     val backupMessage by viewModel.backupMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    var menuExpanded by remember { mutableStateOf(false) }
 
     // Системный диалог СОХРАНЕНИЯ файла (без разрешений на память)
     val exportLauncher = rememberLauncherForActivityResult(
@@ -102,15 +105,29 @@ fun FuelRecordListScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        exportLauncher.launch("aifuel_backup_${vehicleName}.csv")
-                    }) {
-                        Text("📤", fontSize = 20.sp)
-                    }
-                    IconButton(onClick = {
-                        importLauncher.launch(arrayOf("*/*"))
-                    }) {
-                        Text("📥", fontSize = 20.sp)
+                    Box {
+                        IconButton(onClick = { menuExpanded = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "Меню")
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Экспорт в CSV") },
+                                onClick = {
+                                    menuExpanded = false
+                                    exportLauncher.launch("aifuel_backup_${vehicleName}.csv")
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Импорт из CSV") },
+                                onClick = {
+                                    menuExpanded = false
+                                    importLauncher.launch(arrayOf("*/*"))
+                                }
+                            )
+                        }
                     }
                     IconButton(onClick = onMapClick) {
                         Icon(Icons.Default.LocationOn, contentDescription = "Карта")

@@ -26,6 +26,8 @@ import javax.inject.Singleton
  *   # FILLS
  *   id;vehicleId;date;mileage;fuelAmount;totalCost;fuelType;stationName
  */
+data class CsvImportResult(val imported: Int, val skipped: Int)
+
 @Singleton
 class CsvBackupManager @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -58,9 +60,10 @@ class CsvBackupManager @Inject constructor(
         fills.size
     }
 
-    suspend fun importFromUri(uri: Uri): Int = withContext(Dispatchers.IO) {
+    suspend fun importFromUri(uri: Uri): CsvImportResult = withContext(Dispatchers.IO) {
         var section = ""
         var importedFills = 0
+        var skipped = 0
 
         val lines = context.contentResolver.openInputStream(uri)?.use { input ->
             BufferedReader(InputStreamReader(input, Charsets.UTF_8)).readLines()
@@ -73,14 +76,20 @@ class CsvBackupManager @Inject constructor(
                 line.startsWith("# VEHICLES") -> section = "V"
                 line.startsWith("# FILLS") -> section = "F"
                 line.startsWith("#") -> { }
-                section == "V" -> parseVehicle(line)?.let { vehicleRepository.insertVehicle(it) }
-                section == "F" -> parseFill(line)?.let {
-                    fuelRecordRepository.insert(it)
-                    importedFills++
+                section == "V" -> {
+                    val v = parseVehicle(line)
+                    if (v == null) skipped++ else vehicleRepository.insertVehicle(v)
+                }
+                section == "F" -> {
+                    val f = parseFill(line)
+                    if (f == null) skipped++ else {
+                        fuelRecordRepository.insert(f)
+                        importedFills++
+                    }
                 }
             }
         }
-        importedFills
+        CsvImportResult(importedFills, skipped)
     }
 
     private fun parseVehicle(line: String): VehicleEntity? = try {
