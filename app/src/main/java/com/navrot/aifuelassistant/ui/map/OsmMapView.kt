@@ -2,11 +2,13 @@ package com.navrot.aifuelassistant.ui.map
 
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
+import android.preference.PreferenceManager
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.navrot.aifuelassistant.data.model.GasStation
@@ -35,11 +37,15 @@ fun OsmMapView(
 
     AndroidView(
         factory = { ctx ->
-            Configuration.getInstance().load(ctx, ctx.getSharedPreferences("osmdroid", 0))
-            Configuration.getInstance().osmdroidBasePath = File(ctx.cacheDir, "osmdroid")
-            Configuration.getInstance().osmdroidTileCache = File(ctx.cacheDir, "osmdroid/tiles")
+            val config = Configuration.getInstance()
+            config.load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx))
+            config.osmdroidBasePath = File(ctx.cacheDir, "osmdroid")
+            config.osmdroidTileCache = File(ctx.cacheDir, "osmdroid/tiles")
+            config.tileFileSystemCacheMaxBytes = 512 * 1024 * 1024L
+            config.userAgentValue = ctx.packageName
 
             MapView(ctx).apply {
+                setBackgroundColor(android.graphics.Color.parseColor("#1A1A1A"))
                 setTileSource(darkTileSource())
                 setMultiTouchControls(true)
                 // Ночной тёмно-синий тон в стиле Google Maps:
