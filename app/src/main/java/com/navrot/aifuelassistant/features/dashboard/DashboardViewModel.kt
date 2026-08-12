@@ -110,7 +110,7 @@ class DashboardViewModel @Inject constructor(
             .filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
             .minByOrNull { s ->
                 val price = s.fuelTypes.find { it.type == fuelType }?.price ?: Double.MAX_VALUE
-                price + s.queueTime * 0.5 - (100 - s.reliability) * 0.2
+                price + s.queueTime * 0.5 + (100 - s.reliability) * 0.2
             }
         _bestStation.value = best
     }

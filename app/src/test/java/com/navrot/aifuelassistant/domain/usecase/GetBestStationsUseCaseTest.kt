@@ -8,7 +8,7 @@ import org.junit.Test
 /**
  * Тесты скоринга и ранжирования АЗС.
  *
- * Формула: score = fuelPrice + queueTime * 0.5 - (100 - reliability) * 0.2
+ * Формула: score = fuelPrice + queueTime * 0.5 + (100 - reliability) * 0.2
  * Чем меньше score — тем лучше.
  */
 class GetBestStationsUseCaseTest {
@@ -42,7 +42,7 @@ class GetBestStationsUseCaseTest {
     @Test
     fun `score considers price as base`() {
         val s = station(price = 50.0, queueTime = 0, reliability = 100)
-        // 50 + 0 * 0.5 - (100 - 100) * 0.2 = 50
+        // 50 + 0 * 0.5 + (100 - 100) * 0.2 = 50
         assertEquals(50.0, useCase.calculateScore(s, "АИ-95"), 0.001)
     }
 
@@ -50,19 +50,19 @@ class GetBestStationsUseCaseTest {
     fun `score penalizes queue time`() {
         val s1 = station(price = 45.0, queueTime = 0, reliability = 100)
         val s2 = station(id = 2, price = 45.0, queueTime = 10, reliability = 100)
-        // s1: 45 + 0 - 0 = 45
-        // s2: 45 + 10 * 0.5 - 0 = 50
+        // s1: 45 + 0 + 0 = 45
+        // s2: 45 + 10 * 0.5 + 0 = 50
         assertTrue(useCase.calculateScore(s1, "АИ-95") < useCase.calculateScore(s2, "АИ-95"))
     }
 
     @Test
-    fun `score rewards reliability`() {
+    fun `score penalizes low reliability`() {
         val s1 = station(price = 45.0, queueTime = 0, reliability = 50)
         val s2 = station(id = 2, price = 45.0, queueTime = 0, reliability = 100)
-        // s1: 45 + 0 - (100 - 50) * 0.2 = 45 - 10 = 35
-        // s2: 45 + 0 - (100 - 100) * 0.2 = 45 - 0 = 45
-        // s1 лучше (35 < 45)
-        assertTrue(useCase.calculateScore(s1, "АИ-95") < useCase.calculateScore(s2, "АИ-95"))
+        // s1: 45 + 0 + (100 - 50) * 0.2 = 45 + 10 = 55
+        // s2: 45 + 0 + (100 - 100) * 0.2 = 45 + 0 = 45
+        // s2 лучше (45 < 55) — надёжность штрафует ненадёжные АЗС
+        assertTrue(useCase.calculateScore(s2, "АИ-95") < useCase.calculateScore(s1, "АИ-95"))
     }
 
     @Test
@@ -104,15 +104,15 @@ class GetBestStationsUseCaseTest {
     @Test
     fun `execute sorts by score ascending`() {
         val stations = listOf(
-            station(id = 1, price = 48.0, queueTime = 0, reliability = 100), // 48
-            station(id = 2, price = 45.0, queueTime = 5, reliability = 80),  // 45 + 2.5 - 4 = 43.5
-            station(id = 3, price = 50.0, queueTime = 0, reliability = 100)  // 50
+            station(id = 1, price = 48.0, queueTime = 0, reliability = 100), // 48 + 0 + 0 = 48
+            station(id = 2, price = 45.0, queueTime = 5, reliability = 80),  // 45 + 2.5 + 4 = 51.5
+            station(id = 3, price = 50.0, queueTime = 0, reliability = 100)  // 50 + 0 + 0 = 50
         )
         val result = useCase.execute(stations, "АИ-95")
-        // Лучший — id=2 (43.5), затем id=1 (48), затем id=3 (50)
-        assertEquals(2, result[0].id)
-        assertEquals(1, result[1].id)
-        assertEquals(3, result[2].id)
+        // Лучший — id=1 (48), затем id=3 (50), затем id=2 (51.5)
+        assertEquals(1, result[0].id)
+        assertEquals(3, result[1].id)
+        assertEquals(2, result[2].id)
     }
 
     @Test

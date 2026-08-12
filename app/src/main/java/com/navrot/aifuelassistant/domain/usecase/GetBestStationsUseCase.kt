@@ -12,9 +12,10 @@ import javax.inject.Inject
  * принципу единой ответственности (Single Responsibility Principle).
  *
  * Формула скоринга:
- *   score = fuelPrice + queueTime * 0.5 - (100 - reliability) * 0.2
+ *   score = fuelPrice + queueTime * 0.5 + (100 - reliability) * 0.2
  *
  * Чем меньше score — тем лучше АЗС для пользователя.
+ * Штраф за ненадёжность: чем ниже reliability, тем больше score.
  */
 class GetBestStationsUseCase @Inject constructor() {
 
@@ -63,21 +64,21 @@ class GetBestStationsUseCase @Inject constructor() {
  * Компоненты:
  * - fuelPrice: цена за литр (основной фактор, руб.)
  * - queueTime * QUEUE_WEIGHT: штраф за очередь
- * - (100 - reliability) * RELIABILITY_WEIGHT: бонус за надёжность
+ * - (100 - reliability) * RELIABILITY_WEIGHT: штраф за ненадёжность
  */
     fun calculateScore(station: GasStation, fuelType: String): Double {
         val fuel = station.fuelTypes.find { it.type == fuelType }
         if (fuel == null || !fuel.available) return Double.MAX_VALUE
         val queuePenalty = station.queueTime * QUEUE_WEIGHT
-        val reliabilityBonus = (100 - station.reliability) * RELIABILITY_WEIGHT
-        return fuel.price + queuePenalty - reliabilityBonus
+        val reliabilityPenalty = (100 - station.reliability) * RELIABILITY_WEIGHT
+        return fuel.price + queuePenalty + reliabilityPenalty
     }
 
     companion object {
         /** Вес очереди в скоринге. 1 минута очереди = 0.5 руб. штрафа. */
         const val QUEUE_WEIGHT = 0.5
 
-        /** Вес надёжности. 1 пункт надёжности = 0.2 руб. бонуса. */
+        /** Вес надёжности. 1 пункт ненадёжности = 0.2 руб. штрафа. */
         const val RELIABILITY_WEIGHT = 0.2
     }
 }
