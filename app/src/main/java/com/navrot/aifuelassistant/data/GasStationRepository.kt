@@ -85,6 +85,11 @@ class GasStationRepository constructor(
         withUserPrices
     }
 
+    override suspend fun getStationById(stationId: Int): GasStation? = withContext(Dispatchers.IO) {
+        val stations = ensureLoaded()
+        stations.find { it.id == stationId }
+    }
+
     /**
      * Сообщить пользовательскую цену. Цена немедленно применяется к кешу.
      */

@@ -40,8 +40,7 @@ fun MapScreen(
     onBack: () -> Unit = {},
     onVehiclesClick: () -> Unit = {},
     onStationClick: (GasStation) -> Unit = {},
-    routeTarget: GasStation? = null,
-    onRouteHandled: () -> Unit = {},
+    onRouteClick: (Int) -> Unit = {},
     viewModel: MapViewModel = hiltViewModel()
 ) {
     val scope = rememberCoroutineScope()
@@ -91,17 +90,6 @@ fun MapScreen(
         if (searchQuery.length >= 2) {
             delay(300)
             viewModel.searchStations(searchQuery)
-        }
-    }
-
-    LaunchedEffect(routeTarget) {
-        if (routeTarget != null) {
-            var attempts = 0
-            while (userLocation == null && attempts < 50) { delay(100); attempts++ }
-            userLocation?.let { loc -> viewModel.updateUserLocation(loc.latitude, loc.longitude) }
-            viewModel.buildRouteTo(routeTarget)
-            routeStation = routeTarget
-            onRouteHandled()
         }
     }
 
