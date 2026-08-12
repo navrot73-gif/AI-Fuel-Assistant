@@ -36,4 +36,7 @@ interface GasStationRepositoryInterface {
 
     /** Принудительное обновление из сети. */
     suspend fun refresh(): List<GasStation>
+
+    /** Получить заправку по ID. */
+    suspend fun getStationById(stationId: Int): GasStation?
 }

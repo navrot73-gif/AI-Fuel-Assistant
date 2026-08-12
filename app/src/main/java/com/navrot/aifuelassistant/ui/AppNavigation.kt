@@ -1,6 +1,5 @@
 package com.navrot.aifuelassistant.ui
 
-import android.net.Uri
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
@@ -9,20 +8,16 @@ import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
-import com.navrot.aifuelassistant.data.model.GasStation
+import androidx.navigation.toRoute
 import com.navrot.aifuelassistant.features.dashboard.DashboardScreen
 import com.navrot.aifuelassistant.ui.fuel.AddFuelRecordScreen
 import com.navrot.aifuelassistant.ui.fuel.FuelRecordListScreen
@@ -30,13 +25,52 @@ import com.navrot.aifuelassistant.ui.fuel.GasStationDetailScreen
 import com.navrot.aifuelassistant.ui.map.MapScreen
 import com.navrot.aifuelassistant.ui.vehicles.AddVehicleScreen
 import com.navrot.aifuelassistant.ui.vehicles.VehicleListScreen
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
+
+// Type-safe navigation routes
+@Serializable
+@SerialName("map")
+object MapRoute {
+    val route = "map"
+}
+
+@Serializable
+@SerialName("ai")
+object DashboardRoute {
+    val route = "ai"
+}
+
+@Serializable
+@SerialName("garage")
+object VehicleListRoute {
+    val route = "garage"
+}
+
+@Serializable
+@SerialName("add_vehicle")
+object AddVehicleRoute {
+    val route = "add_vehicle"
+}
+
+@Serializable
+@SerialName("station_detail")
+data class StationDetailRoute(val stationId: Int)
+
+@Serializable
+@SerialName("fuel_records")
+data class FuelRecordListRoute(val vehicleId: Long, val vehicleName: String)
+
+@Serializable
+@SerialName("add_fuel_record")
+data class AddFuelRecordRoute(val vehicleId: Long, val vehicleName: String)
 
 private data class Tab(val route: String, val glyph: String, val title: String)
 
 private val TABS = listOf(
-    Tab("map", "🗺️", "Карта"),
-    Tab("ai", "🤖", "AI"),
-    Tab("garage", "🚗", "Гараж")
+    Tab(MapRoute.route, "🗺️", "Карта"),
+    Tab(DashboardRoute.route, "🤖", "AI"),
+    Tab(VehicleListRoute.route, "🚗", "Гараж")
 )
 
 private val TAB_ROUTES = TABS.map { it.route }.toSet()
@@ -50,7 +84,9 @@ fun AppNavigation() {
 
     fun go(route: String) {
         navController.navigate(route) {
-            popUpTo(navController.graph.findStartDestination().id) { saveState = true }
+            popUpTo(navController.graph.startDestinationId) {
+                saveState = true
+            }
             launchSingleTop = true
             restoreState = true
         }
@@ -92,95 +128,62 @@ fun AppNavigation() {
     ) { padding ->
         NavHost(
             navController = navController,
-            startDestination = "map",
+            startDestination = MapRoute.route,
             modifier = Modifier.padding(padding)
         ) {
-            composable("map") {
-                val routeTarget = navController.currentBackStackEntry
-                    ?.savedStateHandle
-                    ?.remove<GasStation>("route_target")
+            composable<MapRoute> {
                 MapScreen(
-                    routeTarget = routeTarget,
-                    onRouteHandled = {
-                        // Маршрут принят, состояние очищено
-                    },
                     onStationClick = { station ->
-                        navController.currentBackStackEntry?.savedStateHandle?.set("station", station)
-                        navController.navigate("station_detail")
+                        navController.navigate(StationDetailRoute(station.id))
+                    },
+                    onRouteClick = { stationId ->
+                        navController.navigate(StationDetailRoute(stationId))
                     }
                 )
             }
 
-            composable("ai") { DashboardScreen() }
+            composable<DashboardRoute> { DashboardScreen() }
 
-            composable("garage") {
+            composable<VehicleListRoute> {
                 VehicleListScreen(
-                    onAddClick = { navController.navigate("add_vehicle") },
+                    onAddClick = { navController.navigate(AddVehicleRoute) },
                     onVehicleClick = { vehicleId, vehicleName ->
-                        val encoded = Uri.encode(vehicleName)
-                        navController.navigate("fuel_records/$vehicleId/$encoded")
+                        navController.navigate(FuelRecordListRoute(vehicleId, vehicleName))
                     }
                 )
             }
 
-            composable("add_vehicle") {
+            composable<AddVehicleRoute> {
                 AddVehicleScreen(onNavigateBack = { navController.popBackStack() })
             }
 
-            composable("station_detail") {
-                val station = navController.previousBackStackEntry
-                    ?.savedStateHandle
-                    ?.get<GasStation>("station")
-                if (station != null) {
-                    GasStationDetailScreen(
-                        station = station,
-                        onBack = { navController.popBackStack() },
-                        onRouteClick = {
-                            // Store route_target in MAP's savedStateHandle (it survives navigation)
-                            navController.previousBackStackEntry?.savedStateHandle?.set(
-                                "route_target", station
-                            )
-                            // Map is already in backstack — just go back to it
-                            navController.popBackStack()
-                        }
-                    )
-                } else {
-                    LaunchedEffect(Unit) {
+            composable<StationDetailRoute> { backStackEntry ->
+                val route = backStackEntry.toRoute<StationDetailRoute>()
+                GasStationDetailScreen(
+                    stationId = route.stationId,
+                    onBack = { navController.popBackStack() },
+                    onRouteClick = {
                         navController.popBackStack()
                     }
-                }
+                )
             }
 
-            composable(
-                route = "fuel_records/{vehicleId}/{vehicleName}",
-                arguments = listOf(
-                    navArgument("vehicleId") { type = NavType.LongType },
-                    navArgument("vehicleName") { type = NavType.StringType }
-                )
-            ) { entry ->
-                val vehicleId = entry.arguments?.getLong("vehicleId") ?: 0L
-                val vehicleName = Uri.decode(entry.arguments?.getString("vehicleName") ?: "")
+            composable<FuelRecordListRoute> { backStackEntry ->
+                val route = backStackEntry.toRoute<FuelRecordListRoute>()
                 FuelRecordListScreen(
-                    vehicleId = vehicleId,
-                    vehicleName = vehicleName,
+                    vehicleId = route.vehicleId,
+                    vehicleName = route.vehicleName,
                     onBack = { navController.popBackStack() },
                     onAddClick = {
-                        val encoded = Uri.encode(vehicleName)
-                        navController.navigate("add_fuel_record/$vehicleId/$encoded")
+                        navController.navigate(AddFuelRecordRoute(route.vehicleId, route.vehicleName))
                     }
                 )
             }
 
-            composable(
-                route = "add_fuel_record/{vehicleId}/{vehicleName}",
-                arguments = listOf(
-                    navArgument("vehicleId") { type = NavType.LongType },
-                    navArgument("vehicleName") { type = NavType.StringType }
-                )
-            ) { entry ->
-                val vehicleId = entry.arguments?.getLong("vehicleId") ?: 0L
+            composable<AddFuelRecordRoute> { backStackEntry ->
+                val route = backStackEntry.toRoute<AddFuelRecordRoute>()
                 AddFuelRecordScreen(
-                    vehicleId = vehicleId,
+                    vehicleId = route.vehicleId,
                     defaultFuelType = "АИ-95",
                     onBack = { navController.popBackStack() }
                 )

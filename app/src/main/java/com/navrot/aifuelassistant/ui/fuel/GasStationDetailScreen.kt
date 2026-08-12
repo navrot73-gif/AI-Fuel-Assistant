@@ -19,32 +19,66 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.navrot.aifuelassistant.data.GasStationRepository
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.Review
+import com.navrot.aifuelassistant.ui.map.MapViewModel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CoroutineScope
+import androidx.compose.runtime.rememberCoroutineScope
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GasStationDetailScreen(
-    station: GasStation,
+    stationId: Int,
     onBack: () -> Unit,
-    onRouteClick: () -> Unit = {}
+    onRouteClick: () -> Unit = {},
+    repository: GasStationRepository = hiltViewModel(),
+    viewModel: MapViewModel = hiltViewModel()
 ) {
+    val scope = rememberCoroutineScope()
+    var station by remember {
+        mutableStateOf<GasStation?>(null)
+    }
+    var isLoading by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(stationId) {
+        isLoading = true
+        error = null
+        scope.launch {
+            try {
+                station = repository.getStationById(stationId)
+                if (station == null) {
+                    error = "Заправка не найдена"
+                }
+            } catch (e: Exception) {
+                error = "Ошибка загрузки: ${e.message}"
+            } finally {
+                isLoading = false
+            }
+        }
+    }
+    
     var selectedTab by remember { mutableStateOf(0) }
     val tabs = listOf("Информация", "Цены", "Отзывы")
-    val reviews = remember { generateSampleReviews(stationId = station.id.toLong()) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(station.name, maxLines = 1) },
+                title = { Text(station?.name ?: "Загрузка...", maxLines = 1) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
                 actions = {
-                    IconButton(onClick = onRouteClick) {
-                        Icon(Icons.Default.LocationOn, contentDescription = "Маршрут")
+                    if (station != null) {
+                        IconButton(onClick = onRouteClick) {
+                            Icon(Icons.Default.LocationOn, contentDescription = "Маршрут")
+                        }
                     }
                 }
             )
@@ -55,22 +89,42 @@ fun GasStationDetailScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            StationHeader(station)
-
-            TabRow(selectedTabIndex = selectedTab) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = selectedTab == index,
-                        onClick = { selectedTab = index },
-                        text = { Text(title) }
-                    )
+            if (isLoading) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = androidx.compose.ui.Alignment.Center
+                ) {
+                    androidx.compose.material3.CircularProgressIndicator()
                 }
-            }
+            } else if (error != null) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = androidx.compose.ui.Alignment.Center
+                ) {
+                    Text(text = error!!, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.error)
+                }
+            } else {
+                station?.let { st ->
+                    val reviews = remember { generateSampleReviews(stationId = st.id.toLong()) }
+                    
+                    StationHeader(st)
 
-            when (selectedTab) {
-                0 -> InfoTab(station, onRouteClick)
-                1 -> PricesTab(station)
-                2 -> ReviewsTab(reviews)
+                    TabRow(selectedTabIndex = selectedTab) {
+                        tabs.forEachIndexed { index, title ->
+                            Tab(
+                                selected = selectedTab == index,
+                                onClick = { selectedTab = index },
+                                text = { Text(title) }
+                            )
+                        }
+                    }
+
+                    when (selectedTab) {
+                        0 -> InfoTab(st, onRouteClick)
+                        1 -> PricesTab(st)
+                        2 -> ReviewsTab(reviews)
+                    }
+                }
             }
         }
     }
