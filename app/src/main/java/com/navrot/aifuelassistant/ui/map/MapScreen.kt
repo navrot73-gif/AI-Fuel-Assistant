@@ -41,6 +41,8 @@ fun MapScreen(
     onVehiclesClick: () -> Unit = {},
     onStationClick: (GasStation) -> Unit = {},
     onRouteClick: (Int) -> Unit = {},
+    pendingRouteStationId: Int? = null,
+    onConsumePendingRoute: () -> Unit = {},
     viewModel: MapViewModel = hiltViewModel()
 ) {
     val scope = rememberCoroutineScope()
@@ -90,6 +92,14 @@ fun MapScreen(
         if (searchQuery.length >= 2) {
             delay(300)
             viewModel.searchStations(searchQuery)
+        }
+    }
+
+    LaunchedEffect(pendingRouteStationId, stations) {
+        val id = pendingRouteStationId ?: return@LaunchedEffect
+        stations.firstOrNull { it.id == id }?.let { station ->
+            buildRouteAndClose(station)
+            onConsumePendingRoute()
         }
     }
 

@@ -25,6 +25,7 @@ import com.navrot.aifuelassistant.ui.fuel.GasStationDetailScreen
 import com.navrot.aifuelassistant.ui.map.MapScreen
 import com.navrot.aifuelassistant.ui.vehicles.AddVehicleScreen
 import com.navrot.aifuelassistant.ui.vehicles.VehicleListScreen
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -131,13 +132,20 @@ fun AppNavigation() {
             startDestination = MapRoute.route,
             modifier = Modifier.padding(padding)
         ) {
-            composable<MapRoute> {
+            composable<MapRoute> { backStackEntry ->
+                val pendingRouteId by backStackEntry.savedStateHandle
+                    .getStateFlow<Int?>("build_route_station_id", null)
+                    .collectAsStateWithLifecycle()
                 MapScreen(
                     onStationClick = { station ->
                         navController.navigate(StationDetailRoute(station.id))
                     },
                     onRouteClick = { stationId ->
                         navController.navigate(StationDetailRoute(stationId))
+                    },
+                    pendingRouteStationId = pendingRouteId,
+                    onConsumePendingRoute = {
+                        backStackEntry.savedStateHandle.remove<Int>("build_route_station_id")
                     }
                 )
             }
@@ -163,6 +171,8 @@ fun AppNavigation() {
                     stationId = route.stationId,
                     onBack = { navController.popBackStack() },
                     onRouteClick = {
+                        navController.previousBackStackEntry?.savedStateHandle
+                            ?.set("build_route_station_id", route.stationId)
                         navController.popBackStack()
                     }
                 )
