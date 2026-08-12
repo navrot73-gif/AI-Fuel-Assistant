@@ -12,9 +12,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -58,7 +58,8 @@ fun StationBottomSheet(
     onToggleBrand: (String) -> Unit,
     onSortChange: (MapViewModel.SortMode) -> Unit,
     onStationClick: (GasStation) -> Unit,
-    onToggleVisibility: () -> Unit
+    onToggleVisibility: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     // AI-рекомендация всегда первая, дальше — список без неё
     val displayList = remember(stations, aiRecommendation) {
@@ -72,14 +73,14 @@ fun StationBottomSheet(
 
     AnimatedVisibility(
         visible = visible,
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier,
         enter = slideInVertically(initialOffsetY = { it }),
         exit = slideOutVertically(targetOffsetY = { it })
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 460.dp)
+                .fillMaxHeight()
         ) {
             Box(
                 modifier = Modifier
@@ -171,7 +172,12 @@ fun StationBottomSheet(
                 }
             }
 
-            Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+            Surface(
+                color = MaterialTheme.colorScheme.surface,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
                 if (isLoading) {
                     Box(
                         modifier = Modifier

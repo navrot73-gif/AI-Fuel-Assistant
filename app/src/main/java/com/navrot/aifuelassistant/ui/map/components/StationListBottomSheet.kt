@@ -1,6 +1,8 @@
 package com.navrot.aifuelassistant.ui.map.components
 
 import androidx.compose.foundation.layout.BoxScope
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,6 +51,10 @@ fun BoxScope.StationListBottomSheet(
         onToggleBrand = onToggleBrand,
         onSortChange = onSortChange,
         onStationClick = onStationClick,
-        onToggleVisibility = onToggleVisibility
+        onToggleVisibility = onToggleVisibility,
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(0.9f)
+            .align(Alignment.BottomCenter)
     )
 }
