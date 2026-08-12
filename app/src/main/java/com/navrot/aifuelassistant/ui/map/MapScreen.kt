@@ -30,7 +30,6 @@ import com.navrot.aifuelassistant.ui.map.components.StationDetailOverlay
 import com.navrot.aifuelassistant.ui.map.components.StationListBottomSheet
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import org.osmdroid.util.GeoPoint
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,7 +59,7 @@ fun MapScreen(
     val fuelTypes = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ", "Газ")
     val recommendationTriple = aiRecommendation?.let { Triple(it.station, it.fuel, it.distanceKm) }
 
-    var userLocation by remember { mutableStateOf<GeoPoint?>(null) }
+    var userLocation by remember { mutableStateOf<UserLocationState?>(null) }
     var locationStatus by remember { mutableStateOf("Определение местоположения...") }
     var currentCity by remember { mutableStateOf("Рядом с вами") }
     var showSearch by remember { mutableStateOf(false) }
@@ -71,7 +70,7 @@ fun MapScreen(
     var recenterTick by remember { mutableIntStateOf(0) }
     val yellowRouteVisible = selectedStation != null || (route != null && routeStation != null)
 
-    val onLocationReady: (GeoPoint) -> Unit = { loc ->
+    val onLocationUpdate: (UserLocationState) -> Unit = { loc ->
         userLocation = loc
         locationStatus = "📍 Вы здесь"
         viewModel.updateUserLocation(loc.latitude, loc.longitude)
@@ -104,7 +103,7 @@ fun MapScreen(
     }
 
     LocationPermissionHandler(
-        onLocationReady = onLocationReady,
+        onLocationUpdate = onLocationUpdate,
         onPermissionDenied = {
             locationStatus = "❌ Геолокация отключена"
             viewModel.setSortMode(MapViewModel.SortMode.BEST)
@@ -159,7 +158,7 @@ fun MapScreen(
                     stations = viewModel.filterStationsByBrands(stations),
                     aiRecommendation = recommendationTriple?.first,
                     selectedFuelTypes = selectedFuelTypes, sortMode = sortMode,
-                    userLocation = userLocation, fuelTypes = fuelTypes,
+                    userLocation = userLocation?.toGeoPoint(), fuelTypes = fuelTypes,
                     brands = viewModel.availableBrands(), selectedBrands = selectedBrands,
                     openOnly = openOnly,
                     onToggleOpenOnly = { viewModel.toggleOpenOnly() },
