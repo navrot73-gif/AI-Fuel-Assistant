@@ -21,7 +21,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.navrot.aifuelassistant.data.GasStationRepository
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.Review
 import com.navrot.aifuelassistant.ui.map.MapViewModel
@@ -35,9 +34,9 @@ fun GasStationDetailScreen(
     stationId: Int,
     onBack: () -> Unit,
     onRouteClick: () -> Unit = {},
-    repository: GasStationRepository = hiltViewModel(),
     viewModel: MapViewModel = hiltViewModel()
 ) {
+    val repository = hiltViewModel<GasStationDetailViewModel>().repository
     val scope = rememberCoroutineScope()
     var station by remember {
         mutableStateOf<GasStation?>(null)
