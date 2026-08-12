@@ -23,6 +23,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.FloatingActionButton
@@ -91,6 +92,7 @@ fun FuelRecordListScreen(
     var aiAnalysisText by remember { mutableStateOf("") }
     var aiAnalysisLoading by remember { mutableStateOf(false) }
     var aiAnalysisError by remember { mutableStateOf(false) }
+    var showExportMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -102,18 +104,31 @@ fun FuelRecordListScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        exportLauncher.launch("aifuel_backup_${vehicleName}.csv")
-                    }) {
-                        Text("📤", fontSize = 20.sp)
-                    }
-                    IconButton(onClick = {
-                        importLauncher.launch(arrayOf("*/*"))
-                    }) {
-                        Text("📥", fontSize = 20.sp)
+                    IconButton(onClick = { showExportMenu = true }) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Экспорт")
                     }
                     IconButton(onClick = onMapClick) {
                         Icon(Icons.Default.LocationOn, contentDescription = "Карта")
+                    }
+                    
+                    DropdownMenu(
+                        expanded = showExportMenu,
+                        onDismissRequest = { showExportMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Экспорт в CSV") },
+                            onClick = {
+                                exportLauncher.launch("aifuel_backup_${vehicleName}.csv")
+                                showExportMenu = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Импорт из CSV") },
+                            onClick = {
+                                importLauncher.launch(arrayOf("*/*"))
+                                showExportMenu = false
+                            }
+                        )
                     }
                 }
             )
