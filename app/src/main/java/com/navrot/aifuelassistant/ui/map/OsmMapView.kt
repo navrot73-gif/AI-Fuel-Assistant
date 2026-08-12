@@ -2,7 +2,6 @@ package com.navrot.aifuelassistant.ui.map
 
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
-import android.preference.PreferenceManager
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,7 +37,7 @@ fun OsmMapView(
     AndroidView(
         factory = { ctx ->
             val config = Configuration.getInstance()
-            config.load(ctx, PreferenceManager.getDefaultSharedPreferences(ctx))
+            config.load(ctx, ctx.getSharedPreferences("osmdroid", 0))
             config.osmdroidBasePath = File(ctx.cacheDir, "osmdroid")
             config.osmdroidTileCache = File(ctx.cacheDir, "osmdroid/tiles")
             config.tileFileSystemCacheMaxBytes = 512 * 1024 * 1024L
