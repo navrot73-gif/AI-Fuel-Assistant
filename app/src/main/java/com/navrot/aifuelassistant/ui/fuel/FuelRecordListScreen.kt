@@ -18,10 +18,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -66,6 +68,20 @@ fun FuelRecordListScreen(
     val backupMessage by viewModel.backupMessage.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    LaunchedEffect(backupMessage) {
+        backupMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            viewModel.clearBackupMessage()
+        }
+    }
+
+    var showAiAnalysis by remember { mutableStateOf(false) }
+    var aiAnalysisText by remember { mutableStateOf("") }
+    var aiAnalysisLoading by remember { mutableStateOf(false) }
+    var aiAnalysisError by remember { mutableStateOf(false) }
+    
+    var showExportImportMenu by remember { mutableStateOf(false) }
+    
     // Системный диалог СОХРАНЕНИЯ файла (без разрешений на память)
     val exportLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("text/csv")
@@ -80,18 +96,6 @@ fun FuelRecordListScreen(
         uri?.let { viewModel.importBackup(it) }
     }
 
-    LaunchedEffect(backupMessage) {
-        backupMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearBackupMessage()
-        }
-    }
-
-    var showAiAnalysis by remember { mutableStateOf(false) }
-    var aiAnalysisText by remember { mutableStateOf("") }
-    var aiAnalysisLoading by remember { mutableStateOf(false) }
-    var aiAnalysisError by remember { mutableStateOf(false) }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -102,18 +106,31 @@ fun FuelRecordListScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = {
-                        exportLauncher.launch("aifuel_backup_${vehicleName}.csv")
-                    }) {
-                        Text("📤", fontSize = 20.sp)
-                    }
-                    IconButton(onClick = {
-                        importLauncher.launch(arrayOf("*/*"))
-                    }) {
-                        Text("📥", fontSize = 20.sp)
+                    IconButton(onClick = { showExportImportMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "Еще")
                     }
                     IconButton(onClick = onMapClick) {
                         Icon(Icons.Default.LocationOn, contentDescription = "Карта")
+                    }
+                    
+                    DropdownMenu(
+                        expanded = showExportImportMenu,
+                        onDismissRequest = { showExportImportMenu = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Экспорт") },
+                            onClick = {
+                                exportLauncher.launch("aifuel_backup_${vehicleName}.csv")
+                                showExportImportMenu = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Импорт") },
+                            onClick = {
+                                importLauncher.launch(arrayOf("text/csv", "*/*"))
+                                showExportImportMenu = false
+                            }
+                        )
                     }
                 }
             )
