@@ -193,6 +193,7 @@ fun MapScreen(
                 MapFloatingActions(
                     bottomPadding = when {
                         showStationList -> 452.dp
+                        aiRecommendation != null -> 150.dp
                         yellowRouteVisible -> 88.dp
                         else -> 16.dp
                     },
