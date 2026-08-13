@@ -1,11 +1,23 @@
 package com.navrot.aifuelassistant.ui.map
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -14,7 +26,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -68,6 +82,8 @@ fun MapScreen(
     var selectedStation by remember { mutableStateOf<GasStation?>(null) }
     var routeStation by remember { mutableStateOf<GasStation?>(null) }
     var recenterTick by remember { mutableIntStateOf(0) }
+    var zoomInTick by remember { mutableIntStateOf(0) }
+    var zoomOutTick by remember { mutableIntStateOf(0) }
     val yellowRouteVisible = selectedStation != null || (route != null && routeStation != null)
 
     val onLocationUpdate: (UserLocationState) -> Unit = { loc ->
@@ -139,10 +155,48 @@ fun MapScreen(
                 OsmMapView(
                     userLocation = userLocation, stations = stations,
                     selectedFuelTypes = selectedFuelTypes, route = route,
-                    recenterRequest = recenterTick, onStationClick = { selectedStation = it }
+                    recenterRequest = recenterTick,
+                    zoomInRequest = zoomInTick, zoomOutRequest = zoomOutTick,
+                    onStationClick = { selectedStation = it }
                 )
 
                 LocationStatusIndicator(status = locationStatus, visible = userLocation == null)
+
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(end = 16.dp, top = 16.dp),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                        shadowElevation = 4.dp
+                    ) {
+                        IconButton(onClick = { zoomInTick++ }) {
+                            Icon(Icons.Default.Add, contentDescription = "Увеличить", tint = Color.White, modifier = Modifier.size(44.dp))
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                        shadowElevation = 4.dp
+                    ) {
+                        IconButton(onClick = { zoomOutTick++ }) {
+                            Box(
+                                modifier = Modifier.size(44.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp, 2.5.dp)
+                                        .background(Color.White, RoundedCornerShape(1.dp))
+                                )
+                            }
+                        }
+                    }
+                }
 
                 RouteOverlay(
                     selectedStation = selectedStation, route = route, routeStation = routeStation,
@@ -197,7 +251,14 @@ fun MapScreen(
                         yellowRouteVisible -> 88.dp
                         else -> 16.dp
                     },
-                    onRecenter = { if (userLocation != null) recenterTick++ }
+                    onRecenter = { if (userLocation != null) recenterTick++ },
+                    onClearClick = if (yellowRouteVisible) {
+                        {
+                            viewModel.clearRoute()
+                            routeStation = null
+                            selectedStation = null
+                        }
+                    } else null
                 )
             }
         }

@@ -53,8 +53,8 @@ private val LABELS_LIGHTEN_MATRIX = ColorMatrix(
 /** Creates a Google Maps–style red finish pin (drop shape #EA4335 with dark center dot). */
 private fun createRedPinIcon(context: android.content.Context): BitmapDrawable {
     val density = context.resources.displayMetrics.density
-    val width = (64 * density).toInt()
-    val height = (80 * density).toInt()
+    val width = (32 * density).toInt()
+    val height = (40 * density).toInt()
     val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
 
@@ -79,7 +79,7 @@ private fun createRedPinIcon(context: android.content.Context): BitmapDrawable {
     }
     canvas.drawPath(path, pinPaint)
 
-    val dotRadius = (8 * density).toInt()
+    val dotRadius = (4 * density).toInt()
     canvas.drawCircle(width / 2f, height * 0.28f, dotRadius.toFloat(), dotPaint)
 
     return BitmapDrawable(context.resources, bitmap)
@@ -92,12 +92,21 @@ fun OsmMapView(
     selectedFuelTypes: Set<String>,
     route: MapViewModel.RouteUiState? = null,
     recenterRequest: Int = 0,
+    zoomInRequest: Int = 0,
+    zoomOutRequest: Int = 0,
     onStationClick: (GasStation) -> Unit
 ) {
     val context = LocalContext.current
     val mapViewRef = remember { arrayOfNulls<MapView>(1) }
     val locationDotRef = remember { arrayOfNulls<MyLocationDot>(1) }
     val lastFittedRoute = remember { arrayOfNulls<MapViewModel.RouteUiState>(1) }
+
+    LaunchedEffect(zoomInRequest) {
+        if (zoomInRequest > 0) mapViewRef[0]?.controller?.zoomIn()
+    }
+    LaunchedEffect(zoomOutRequest) {
+        if (zoomOutRequest > 0) mapViewRef[0]?.controller?.zoomOut()
+    }
 
     AndroidView(
         factory = { ctx ->
@@ -112,6 +121,7 @@ fun OsmMapView(
                 setBackgroundColor(android.graphics.Color.parseColor(MAP_BACKGROUND))
                 setTileSource(cartoDarkNoLabelsTileSource())
                 setMultiTouchControls(true)
+                setBuiltInZoomControls(false)
                 overlayManager.tilesOverlay.setColorFilter(
                     ColorMatrixColorFilter(GOOGLE_DARK_COLOR_MATRIX)
                 )
@@ -177,7 +187,8 @@ fun OsmMapView(
                     if (osmPoints.size >= 2) {
                         val polyline = Polyline()
                         polyline.setPoints(osmPoints)
-                        polyline.outlinePaint.color = android.graphics.Color.parseColor("#4DB6AC")
+                        polyline.paint.color = android.graphics.Color.parseColor("#8AB4F8")
+                        polyline.outlinePaint.color = android.graphics.Color.parseColor("#1B4F9C")
                         polyline.outlinePaint.strokeWidth = 12f
                         mapView.overlays.add(polyline)
 
