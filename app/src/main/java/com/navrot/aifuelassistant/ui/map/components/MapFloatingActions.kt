@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.List
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Refresh
@@ -31,18 +32,33 @@ import androidx.compose.ui.unit.dp
 fun BoxScope.MapFloatingActions(
     bottomPadding: androidx.compose.ui.unit.Dp,
     onRecenter: () -> Unit,
+    onClearClick: (() -> Unit)? = null,
     onLayersClick: (() -> Unit)? = null,
     onSearchClick: (() -> Unit)? = null,
     onStationListClick: (() -> Unit)? = null
 ) {
     val extraButtons = listOfNotNull(onLayersClick, onSearchClick, onStationListClick)
 
-    if (extraButtons.isNotEmpty()) {
+    if (extraButtons.isNotEmpty() || onClearClick != null) {
         androidx.compose.foundation.layout.Column(
             modifier = Modifier.align(Alignment.BottomEnd)
                 .padding(end = 16.dp, bottom = bottomPadding + 72.dp),
             horizontalAlignment = Alignment.End
         ) {
+            onClearClick?.let { onClick ->
+                SmallFloatingActionButton(
+                    onClick = onClick,
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    shape = CircleShape
+                ) {
+                    Icon(
+                        Icons.Default.Clear,
+                        contentDescription = "Сбросить маршрут",
+                        tint = androidx.compose.ui.graphics.Color(0xFFF08070)
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
+            }
             onLayersClick?.let { onClick ->
                 SmallFloatingActionButton(
                     onClick = onClick,
