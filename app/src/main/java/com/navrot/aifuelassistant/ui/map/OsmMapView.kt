@@ -1,7 +1,13 @@
 package com.navrot.aifuelassistant.ui.map
 
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
+import android.graphics.Paint
+import android.graphics.Path
+import android.graphics.drawable.BitmapDrawable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,6 +49,41 @@ private val LABELS_LIGHTEN_MATRIX = ColorMatrix(
         0f, 0f, 0f, 1f, 0f
     )
 )
+
+/** Creates a Google Maps–style red finish pin (drop shape #EA4335 with dark center dot). */
+private fun createRedPinIcon(context: android.content.Context): BitmapDrawable {
+    val density = context.resources.displayMetrics.density
+    val width = (64 * density).toInt()
+    val height = (80 * density).toInt()
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+
+    val pinPaint = Paint().apply {
+        isAntiAlias = true
+        color = Color.parseColor("#EA4335")
+        style = Paint.Style.FILL
+    }
+    val dotPaint = Paint().apply {
+        isAntiAlias = true
+        color = Color.parseColor("#7F1D1D")
+        style = Paint.Style.FILL
+    }
+
+    val path = Path().apply {
+        moveTo(width / 2f, height.toFloat())
+        cubicTo(width / 2f, height.toFloat(), 0f, height * 0.55f, 0f, height * 0.35f)
+        cubicTo(0f, height * 0.15f, width * 0.35f, 0f, width / 2f, 0f)
+        cubicTo(width * 0.65f, 0f, width.toFloat(), height * 0.15f, width.toFloat(), height * 0.35f)
+        cubicTo(width.toFloat(), height * 0.55f, width / 2f, height.toFloat(), width / 2f, height.toFloat())
+        close()
+    }
+    canvas.drawPath(path, pinPaint)
+
+    val dotRadius = (8 * density).toInt()
+    canvas.drawCircle(width / 2f, height * 0.28f, dotRadius.toFloat(), dotPaint)
+
+    return BitmapDrawable(context.resources, bitmap)
+}
 
 @Composable
 fun OsmMapView(
@@ -139,6 +180,14 @@ fun OsmMapView(
                         polyline.outlinePaint.color = android.graphics.Color.parseColor("#4DB6AC")
                         polyline.outlinePaint.strokeWidth = 12f
                         mapView.overlays.add(polyline)
+
+                        val finishPoint = r.points.last()
+                        val finishMarker = Marker(mapView)
+                        finishMarker.position = GeoPoint(finishPoint.latitude, finishPoint.longitude)
+                        finishMarker.icon = createRedPinIcon(context)
+                        finishMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                        finishMarker.title = "Финиш"
+                        mapView.overlays.add(finishMarker)
 
                         if (lastFittedRoute[0] !== r) {
                             lastFittedRoute[0] = r
