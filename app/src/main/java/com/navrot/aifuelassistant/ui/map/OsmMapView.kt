@@ -11,22 +11,35 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import com.navrot.aifuelassistant.data.model.GasStation
 import org.osmdroid.config.Configuration
+import org.osmdroid.tileprovider.MapTileProviderBasic
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.tileprovider.tilesource.XYTileSource
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
+import org.osmdroid.views.overlay.TilesOverlay
 import java.io.File
 
 private const val MAP_BACKGROUND = "#17222B"
 
-/** ColorMatrix tuned for Google Maps dark palette over CARTO Dark Matter tiles. */
+/** ColorMatrix tuned for Google Maps dark palette over CARTO Dark Matter (no labels) tiles. */
 private val GOOGLE_DARK_COLOR_MATRIX = ColorMatrix(
     floatArrayOf(
         0.88f, 0.04f, 0.12f, 0f, 14f,
         0.03f, 0.90f, 0.10f, 0f, 18f,
         0.06f, 0.08f, 1.02f, 0f, 22f,
+        0f, 0f, 0f, 1f, 0f
+    )
+)
+
+/** Lightening ColorMatrix for labels overlay — makes labels pale blue-gray (#AEC1CF). */
+private val LABELS_LIGHTEN_MATRIX = ColorMatrix(
+    floatArrayOf(
+        2.0f, 0f, 0f, 0f, 50f,
+        0f, 2.0f, 0f, 0f, 50f,
+        0f, 0f, 2.0f, 0f, 55f,
         0f, 0f, 0f, 1f, 0f
     )
 )
@@ -56,11 +69,29 @@ fun OsmMapView(
 
             MapView(ctx).apply {
                 setBackgroundColor(android.graphics.Color.parseColor(MAP_BACKGROUND))
-                setTileSource(cartoDarkTileSource())
+                setTileSource(cartoDarkNoLabelsTileSource())
                 setMultiTouchControls(true)
                 overlayManager.tilesOverlay.setColorFilter(
                     ColorMatrixColorFilter(GOOGLE_DARK_COLOR_MATRIX)
                 )
+
+                val labelsSource = XYTileSource(
+                    "CartoDB_Dark_Labels",
+                    1, 20, 256, ".png",
+                    arrayOf(
+                        "https://a.basemaps.cartocdn.com/dark_only_labels/",
+                        "https://b.basemaps.cartocdn.com/dark_only_labels/",
+                        "https://c.basemaps.cartocdn.com/dark_only_labels/",
+                        "https://d.basemaps.cartocdn.com/dark_only_labels/"
+                    ),
+                    "© OpenStreetMap contributors © CARTO"
+                )
+                val labelsProvider = MapTileProviderBasic(ctx, labelsSource)
+                val labelsOverlay = TilesOverlay(labelsProvider, ctx)
+                labelsOverlay.setLoadingBackgroundColor(android.graphics.Color.TRANSPARENT)
+                labelsOverlay.setColorFilter(ColorMatrixColorFilter(LABELS_LIGHTEN_MATRIX))
+                overlayManager.add(0, labelsOverlay)
+
                 val centerPoint = userLocation?.toGeoPoint() ?: GeoPoint(55.1644, 61.4368)
                 controller.setZoom(13.0)
                 controller.setCenter(centerPoint)
@@ -149,18 +180,18 @@ fun OsmMapView(
 }
 
 /**
- * CARTO Dark Matter — Google Maps–like dark base; falls back to MAPNIK if unavailable.
+ * CARTO Dark Matter (no labels) — Google Maps–like dark base; falls back to MAPNIK if unavailable.
  */
-private fun cartoDarkTileSource(): org.osmdroid.tileprovider.tilesource.ITileSource =
+private fun cartoDarkNoLabelsTileSource(): org.osmdroid.tileprovider.tilesource.ITileSource =
     try {
         org.osmdroid.tileprovider.tilesource.XYTileSource(
-            "CartoDB_Dark",
+            "CartoDB_Dark_NoLabels",
             1, 20, 256, ".png",
             arrayOf(
-                "https://a.basemaps.cartocdn.com/dark_all/",
-                "https://b.basemaps.cartocdn.com/dark_all/",
-                "https://c.basemaps.cartocdn.com/dark_all/",
-                "https://d.basemaps.cartocdn.com/dark_all/"
+                "https://a.basemaps.cartocdn.com/dark_nolabels/",
+                "https://b.basemaps.cartocdn.com/dark_nolabels/",
+                "https://c.basemaps.cartocdn.com/dark_nolabels/",
+                "https://d.basemaps.cartocdn.com/dark_nolabels/"
             ),
             "© OpenStreetMap contributors © CARTO"
         )
