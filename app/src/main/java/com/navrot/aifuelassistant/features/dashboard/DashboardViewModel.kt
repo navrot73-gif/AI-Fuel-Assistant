@@ -1,7 +1,12 @@
 package com.navrot.aifuelassistant.features.dashboard
 
+import android.annotation.SuppressLint
+import android.app.Application
+import android.content.Context
+import android.location.Location
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.android.gms.location.LocationServices
 import com.navrot.aifuelassistant.ai.FuelAnalysisPromptBuilder
 import com.navrot.aifuelassistant.ai.router.AiRouter
 import com.navrot.aifuelassistant.data.FuelRecordRepository
@@ -10,12 +15,16 @@ import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.geo.GeoUtils
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import kotlin.coroutines.resume
 
 data class DashboardMetrics(
     val fillCount: Int = 0,
@@ -31,6 +40,7 @@ class DashboardViewModel @Inject constructor(
     private val vehicleRepository: VehicleRepository,
     private val gasStationRepository: GasStationRepositoryInterface,
     private val aiRouter: AiRouter,
+    @ApplicationContext private val applicationContext: Context,
 ) : ViewModel() {
 
     private val _metrics = MutableStateFlow(DashboardMetrics())
@@ -250,8 +260,53 @@ class DashboardViewModel @Inject constructor(
             }
         }
     }
-        fun setUserQuestion(text: String) {
+
+    fun setUserQuestion(text: String) {
         _userQuestion.value = text
+    }
+
+    @SuppressLint("MissingPermission")
+    private suspend fun getLastLocation(): Location? = suspendCancellableCoroutine { cont ->
+        val fusedClient = LocationServices.getFusedLocationProviderClient(
+            applicationContext
+        )
+        fusedClient.lastLocation.addOnSuccessListener { location ->
+            cont.resume(location)
+        }.addOnFailureListener { e ->
+            cont.resume(null)
+        }
+    }
+
+    private suspend fun buildUserContext(): String {
+        val location = getLastLocation()
+            ?: return ""
+
+        val lat = location.latitude
+        val lon = location.longitude
+
+        // Get city name
+        val city = GeoUtils.hardcodedDetectCity(lat, lon)
+
+        // Get nearby stations (top 5 within 50km)
+        val nearbyStations = try {
+            gasStationRepository.getNearbyStations(lat, lon, 50.0)
+        } catch (_: Exception) {
+            emptyList<GasStation>()
+        }
+
+        val top5 = nearbyStations.take(5)
+        val stationsInfo = if (top5.isNotEmpty()) {
+            top5.joinToString("\n") { station ->
+                val price = station.fuelTypes
+                    .filter { it.available }
+                    .minByOrNull { it.price }?.price
+                    ?: 0.0
+                val distance = GeoUtils.calculateDistance(lat, lon, station.latitude, station.longitude)
+                "${station.brand} — ${String.format("%.0f", price)}₽ — ${String.format("%.1f", distance)}км"
+            }
+        } else "нет станций в радиусе 50км"
+
+        return "Пользователь: $lat, $lon, город: $city.\nБлижайшие АЗС:\n$stationsInfo"
     }
 
     fun askUserQuestion() {
@@ -263,7 +318,12 @@ class DashboardViewModel @Inject constructor(
             _error.value = null
             _userAnswer.value = null
             try {
-                val answer = aiRouter.ask(question)
+                val context = buildUserContext()
+                val fullPrompt = if (context.isNotBlank()) {
+                    "$context\n\nВопрос пользователя: $question"
+                } else question
+
+                val answer = aiRouter.ask(fullPrompt)
                 _userAnswer.value = answer
             } catch (e: Throwable) {
                 _error.value = e.message ?: "Не удалось получить ответ"
