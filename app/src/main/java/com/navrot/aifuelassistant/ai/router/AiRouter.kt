@@ -4,7 +4,6 @@ import android.util.Log
 import com.navrot.aifuelassistant.ai.AiProvider
 import com.navrot.aifuelassistant.ai.AiResponseCache
 import kotlinx.coroutines.*
-import kotlinx.coroutines.channels.Channel
 
 class AiRouter(
     private val providers: List<AiProvider>,
@@ -27,6 +26,10 @@ class AiRouter(
 
     /**
      * Запрашивает ответ у AI-провайдеров с кэшированием.
+     *
+     * Последовательный fallback: провайдеры перебираются по порядку,
+     * первый успешный ответ возвращается. Прокси идёт первым — он уже
+     * делает fallback внутри, поэтому клиент не дублирует параллельную гонку.
      *
      * Перед вызовом провайдеров проверяется кэш:
      * - [lat]/[lon] участвуют в ключе (MD5(prompt + lat + lon))
@@ -52,43 +55,29 @@ class AiRouter(
             return@coroutineScope cached
         }
 
-        log("AiRouter", "🚀 Гонка: запускаю ${providers.size} провайдеров параллельно (таймаут ${perProviderTimeoutMs}мс)")
-        
-        val channel = Channel<Result<String>>(providers.size)
-        
-        providers.forEach { provider ->
-            launch {
-                val name = provider.javaClass.simpleName
-                try {
-                    log("AiRouter", "→ $name стартует")
-                    val answer = withTimeout(perProviderTimeoutMs) { provider.ask(prompt) }
-                    log("AiRouter", "✅ $name финишировал первым!")
-                    channel.send(Result.success(answer))
-                } catch (e: TimeoutCancellationException) {
-                    logError("AiRouter", "⏱ $name не уложился в ${perProviderTimeoutMs}мс")
-                    channel.send(Result.failure(e))
-                } catch (e: Exception) {
-                    if (e is CancellationException) throw e
-                    logError("AiRouter", "❌ $name упал: ${e.message}", e)
-                    channel.send(Result.failure(e))
-                }
-            }
-        }
-        
-        var failures = 0
-        repeat(providers.size) {
-            val result = channel.receive()
-            if (result.isSuccess) {
-                coroutineContext.cancelChildren()
-                val answer = result.getOrThrow()
-                log("AiRouter", "🏆 Победитель найден, отменяю остальных")
+        log("AiRouter", "🔁 Fallback: перебираю ${providers.size} провайдеров (таймаут ${perProviderTimeoutMs}мс на провайдера)")
+
+        var lastError: Throwable? = null
+        for (provider in providers) {
+            val name = provider.javaClass.simpleName
+            try {
+                log("AiRouter", "→ $name стартует")
+                val answer = withTimeout(perProviderTimeoutMs) { provider.ask(prompt) }
+                log("AiRouter", "✅ $name вернул ответ")
                 cache.put(prompt, lat, lon, answer, ttlMs)
                 return@coroutineScope answer
-            } else {
-                failures++
+            } catch (e: TimeoutCancellationException) {
+                logError("AiRouter", "⏱ $name не уложился в ${perProviderTimeoutMs}мс")
+                lastError = e
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                logError("AiRouter", "❌ $name упал: ${e.message}", e)
+                lastError = e
             }
         }
-        
-        throw IllegalStateException("Все AI провайдеры недоступны ($failures ошибок)")
+
+        throw IllegalStateException(
+            "Все AI провайдеры недоступны (${providers.size} ошибок): ${lastError?.message}"
+        )
     }
 }
