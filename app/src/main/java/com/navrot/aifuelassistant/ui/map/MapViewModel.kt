@@ -76,6 +76,14 @@ class MapViewModel @Inject constructor(
     private val _currentCity = MutableStateFlow("Рядом с вами")
     val currentCity: StateFlow<String> = _currentCity.asStateFlow()
 
+    init {
+        // Warmup: pre-fetch prices for default city (chelyabinsk) so cache is hot
+        // when user location is resolved. Fire-and-forget, errors ignored.
+        viewModelScope.launch {
+            try { benzonavtProvider.fetchCityPrices() } catch (_: Exception) { /* ignore */ }
+        }
+    }
+
     /** AI-рекомендация лучшей станции из текущего списка. */
     data class AiRecommendation(
         val station: GasStation,
