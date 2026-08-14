@@ -10,7 +10,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Star
-import androidx.compose.material.icons.filled.ThumbUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,12 +21,15 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.navrot.aifuelassistant.data.model.GasStation
-import com.navrot.aifuelassistant.data.model.Review
 import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
 import com.navrot.aifuelassistant.ui.map.MapViewModel
+import com.navrot.aifuelassistant.ui.map.components.StationActionsBlock
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,7 +65,7 @@ fun GasStationDetailScreen(
     }
     
     var selectedTab by remember { mutableStateOf(0) }
-    val tabs = listOf("Информация", "Цены", "Отзывы")
+    val tabs = listOf("Информация", "Цены")
 
     Scaffold(
         topBar = {
@@ -105,8 +107,6 @@ fun GasStationDetailScreen(
                 }
             } else {
                 station?.let { st ->
-                    val reviews = remember { generateSampleReviews(stationId = st.id.toLong()) }
-                    
                     StationHeader(st)
 
                     TabRow(selectedTabIndex = selectedTab) {
@@ -122,7 +122,6 @@ fun GasStationDetailScreen(
                     when (selectedTab) {
                         0 -> InfoTab(st, onRouteClick)
                         1 -> PricesTab(st)
-                        2 -> ReviewsTab(reviews)
                     }
                 }
             }
@@ -225,6 +224,14 @@ fun InfoTab(station: GasStation, onRouteClick: () -> Unit) {
         }
 
         Spacer(modifier = Modifier.height(16.dp))
+
+        // ===== StationActionsBlock (💰 Сообщить цену + 📷 Фото стеллы) =====
+        StationActionsBlock(
+            station = station,
+            onReportPrice = { _, _, _ -> } // Will be handled by parent if needed
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
         Button(
             onClick = onRouteClick,
             modifier = Modifier.fillMaxWidth(),
@@ -233,22 +240,6 @@ fun InfoTab(station: GasStation, onRouteClick: () -> Unit) {
             Icon(Icons.Default.LocationOn, contentDescription = null)
             Spacer(modifier = Modifier.width(8.dp))
             Text("Построить маршрут")
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-        Text(
-            text = "Статистика",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(8.dp))
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            StatCard("Визиты", "1.2K")
-            StatCard("Отзывы", "45")
-            StatCard("Средний чек", "2,500 ₽")
         }
     }
 }
@@ -271,32 +262,6 @@ fun InfoRow(label: String, value: String) {
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Medium
         )
-    }
-}
-
-@Composable
-fun StatCard(label: String, value: String) {
-    Card(
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-    ) {
-        Column(
-            modifier = Modifier.padding(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
     }
 }
 
@@ -344,181 +309,4 @@ fun PricesTab(station: GasStation) {
             }
         }
     }
-}
-
-@Composable
-fun ReviewsTab(reviews: List<Review>) {
-    var showAddReview by remember { mutableStateOf(false) }
-
-    Column(modifier = Modifier.fillMaxSize()) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Средний рейтинг",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = calculateAverageRating(reviews),
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text(
-                            text = "/5",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Text(
-                        text = "${reviews.size} отзывов",
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-                Button(
-                    onClick = { showAddReview = true },
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("Написать")
-                }
-            }
-        }
-
-        LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            items(reviews) { review ->
-                ReviewCard(review)
-            }
-        }
-    }
-
-    if (showAddReview) {
-        AddReviewDialog(
-            onDismiss = { showAddReview = false },
-            onSubmit = { _, _ -> showAddReview = false }
-        )
-    }
-}
-
-@Composable
-fun ReviewCard(review: Review) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = review.author,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Medium
-                )
-                Row {
-                    repeat(5) { index ->
-                        Icon(
-                            imageVector = Icons.Default.Star,
-                            contentDescription = null,
-                            tint = if (index < review.rating) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                            },
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = review.date,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = review.text,
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-    }
-}
-
-@Composable
-fun AddReviewDialog(onDismiss: () -> Unit, onSubmit: (Int, String) -> Unit) {
-    var rating by remember { mutableIntStateOf(5) }
-    var content by remember { mutableStateOf("") }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Оставить отзыв") },
-        text = {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    repeat(5) { index ->
-                        IconButton(onClick = { rating = index + 1 }) {
-                            Icon(
-                                imageVector = Icons.Default.Star,
-                                contentDescription = null,
-                                tint = if (index < rating) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
-                            )
-                        }
-                    }
-                }
-                OutlinedTextField(
-                    value = content,
-                    onValueChange = { content = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Ваш отзыв...") },
-                    minLines = 3
-                )
-            }
-        },
-        confirmButton = {
-            Button(onClick = { onSubmit(rating, content) }) {
-                Text("Отправить")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Отмена")
-            }
-        }
-    )
-}
-
-private fun calculateAverageRating(reviews: List<Review>): String {
-    if (reviews.isEmpty()) return "0.0"
-    val avg = reviews.map { it.rating }.average()
-    return String.format("%.1f", avg)
-}
-
-private fun generateSampleReviews(stationId: Long): List<Review> {
-    return listOf(
-        Review(1, stationId, "Алексей", 5, "Отличная АЗС, всегда качественное топливо.", "01.08.2024"),
-        Review(2, stationId, "Мария", 4, "Хороший сервис, но иногда бывают очереди.", "28.07.2024"),
-        Review(3, stationId, "Иван", 5, "Удобное расположение и вкусный кофе.", "15.07.2024")
-    )
 }
