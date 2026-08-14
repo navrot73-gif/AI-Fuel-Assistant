@@ -7,9 +7,11 @@ import com.navrot.aifuelassistant.BuildConfig
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.data.providers.BenzonavtProvider
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.geo.GeoPoint
 import com.navrot.aifuelassistant.geo.GeoUtils
+import com.navrot.aifuelassistant.geo.NominatimGeocodingProvider
 import com.navrot.aifuelassistant.geo.OpenRouteServiceProvider
 import com.navrot.aifuelassistant.geo.RoutingProvider
 import okhttp3.OkHttpClient
@@ -24,18 +26,22 @@ import javax.inject.Inject
 class MapViewModel @Inject constructor(
     private val repository: GasStationRepositoryInterface,
     private val okHttpClient: OkHttpClient,
-    private val getBestStationsUseCase: GetBestStationsUseCase
+    private val getBestStationsUseCase: GetBestStationsUseCase,
+    private val benzonavtProvider: BenzonavtProvider
 ) : ViewModel() {
 
     companion object {
         private const val TAG = "MapViewModel"
         private const val DISTANCE_WEIGHT = 1.2
+        private const val DEFAULT_CITY_SLUG = "chelyabinsk"
     }
 
     private val routingProvider: RoutingProvider? =
         BuildConfig.ORS_API_KEY
             .takeIf { it.isNotBlank() }
             ?.let { OpenRouteServiceProvider(apiKey = it, httpClient = okHttpClient) }
+
+    private val geocodingProvider = NominatimGeocodingProvider(httpClient = okHttpClient)
 
     private val _stations = MutableStateFlow<List<GasStation>>(emptyList())
     val stations: StateFlow<List<GasStation>> = _stations.asStateFlow()
@@ -66,6 +72,17 @@ class MapViewModel @Inject constructor(
 
     private val _userLocation = MutableStateFlow<Pair<Double, Double>?>(null)
     val userLocation: StateFlow<Pair<Double, Double>?> = _userLocation.asStateFlow()
+
+    private val _currentCity = MutableStateFlow("Рядом с вами")
+    val currentCity: StateFlow<String> = _currentCity.asStateFlow()
+
+    init {
+        // Warmup: pre-fetch prices for default city (chelyabinsk) so cache is hot
+        // when user location is resolved. Fire-and-forget, errors ignored.
+        viewModelScope.launch {
+            try { benzonavtProvider.fetchCityPrices() } catch (_: Exception) { /* ignore */ }
+        }
+    }
 
     /** AI-рекомендация лучшей станции из текущего списка. */
     data class AiRecommendation(
@@ -100,9 +117,22 @@ class MapViewModel @Inject constructor(
         updateAiRecommendation(lat, lon)
     }
 
-    /** Определить город по координатам (хардкод-фоллбэк). */
-    suspend fun detectCity(lat: Double, lon: Double): String {
-        return GeoUtils.detectCity(lat, lon)
+    /**
+     * Определяет город (reverse geocoding, Nominatim; fallback — хардкод),
+     * сохраняет slug для BenzonavtProvider и пересчитывает цены на станциях.
+     */
+    fun updateCityAndPrices(lat: Double, lon: Double) {
+        viewModelScope.launch {
+            try {
+                val cityName = GeoUtils.detectCity(lat, lon, geocodingProvider)
+                _currentCity.value = cityName
+                val slug = GeoUtils.toCitySlug(cityName)
+                benzonavtProvider.setCity(slug)
+                repository.refreshPrices()
+            } catch (_: Exception) {
+                benzonavtProvider.setCity(DEFAULT_CITY_SLUG)
+            }
+        }
     }
 
     fun loadNearbyStations(lat: Double, lon: Double, radiusKm: Double = 50.0) {

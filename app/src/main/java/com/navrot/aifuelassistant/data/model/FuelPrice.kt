@@ -11,5 +11,10 @@ data class FuelPrice(
     val source: FuelDataSource = FuelDataSource.DEMO,
     val updatedAt: Long = 0L,
     val confidence: Int = 0,
+    val sourceCount: Int = 0,
     val photoEvidence: PhotoEvidence? = null
 ) : Parcelable
+
+/** Цена пришла от Benzonavt (медиана по городу через прокси). */
+val FuelPrice.isMedianFromNetwork: Boolean
+    get() = source == FuelDataSource.BENZONAVT

@@ -13,6 +13,7 @@ import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 
 fun openMapsRoute(context: Context, lat: Double, lon: Double, label: String) {
@@ -71,7 +72,10 @@ fun getMarkerColor(station: GasStation, selectedFuelTypes: Set<String>): Color {
 fun buildStationSnippet(station: GasStation, selectedFuelTypes: Set<String>): String {
     val fuels = station.fuelTypes
         .filter { selectedFuelTypes.contains(it.type) && it.available }
-        .joinToString(" | ") { "${it.type}: ${String.format("%.0f", it.price)}₽" }
+        .joinToString(" | ") {
+            val tilde = if (it.isMedianFromNetwork) "~" else ""
+            "${it.type}: $tilde${String.format("%.0f", it.price)}₽"
+        }
     return if (fuels.isNotEmpty()) {
         "$fuels | Очередь: ${station.queueTime} мин"
     } else {
