@@ -17,10 +17,10 @@ private val FueldeckDarkScheme = darkColorScheme(
     primaryContainer = Color(0xFF3A2A08),
     onPrimaryContainer = FueldeckColors.Amber,
 
-    secondary = FueldeckColors.Teal,
+    secondary = FueldeckColors.Mint,
     onSecondary = Color(0xFF06201C),
     secondaryContainer = Color(0xFF0C2A26),
-    onSecondaryContainer = FueldeckColors.Teal,
+    onSecondaryContainer = FueldeckColors.Mint,
 
     tertiary = FueldeckColors.Coral,
     onTertiary = Color(0xFF2A0B08),

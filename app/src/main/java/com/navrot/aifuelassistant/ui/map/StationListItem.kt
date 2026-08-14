@@ -40,7 +40,7 @@ fun StationListItem(
     }
 
     val brandColors = listOf(
-        FueldeckColors.Teal, FueldeckColors.Amber, FueldeckColors.Coral,
+        FueldeckColors.Mint, FueldeckColors.Amber, FueldeckColors.Coral,
         Color(0xFF2F7FD1), Color(0xFF7A6BD1), Color(0xFF2FAA55)
     )
     val brandColor = brandColors[Math.floorMod(station.brand.hashCode(), brandColors.size)]
@@ -97,10 +97,10 @@ fun StationListItem(
                         val hot = fuel.available
                         Surface(
                             shape = RoundedCornerShape(6.dp),
-                            color = if (hot) FueldeckColors.TealSoft else Color(0x0AFFFFFF),
+                            color = if (hot) FueldeckColors.MintSoft else Color(0x0AFFFFFF),
                             border = BorderStroke(
                                 1.dp,
-                                if (hot) FueldeckColors.Teal.copy(alpha = 0.35f) else FueldeckColors.Line
+                                if (hot) FueldeckColors.Mint.copy(alpha = 0.35f) else FueldeckColors.Line
                             )
                         ) {
                             Text(
@@ -109,7 +109,7 @@ fun StationListItem(
                                     "${fuel.type} $tilde${String.format("%.0f", fuel.price)}"
                                 } else "${fuel.type} нет",
                                 fontSize = 10.sp,
-                                color = if (hot) FueldeckColors.Teal else FueldeckColors.InkFaint,
+                                color = if (hot) FueldeckColors.Mint else FueldeckColors.InkFaint,
                                 fontWeight = FontWeight.Medium,
                                 fontFamily = if (hot) FontFamily.Monospace else FontFamily.SansSerif,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
@@ -133,7 +133,7 @@ fun StationListItem(
                         Text(
                             text = "🔄 из ${fuel.sourceCount} источников",
                             fontSize = 9.sp,
-                            color = FueldeckColors.Teal
+                            color = FueldeckColors.Mint
                         )
                     }
                 } ?: Text(
@@ -153,7 +153,7 @@ fun StationListItem(
 
                 if (station.queueTime > 0) {
                     val queueColor = when {
-                        station.queueTime <= 5 -> FueldeckColors.Teal
+                        station.queueTime <= 5 -> FueldeckColors.Mint
                         station.queueTime <= 15 -> FueldeckColors.Amber
                         else -> FueldeckColors.Coral
                     }

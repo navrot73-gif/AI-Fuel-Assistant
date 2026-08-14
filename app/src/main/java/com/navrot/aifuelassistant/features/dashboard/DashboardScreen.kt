@@ -54,6 +54,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.navrot.aifuelassistant.ui.components.ConsumptionGauge
 import com.navrot.aifuelassistant.ui.components.Sparkline
+import com.navrot.aifuelassistant.ui.map.UserLocationState
+import com.navrot.aifuelassistant.ui.map.components.LocationPermissionHandler
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
 
@@ -76,6 +78,14 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
     val spark = metrics.sparklineData
     val isEmpty = metrics.fillCount == 0
     val hasSparkline = spark.size >= 2
+
+    // Location permission handler for location-aware AI
+    LocationPermissionHandler(
+        onLocationUpdate = { loc ->
+            viewModel.updateUserLocation(loc.latitude, loc.longitude)
+        },
+        onPermissionDenied = { /* Location not available, AI will work without it */ }
+    )
 
     Column(
         modifier = modifier
@@ -162,9 +172,9 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 onClick = { viewModel.askUserQuestion() },
                 enabled = !isAnalyzing && userQuestion.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = FueldeckColors.Teal,
+                    containerColor = FueldeckColors.Mint,
                     contentColor = Color.White,
-                    disabledContainerColor = FueldeckColors.Teal.copy(alpha = 0.4f),
+                    disabledContainerColor = FueldeckColors.Mint.copy(alpha = 0.4f),
                 ),
                 shape = FueldeckShapes.Md,
                 modifier = Modifier.fillMaxWidth().height(46.dp),
@@ -312,10 +322,10 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                         Modifier
                             .fillMaxHeight()
                             .width(3.dp)
-                            .background(FueldeckColors.Teal)
+                            .background(FueldeckColors.Mint)
                     )
                     Column(modifier = Modifier.padding(14.dp)) {
-                        Text("AI‑анализ", fontSize = 11.sp, color = FueldeckColors.Teal,
+                        Text("AI‑анализ", fontSize = 11.sp, color = FueldeckColors.Mint,
                             letterSpacing = 1.2.sp)
                         Spacer(Modifier.height(6.dp))
                         Text(text, fontSize = 13.5.sp, color = FueldeckColors.Ink,
@@ -385,7 +395,7 @@ private fun MiniRing(value: Int) {
             val stroke = Stroke(width = 9.dp.toPx(), cap = StrokeCap.Round)
             drawArc(color = FueldeckColors.Line, startAngle = 135f, sweepAngle = 270f,
                 useCenter = false, style = stroke)
-            drawArc(color = FueldeckColors.Teal, startAngle = 135f,
+            drawArc(color = FueldeckColors.Mint, startAngle = 135f,
                 sweepAngle = 270f * progress, useCenter = false, style = stroke)
         }
         Text(

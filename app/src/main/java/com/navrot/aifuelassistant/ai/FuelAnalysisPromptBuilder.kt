@@ -2,6 +2,7 @@ package com.navrot.aifuelassistant.ai
 
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
+import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.geo.GeoUtils
 
 object FuelAnalysisPromptBuilder {
@@ -10,7 +11,8 @@ object FuelAnalysisPromptBuilder {
         vehicle: VehicleEntity?,
         records: List<FuelRecordEntity>,
         lat: Double? = null,
-        lon: Double? = null
+        lon: Double? = null,
+        nearbyStations: List<GasStation> = emptyList()
     ): String {
 
         if (records.isEmpty()) {
@@ -43,7 +45,23 @@ object FuelAnalysisPromptBuilder {
             "\nТекущее местоположение пользователя: $city (lat: $lat, lon: $lon). Учитывай цены топлива и пробки в этом регионе при рекомендациях."
         } else ""
 
+        val stationsContext = if (nearbyStations.isNotEmpty() && lat != null && lon != null) {
+            val list = nearbyStations.joinToString("\n") { st ->
+                val fuel = st.fuelTypes.firstOrNull { it.available }
+                val price = fuel?.price?.let { "~${it.toInt()}₽" } ?: "нет данных"
+                val distKm = GeoUtils.calculateDistance(lat, lon, st.latitude, st.longitude)
+                val dist = "${String.format("%.1f", distKm)} км"
+                "- ${st.brand} (${st.name}): $price, $dist"
+            }
+            "\nБлижайшие АЗС:\n$list"
+        } else ""
+
         return """
+            ВАЖНО: Если пользователь просит маршрут до заправки —
+            назови КОНКРЕТНУЮ АЗС из списка ближайших (бренд, цена,
+            расстояние) и предложи кнопку 'Построить маршрут' на карте.
+            НЕ отвечай 'у меня нет доступа'.
+
             Ты AI-ассистент по анализу расхода топлива автомобиля.
 
             $vehicleData
@@ -51,6 +69,7 @@ object FuelAnalysisPromptBuilder {
             История заправок:
             $fuelData
             $locationContext
+            $stationsContext
 
             Проанализируй данные и дай:
             1. Оценку среднего расхода топлива.
@@ -81,6 +100,11 @@ object FuelAnalysisPromptBuilder {
         } else ""
 
         return """
+            ВАЖНО: Если пользователь просит маршрут до заправки —
+            назови КОНКРЕТНУЮ АЗС из списка ближайших (бренд, цена,
+            расстояние) и предложи кнопку 'Построить маршрут' на карте.
+            НЕ отвечай 'у меня нет доступа'.
+
             Ты AI-ассистент по анализу расхода топлива.
 
             $vehicleData

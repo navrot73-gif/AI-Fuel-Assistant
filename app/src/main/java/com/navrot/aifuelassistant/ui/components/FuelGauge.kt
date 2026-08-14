@@ -123,7 +123,7 @@ fun Sparkline(
         // точки макс (amber) и мин (teal)
         val iMax = data.indexOf(mx); val iMin = data.indexOf(mn)
         drawCircle(FueldeckColors.Amber, radius = 2.4.dp.toPx(), center = androidx.compose.ui.geometry.Offset(px(iMax), py(mx)))
-        drawCircle(FueldeckColors.Teal, radius = 2.4.dp.toPx(), center = androidx.compose.ui.geometry.Offset(px(iMin), py(mn)))
+        drawCircle(FueldeckColors.Mint, radius = 2.4.dp.toPx(), center = androidx.compose.ui.geometry.Offset(px(iMin), py(mn)))
     }
 }
 
