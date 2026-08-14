@@ -41,10 +41,14 @@ android {
     }
 
     buildTypes {
+        debug {
+            buildConfigField("String", "PROXY_TOKEN", "\"fuel-2026-secret\"")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            buildConfigField("String", "PROXY_TOKEN", "\"fuel-2026-secret\"")
         }
     }
     compileOptions {

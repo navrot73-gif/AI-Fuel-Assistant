@@ -1,13 +1,18 @@
 package com.navrot.aifuelassistant.ai
 
 import com.navrot.aifuelassistant.BuildConfig
+import com.navrot.aifuelassistant.ai.providers.AiProxyProvider
 import com.navrot.aifuelassistant.ai.router.AiRouter
 import okhttp3.OkHttpClient
 
 object AiRouterFactory {
     fun create(okHttpClient: OkHttpClient = OkHttpClient()): AiRouter {
 
-        // 1. DeepSeek
+        // 0. Cloudflare Worker прокси — первичный провайдер.
+        // Прокси сам делает fallback (DeepSeek → Qwen → GigaChat) внутри.
+        val proxyProvider = AiProxyProvider(httpClient = okHttpClient)
+
+        // 1. DeepSeek — резервный fallback, если прокси недоступен
         val deepSeekProvider = BuildConfig.DEEPSEEK_API_KEY
             .takeIf { it.isNotBlank() }
             ?.let { DeepSeekAiProvider(httpClient = okHttpClient) }
@@ -36,30 +41,15 @@ object AiRouterFactory {
             .takeIf { it.isNotBlank() }
             ?.let { QwenAiProvider(httpClient = okHttpClient) }
 
-        // 5. YandexGPT (Яндекс)
-        val yandexProvider = BuildConfig.YANDEX_API_KEY
-            .takeIf { it.isNotBlank() }
-            ?.let { apiKey ->
-                BuildConfig.YANDEX_FOLDER_ID
-                    .takeIf { it.isNotBlank() }
-                    ?.let { folderId ->
-                        YandexGPTProvider(
-                            apiKey = apiKey,
-                            folderId = folderId,
-                            httpClient = okHttpClient
-                        )
-                    }
-            }
+        // 5. YandexGPT - Disabled 2026-08-13: 403 Permission denied (IAM-роль без прав на модель)
+        val yandexProvider = null
 
-        val configuredProviders = listOfNotNull(
+        val providers = listOfNotNull(
+            proxyProvider,
             deepSeekProvider,
-            huggingFaceProvider,
             gigaChatProvider,
-            qwenProvider,
-            yandexProvider
-        )
-
-        val providers = configuredProviders.ifEmpty {
+            qwenProvider
+        ).ifEmpty {
             listOf(UnavailableAiProvider("Нет настроенных провайдеров"))
         }
 
