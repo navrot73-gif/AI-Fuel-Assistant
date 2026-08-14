@@ -21,10 +21,10 @@ import androidx.compose.ui.unit.sp
  *   Пока стоят системные семейства — собирается без ресурсов.
  */
 object FueldeckColors {
-    val Bg0      = Color(0xFF0A0E11)
-    val Bg1      = Color(0xFF0E1418)
-    val Surface  = Color(0xFF141D22)
-    val Surface2 = Color(0xFF1A262C)
+    val Bg0      = Color(0xFF17222B)
+    val Bg1      = Color(0xFF17222B)
+    val Surface  = Color(0xFF1E2732)
+    val Surface2 = Color(0xFF242E38)
 
     val Line  = Color(0x12FFFFFF) // rgba(255,255,255,.07)
     val Line2 = Color(0x1FFFFFFF) // rgba(255,255,255,.12)
@@ -33,10 +33,10 @@ object FueldeckColors {
     val InkDim   = Color(0xFF93A6A4)
     val InkFaint = Color(0xFF5D6F6E)
 
-    val Amber     = Color(0xFFFFB43A)
-    val AmberSoft = Color(0x29FFB43A) // rgba(...,.16)
-    val Teal      = Color(0xFF34E0C4)
-    val TealSoft  = Color(0x2434E0C4) // rgba(...,.14)
+    val Amber     = Color(0xFFE8A750)
+    val AmberSoft = Color(0x29E8A750) // rgba(...,.16)
+    val Mint      = Color(0xFF4DB6AC)
+    val MintSoft  = Color(0x244DB6AC) // rgba(...,.14)
     val Coral     = Color(0xFFFF6F61)
     val CoralSoft = Color(0x24FF6F61) // rgba(...,.14)
 }

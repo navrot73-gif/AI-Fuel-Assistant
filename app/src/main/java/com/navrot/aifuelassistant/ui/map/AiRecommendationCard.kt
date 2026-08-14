@@ -39,7 +39,7 @@ fun AiRecommendationCard(
 
     val (station, fuel, dist) = recommendation
     val brandColors = listOf(
-        FueldeckColors.Teal, FueldeckColors.Amber, FueldeckColors.Coral,
+        FueldeckColors.Mint, FueldeckColors.Amber, FueldeckColors.Coral,
         Color(0xFF2F7FD1), Color(0xFF7A6BD1), Color(0xFF2FAA55)
     )
     val brandColor = brandColors[Math.floorMod(station.brand.hashCode(), brandColors.size)]
@@ -64,7 +64,7 @@ fun AiRecommendationCard(
         modifier = Modifier.padding(start = 12.dp, end = 12.dp, bottom = 16.dp),
         shape = RoundedCornerShape(22.dp),
         color = FueldeckColors.Surface,
-        border = BorderStroke(1.dp, FueldeckColors.Teal.copy(alpha = 0.35f)),
+        border = BorderStroke(1.dp, FueldeckColors.Mint.copy(alpha = 0.35f)),
         shadowElevation = 10.dp
     ) {
         Row(
@@ -100,8 +100,8 @@ fun AiRecommendationCard(
             Column(modifier = Modifier.weight(1f)) {
                 Row(verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("✨", color = FueldeckColors.Teal.copy(alpha = 0.5f + 0.5f * spark.value), fontSize = 13.sp)
-                    Text("AI‑подбор", color = FueldeckColors.Teal, fontWeight = FontWeight.Bold,
+                    Text("✨", color = FueldeckColors.Mint.copy(alpha = 0.5f + 0.5f * spark.value), fontSize = 13.sp)
+                    Text("AI‑подбор", color = FueldeckColors.Mint, fontWeight = FontWeight.Bold,
                         fontSize = 11.sp, letterSpacing = 0.6.sp)
                 }
                 Text(station.brand, color = FueldeckColors.Ink, fontWeight = FontWeight.SemiBold,
@@ -122,7 +122,7 @@ fun AiRecommendationCard(
                 modifier = Modifier
                     .size(44.dp)
                     .background(
-                        FueldeckColors.TealSoft,
+                        FueldeckColors.MintSoft,
                         CircleShape
                     )
                     .clickable {
@@ -131,7 +131,7 @@ fun AiRecommendationCard(
                 contentAlignment = Alignment.Center
             ) {
                 Icon(Icons.Default.LocationOn, contentDescription = "Маршрут",
-                    tint = FueldeckColors.Teal, modifier = Modifier.size(22.dp))
+                    tint = FueldeckColors.Mint, modifier = Modifier.size(22.dp))
             }
         }
     }

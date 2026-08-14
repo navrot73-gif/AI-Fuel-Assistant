@@ -180,7 +180,7 @@ fun VehicleCard(state: VehicleCardUiState, modifier: Modifier = Modifier) {
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Box(Modifier.size(36.dp).background(FueldeckColors.TealSoft, RoundedCornerShape(10.dp)),
+                Box(Modifier.size(36.dp).background(FueldeckColors.MintSoft, RoundedCornerShape(10.dp)),
                     contentAlignment = Alignment.Center) { Text("⛽", fontSize = 16.sp) }
                 Column(modifier = Modifier.weight(1f)) {
                     Text("последняя заправка", fontSize = 13.sp, color = FueldeckColors.InkDim)
@@ -219,7 +219,7 @@ private fun FuelBar(percent: Int) {
             Modifier
                 .fillMaxWidth(p)
                 .height(8.dp)
-                .background(Brush.horizontalGradient(listOf(FueldeckColors.Teal, FueldeckColors.Amber)), FueldeckShapes.Pill),
+                .background(Brush.horizontalGradient(listOf(FueldeckColors.Mint, FueldeckColors.Amber)), FueldeckShapes.Pill),
         )
     }
 }
@@ -252,7 +252,7 @@ private fun ConsumptionBars(values: List<Float>) {
                 animationSpec = tween(900), label = "bar",
             )
             val color = when {
-                v <= 7.0f -> FueldeckColors.Teal
+                v <= 7.0f -> FueldeckColors.Mint
                 v <= 7.6f -> FueldeckColors.Amber
                 else -> FueldeckColors.Coral
             }
@@ -299,14 +299,14 @@ private fun CarSilhouette(modifier: Modifier = Modifier) {
                         drawOval(Color(0x66000000), topLeft = Offset(28f, 84f), size = Size(184f, 9f))
 
                         val grad = Brush.linearGradient(
-                            listOf(FueldeckColors.Teal, FueldeckColors.Amber),
+                            listOf(FueldeckColors.Mint, FueldeckColors.Amber),
                             start = Offset.Zero, end = Offset(240f, 0f),
                         )
                         // Кузов одной плавной линией с арками колёс
                         drawPath(bodyPath(), grad, style = Stroke(3f, cap = StrokeCap.Round, join = StrokeJoin.Round))
                         // Окна
-                        drawPath(winRear(), FueldeckColors.Teal.copy(alpha = 0.10f))
-                        drawPath(winRear(), FueldeckColors.Teal.copy(alpha = 0.5f), style = Stroke(1.5f))
+                        drawPath(winRear(), FueldeckColors.Mint.copy(alpha = 0.10f))
+                        drawPath(winRear(), FueldeckColors.Mint.copy(alpha = 0.5f), style = Stroke(1.5f))
                         drawPath(winFront(), FueldeckColors.Amber.copy(alpha = 0.08f))
                         drawPath(winFront(), FueldeckColors.Amber.copy(alpha = 0.4f), style = Stroke(1.5f))
                         // Дверной шов и ручка

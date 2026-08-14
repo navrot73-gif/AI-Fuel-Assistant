@@ -65,7 +65,7 @@ fun getMarkerColor(station: GasStation, selectedFuelTypes: Set<String>): Color {
         relevant.isEmpty() -> FueldeckColors.InkFaint
         available.isEmpty() -> FueldeckColors.Coral
         station.queueTime > 15 -> FueldeckColors.Amber
-        else -> FueldeckColors.Teal
+        else -> FueldeckColors.Mint
     }
 }
 

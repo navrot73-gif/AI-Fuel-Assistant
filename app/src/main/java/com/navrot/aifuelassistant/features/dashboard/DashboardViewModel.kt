@@ -11,8 +11,10 @@ import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.data.model.GasStation
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 data class DashboardMetrics(
@@ -63,6 +65,13 @@ class DashboardViewModel @Inject constructor(
 
     private val _selectedVehicleId = MutableStateFlow<Long?>(null)
     val selectedVehicleId: StateFlow<Long?> = _selectedVehicleId.asStateFlow()
+
+    private val _userLocation = MutableStateFlow<Pair<Double, Double>?>(null)
+    val userLocation: StateFlow<Pair<Double, Double>?> = _userLocation.asStateFlow()
+
+    fun updateUserLocation(lat: Double, lon: Double) {
+        _userLocation.value = lat to lon
+    }
 
     init {
         loadVehicles()
@@ -217,9 +226,20 @@ class DashboardViewModel @Inject constructor(
                 }
                 val vehicle = _vehicles.value.firstOrNull { it.id == vehicleId }
 
+                // Get nearby stations for location-aware AI
+                val (lat, lon) = _userLocation.value ?: (0.0 to 0.0)
+                val nearbyStations = if (lat != 0.0 && lon != 0.0) {
+                    withContext(Dispatchers.IO) {
+                        gasStationRepository.getNearbyStations(lat, lon, 50.0).take(5)
+                    }
+                } else emptyList()
+
                 val prompt = FuelAnalysisPromptBuilder.build(
                     vehicle = vehicle,
-                    records = records
+                    records = records,
+                    lat = if (lat != 0.0) lat else null,
+                    lon = if (lon != 0.0) lon else null,
+                    nearbyStations = nearbyStations
                 )
 
                 _analysis.value = aiRouter.ask(prompt)
@@ -229,7 +249,7 @@ class DashboardViewModel @Inject constructor(
                 _isAnalyzing.value = false
             }
         }
-   }
+    }
         fun setUserQuestion(text: String) {
         _userQuestion.value = text
     }
