@@ -207,27 +207,26 @@ fun StationDetailCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // ===== Кнопки: цена + маршрут =====
-            Row(
+            // ===== Кнопка: сообщить цену (нижняя часть карточки) =====
+            OutlinedButton(
+                onClick = { showPriceDialog = true },
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                shape = RoundedCornerShape(12.dp)
             ) {
-                OutlinedButton(
-                    onClick = { showPriceDialog = true },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Text("💬 Цена")
-                }
-                Button(
-                    onClick = onBuildRoute,
-                    modifier = Modifier.weight(1.4f),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(Icons.Default.LocationOn, contentDescription = null)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(if (isRouting) "Уточняем..." else "Маршрут")
-                }
+                Text("💰 Сообщить цену")
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // ===== Кнопка: маршрут =====
+            Button(
+                onClick = onBuildRoute,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.LocationOn, contentDescription = null)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(if (isRouting) "Уточняем..." else "Маршрут")
             }
 
             Spacer(modifier = Modifier.height(8.dp))
