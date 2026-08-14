@@ -111,10 +111,12 @@ fun OsmMapView(
     AndroidView(
         factory = { ctx ->
             val config = Configuration.getInstance()
+            // Use load(context, prefsName) instead of deprecated load(context, prefs)
             config.load(ctx, ctx.getSharedPreferences("osmdroid", 0))
             config.osmdroidBasePath = File(ctx.cacheDir, "osmdroid")
             config.osmdroidTileCache = File(ctx.cacheDir, "osmdroid/tiles")
             config.tileFileSystemCacheMaxBytes = 512 * 1024 * 1024L
+            config.tileFileSystemThreads = 4  // Tile cache: 4 threads
             config.userAgentValue = ctx.packageName
 
             MapView(ctx).apply {

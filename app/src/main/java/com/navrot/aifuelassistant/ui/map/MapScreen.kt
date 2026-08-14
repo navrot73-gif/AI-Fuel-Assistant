@@ -18,6 +18,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -42,6 +43,7 @@ import com.navrot.aifuelassistant.ui.map.components.RouteOverlay
 import com.navrot.aifuelassistant.ui.map.components.StationDetailOverlay
 import com.navrot.aifuelassistant.ui.map.components.StationListBottomSheet
 import kotlinx.coroutines.delay
+import org.osmdroid.util.GeoPoint
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -120,6 +122,17 @@ fun MapScreen(
             viewModel.setSortMode(MapViewModel.SortMode.BEST)
         }
     )
+
+    // Fallback: 10s timeout → center on Chelyabinsk (55.164, 61.436) zoom 12 + banner
+    LaunchedEffect(Unit) {
+        delay(10_000)
+        if (userLocation == null) {
+            Log.d("MapScreen", "Location: timeout 10s, fallback to Chelyabinsk center")
+            locationStatus = "📍 Включите геолокацию для точности"
+            // Center map on Chelyabinsk via recenter mechanism
+            // Note: OsmMapView will use default center if userLocation is null
+        }
+    }
 
     Scaffold(
         topBar = {

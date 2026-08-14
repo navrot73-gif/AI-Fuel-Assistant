@@ -16,7 +16,7 @@ object FuelAnalysisPromptBuilder {
     ): String {
 
         if (records.isEmpty()) {
-            return buildEmptyRecordsPrompt(vehicle)
+            return buildEmptyRecordsPrompt(vehicle, lat, lon)
         }
 
         val vehicleData = vehicle?.let {
@@ -41,7 +41,8 @@ object FuelAnalysisPromptBuilder {
         }
 
         val locationContext = if (lat != null && lon != null) {
-            "\nТекущая локация: $lat, $lon"
+            val city = GeoUtils.hardcodedDetectCity(lat, lon)
+            "\nТекущее местоположение пользователя: $city (lat: $lat, lon: $lon). Учитывай цены топлива и пробки в этом регионе при рекомендациях."
         } else ""
 
         val stationsContext = if (nearbyStations.isNotEmpty() && lat != null && lon != null) {
@@ -82,7 +83,7 @@ object FuelAnalysisPromptBuilder {
         """.trimIndent()
     }
 
-    private fun buildEmptyRecordsPrompt(vehicle: VehicleEntity?): String {
+    private fun buildEmptyRecordsPrompt(vehicle: VehicleEntity?, lat: Double?, lon: Double?): String {
         val vehicleData = vehicle?.let {
             """
             Автомобиль:
@@ -93,6 +94,11 @@ object FuelAnalysisPromptBuilder {
             """.trimIndent()
         } ?: "Данные об автомобиле отсутствуют."
 
+        val locationContext = if (lat != null && lon != null) {
+            val city = GeoUtils.hardcodedDetectCity(lat, lon)
+            "\nТекущее местоположение пользователя: $city (lat: $lat, lon: $lon)."
+        } else ""
+
         return """
             ВАЖНО: Если пользователь просит маршрут до заправки —
             назови КОНКРЕТНУЮ АЗС из списка ближайших (бренд, цена,
@@ -102,6 +108,7 @@ object FuelAnalysisPromptBuilder {
             Ты AI-ассистент по анализу расхода топлива.
 
             $vehicleData
+            $locationContext
 
             История заправок отсутствует.
 

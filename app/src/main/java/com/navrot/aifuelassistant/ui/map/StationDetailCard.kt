@@ -1,16 +1,24 @@
 package com.navrot.aifuelassistant.ui.map
 
+import android.content.Context
+import android.net.Uri
+import android.provider.MediaStore
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.AlertDialog
@@ -23,12 +31,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Snackbar
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -39,9 +52,24 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
+import com.navrot.aifuelassistant.BuildConfig
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
 import com.navrot.aifuelassistant.ui.components.NetworkImage
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONObject
+import java.io.File
+import java.util.concurrent.TimeUnit
+import android.util.Base64
 
 @Composable
 fun StationDetailCard(
@@ -56,6 +84,38 @@ fun StationDetailCard(
 ) {
     val context = LocalContext.current
     var showPriceDialog by remember { mutableStateOf(false) }
+    var showOcrLoading by remember { mutableStateOf(false) }
+    var ocrError by remember { mutableStateOf<String?>(null) }
+    var ocrResults by remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
+    var showOcrResultDialog by remember { mutableStateOf(false) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+
+    var tempPhotoFile by remember { mutableStateOf<File?>(null) }
+
+    // Camera launcher
+    val takePictureLauncher = androidx.activity.compose.rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success && tempPhotoFile != null) {
+            scope.processOcrPhoto(
+                photoFile = tempPhotoFile!!,
+                onLoading = { showOcrLoading = it },
+                onError = { ocrError = it },
+                onResults = { results ->
+                    ocrResults = results
+                    showOcrResultDialog = true
+                },
+                onEmpty = {
+                    scope.launch {
+                        snackbarHostState.showSnackbar("Не удалось распознать цены, введите вручную")
+                    }
+                }
+            )
+        } else if (!success) {
+            scope.launch {
+                snackbarHostState.showSnackbar("Фото не было сделано")
+            }
+        }
+    }
 
     Card(
         modifier = Modifier
@@ -224,12 +284,36 @@ fun StationDetailCard(
             Spacer(modifier = Modifier.height(10.dp))
 
             // ===== Кнопка: сообщить цену (нижняя часть карточки) =====
-            OutlinedButton(
-                onClick = { showPriceDialog = true },
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Text("💰 Сообщить цену")
+                OutlinedButton(
+                    onClick = { showPriceDialog = true },
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("💰 Сообщить цену")
+                }
+                OutlinedButton(
+                    onClick = {
+                        // Create temp file and launch camera
+                        val cacheDir = context.cacheDir
+                        val photoFile = File(cacheDir, "stela_photo_${System.currentTimeMillis()}.jpg")
+                        tempPhotoFile = photoFile
+                        val photoUri = FileProvider.getUriForFile(
+                            context,
+                            "${context.packageName}.fileprovider",
+                            photoFile
+                        )
+                        takePictureLauncher.launch(photoUri)
+                    },
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    enabled = !showOcrLoading
+                ) {
+                    Text("📷 Фото стеллы")
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -285,6 +369,99 @@ fun StationDetailCard(
             }
         )
     }
+
+    if (showOcrResultDialog) {
+        OcrResultDialog(
+            station = station,
+            results = ocrResults,
+            onDismiss = { showOcrResultDialog = false },
+            onSaveAll = { results ->
+                results.forEach { (fuelType, price) ->
+                    onReportPrice(station.id, fuelType, price)
+                }
+                showOcrResultDialog = false
+            }
+        )
+    }
+
+    if (showOcrLoading) {
+        OcrLoadingOverlay()
+    }
+
+    SnackbarHost(hostState = snackbarHostState)
+}
+
+// Process OCR photo - helper function
+fun CoroutineScope.processOcrPhoto(
+    photoFile: File,
+    onLoading: (Boolean) -> Unit,
+    onError: (String?) -> Unit,
+    onResults: (Map<String, Double>) -> Unit,
+    onEmpty: () -> Unit
+) {
+    onLoading(true)
+    onError(null)
+
+    launch {
+        try {
+            // Read file and convert to Base64
+            val bytes = photoFile.readBytes()
+            val base64Image = Base64.encodeToString(bytes, Base64.NO_WRAP)
+
+            // Call OCR API
+            val results = withContext(Dispatchers.IO) {
+                callOcrApi(base64Image)
+            }
+
+            onLoading(false)
+            if (results.isNotEmpty()) {
+                onResults(results)
+            } else {
+                onEmpty()
+            }
+        } catch (e: Exception) {
+            onLoading(false)
+            onError(e.message ?: "Ошибка распознавания")
+            onEmpty()
+        }
+    }
+}
+
+// Call OCR API - helper function
+suspend fun callOcrApi(base64Image: String): Map<String, Double> {
+    val client = OkHttpClient.Builder()
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .writeTimeout(60, TimeUnit.SECONDS)
+        .build()
+
+    val jsonBody = JSONObject().put("image", base64Image).toString()
+    val requestBody = jsonBody.toRequestBody("application/json; charset=utf-8".toMediaType())
+
+    val request = Request.Builder()
+        .url("https://ai-fuel-proxy.navrot73.workers.dev/ocr-stela")
+        .addHeader("X-Proxy-Token", BuildConfig.PROXY_TOKEN)
+        .addHeader("Content-Type", "application/json")
+        .post(requestBody)
+        .build()
+
+    val response = client.newCall(request).execute()
+    val responseBody = response.body?.string() ?: throw Exception("Empty response")
+
+    if (!response.isSuccessful) {
+        throw Exception("API error: ${response.code} - $responseBody")
+    }
+
+    val json = JSONObject(responseBody)
+    val pricesJson = json.getJSONObject("prices")
+    val results = mutableMapOf<String, Double>()
+    val iterator = pricesJson.keys()
+    while (iterator.hasNext()) {
+        val key = iterator.next()
+        val value = pricesJson.getDouble(key)
+        results[key] = value
+    }
+    return results
 }
 
 @Composable
@@ -363,4 +540,80 @@ private fun ReportPriceDialog(
             TextButton(onClick = onDismiss) { Text("Отмена") }
         }
     )
+}
+
+// OCR Result Dialog
+@Composable
+private fun OcrResultDialog(
+    station: GasStation,
+    results: Map<String, Double>,
+    onDismiss: () -> Unit,
+    onSaveAll: (Map<String, Double>) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Распознанные цены") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text("АЗС: ${station.brand}", style = MaterialTheme.typography.bodySmall)
+                Text("Проверьте и сохраните:", fontWeight = FontWeight.SemiBold)
+
+                results.entries.forEach { entry ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "АИ-${entry.key}: ${String.format("%.1f", entry.value)} ₽",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = "Распознано",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            Button(onClick = { onSaveAll(results) }) {
+                Text("Сохранить все")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Отмена") }
+        }
+    )
+}
+
+// Loading indicator
+@Composable
+private fun OcrLoadingOverlay() {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center
+    ) {
+        Card(
+            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+            shape = RoundedCornerShape(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    modifier = Modifier.size(48.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    "Распознаю цены...",
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+    }
 }
