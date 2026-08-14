@@ -2,16 +2,19 @@ package com.navrot.aifuelassistant.ai
 
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
+import com.navrot.aifuelassistant.geo.GeoUtils
 
 object FuelAnalysisPromptBuilder {
 
     fun build(
         vehicle: VehicleEntity?,
-        records: List<FuelRecordEntity>
+        records: List<FuelRecordEntity>,
+        lat: Double? = null,
+        lon: Double? = null
     ): String {
 
         if (records.isEmpty()) {
-            return buildEmptyRecordsPrompt(vehicle)
+            return buildEmptyRecordsPrompt(vehicle, lat, lon)
         }
 
         val vehicleData = vehicle?.let {
@@ -35,6 +38,11 @@ object FuelAnalysisPromptBuilder {
                     "АЗС: ${record.stationName.ifBlank { "не указана" }}"
         }
 
+        val locationContext = if (lat != null && lon != null) {
+            val city = GeoUtils.hardcodedDetectCity(lat, lon)
+            "\nТекущее местоположение пользователя: $city (lat: $lat, lon: $lon). Учитывай цены топлива и пробки в этом регионе при рекомендациях."
+        } else ""
+
         return """
             Ты AI-ассистент по анализу расхода топлива автомобиля.
 
@@ -42,6 +50,7 @@ object FuelAnalysisPromptBuilder {
 
             История заправок:
             $fuelData
+            $locationContext
 
             Проанализируй данные и дай:
             1. Оценку среднего расхода топлива.
@@ -55,7 +64,7 @@ object FuelAnalysisPromptBuilder {
         """.trimIndent()
     }
 
-    private fun buildEmptyRecordsPrompt(vehicle: VehicleEntity?): String {
+    private fun buildEmptyRecordsPrompt(vehicle: VehicleEntity?, lat: Double?, lon: Double?): String {
         val vehicleData = vehicle?.let {
             """
             Автомобиль:
@@ -66,10 +75,16 @@ object FuelAnalysisPromptBuilder {
             """.trimIndent()
         } ?: "Данные об автомобиле отсутствуют."
 
+        val locationContext = if (lat != null && lon != null) {
+            val city = GeoUtils.hardcodedDetectCity(lat, lon)
+            "\nТекущее местоположение пользователя: $city (lat: $lat, lon: $lon)."
+        } else ""
+
         return """
             Ты AI-ассистент по анализу расхода топлива.
 
             $vehicleData
+            $locationContext
 
             История заправок отсутствует.
 
