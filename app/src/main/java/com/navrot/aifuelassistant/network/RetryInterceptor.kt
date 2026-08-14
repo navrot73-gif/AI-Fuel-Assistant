@@ -7,6 +7,7 @@ import java.io.IOException
 /**
  * Простой интерсептор повторных попыток для OkHttp.
  * Повторяет запросы при сетевых ошибках и при 5xx ответах.
+ * Для запросов к прокси (city-prices, ocr-stela) использует maxRetries = 1.
  */
 class RetryInterceptor(
     private val maxRetries: Int = 2,
@@ -17,17 +18,21 @@ class RetryInterceptor(
         var lastException: IOException? = null
         val request = chain.request()
 
+        // Для proxy запросов ограничиваем ретраи до 1
+        val isProxyRequest = request.url.host.contains("navrot73.workers.dev")
+        val effectiveMaxRetries = if (isProxyRequest) 1 else maxRetries
+
         while (true) {
             try {
                 val response = chain.proceed(request)
-                if (!shouldRetryResponse(response) || attempt >= maxRetries) {
+                if (!shouldRetryResponse(response) || attempt >= effectiveMaxRetries) {
                     return response
                 }
                 // close body before retry
                 try { response.close() } catch (_: Exception) {}
             } catch (e: IOException) {
                 lastException = e
-                if (attempt >= maxRetries) throw e
+                if (attempt >= effectiveMaxRetries) throw e
             }
 
             attempt++

@@ -13,6 +13,11 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONArray
@@ -64,6 +69,9 @@ class GasStationRepository constructor(
     private var cachedStations: List<GasStation>? = null
     private var lastRemoteCheckMs = 0L
 
+    // Job для фонового обновления цен, чтобы отменять при новом вызове
+    private var priceRefreshJob: kotlinx.coroutines.Job? = null
+
     private suspend fun ensureLoaded(): List<GasStation> = loadMutex.withLock {
         cachedStations?.let { return@withLock it }
 
@@ -76,29 +84,97 @@ class GasStationRepository constructor(
                 loadFromCache() ?: loadFromAssets()
             }
 
-        val withPrices = applyAllPrices(stations)
-        cachedStations = withPrices
-        withPrices
+        // СНАЧАЛА применяем user prices — НЕМЕДЛЕННО возвращаем станции на карту
+        val withUser = applyUserPrices(stations)
+        cachedStations = withUser
+        Log.d(TAG, "stations shown (${withUser.size}), prices pending")
+
+        // ЗАТЕМ фоновая coroutine: fetchCityPrices + graceful swap
+        priceRefreshJob?.cancel()
+        priceRefreshJob = kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val city = benzonavtProvider.currentCity()
+                val benzonavt = benzonavtProvider.fetchCityPrices(city)
+                if (benzonavt.isNotEmpty()) {
+                    loadMutex.withLock {
+                        val swapped = withUser.map { station -> applyBenzonavtToStation(station, benzonavt, city) }
+                        cachedStations = swapped
+                        Log.d(TAG, "prices swapped from BENZONAVT")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Background price refresh failed: ${e.message}")
+            }
+        }
+
+        withUser
     }
 
     /** Принудительное обновление из сети + применение пользовательских цен. */
     override suspend fun refresh(): List<GasStation> = loadMutex.withLock {
         lastRemoteCheckMs = System.currentTimeMillis()
         val stations = loadFromRemote() ?: loadFromCache() ?: loadFromAssets()
-        val withPrices = applyAllPrices(stations)
-        cachedStations = withPrices
-        withPrices
+
+        // СНАЧАЛА user prices — НЕМЕДЛЕННО возвращаем
+        val withUser = applyUserPrices(stations)
+        cachedStations = withUser
+        Log.d(TAG, "stations shown (${withUser.size}), prices pending")
+
+        // ЗАТЕМ фоновый Benzonavt swap
+        priceRefreshJob?.cancel()
+        priceRefreshJob = kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val city = benzonavtProvider.currentCity()
+                val benzonavt = benzonavtProvider.fetchCityPrices(city)
+                if (benzonavt.isNotEmpty()) {
+                    loadMutex.withLock {
+                        val swapped = withUser.map { station -> applyBenzonavtToStation(station, benzonavt, city) }
+                        cachedStations = swapped
+                        Log.d(TAG, "prices swapped from BENZONAVT")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Background price refresh failed: ${e.message}")
+            }
+        }
+
+        withUser
     }
 
     /**
      * Пересчитать цены на уже загруженных станциях (после определения города):
      * Benzonavt (кеш 30 мин) → user prices → stations.json. Без сетевого запроса станций.
+     * Timeout 5 сек — не ждать дольше.
      */
     override suspend fun refreshPrices(): List<GasStation> = loadMutex.withLock {
         val base = cachedStations ?: loadFromRemote() ?: loadFromCache() ?: loadFromAssets()
-        val withPrices = applyAllPrices(base)
-        cachedStations = withPrices
-        withPrices
+
+        // СНАЧАЛА user prices — НЕМЕДЛЕННО возвращаем
+        val withUser = applyUserPrices(base)
+        cachedStations = withUser
+        Log.d(TAG, "stations shown (${withUser.size}), prices pending")
+
+        // ЗАТЕМ фоновый Benzonavt swap с timeout 5 сек
+        priceRefreshJob?.cancel()
+        priceRefreshJob = kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+            try {
+                val city = benzonavtProvider.currentCity()
+                val benzonavt = kotlinx.coroutines.withTimeoutOrNull(5_000) {
+                    benzonavtProvider.fetchCityPrices(city)
+                }
+                if (benzonavt != null && benzonavt.isNotEmpty()) {
+                    loadMutex.withLock {
+                        val swapped = withUser.map { station -> applyBenzonavtToStation(station, benzonavt, city) }
+                        cachedStations = swapped
+                        Log.d(TAG, "prices swapped from BENZONAVT")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Background price refresh failed: ${e.message}")
+            }
+        }
+
+        withUser
     }
 
     override suspend fun getStationById(stationId: Int): GasStation? = withContext(Dispatchers.IO) {
