@@ -24,7 +24,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,7 +42,6 @@ import com.navrot.aifuelassistant.ui.map.components.RouteOverlay
 import com.navrot.aifuelassistant.ui.map.components.StationDetailOverlay
 import com.navrot.aifuelassistant.ui.map.components.StationListBottomSheet
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,7 +56,6 @@ fun MapScreen(
     onConsumePendingRoute: () -> Unit = {},
     viewModel: MapViewModel = hiltViewModel()
 ) {
-    val scope = rememberCoroutineScope()
     val stations by viewModel.stations.collectAsStateWithLifecycle()
     val isLoading by viewModel.isLoading.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
@@ -69,13 +66,13 @@ fun MapScreen(
     val isRouting by viewModel.isRouting.collectAsStateWithLifecycle()
     val openOnly by viewModel.openOnly.collectAsStateWithLifecycle()
     val aiRecommendation by viewModel.aiRecommendation.collectAsStateWithLifecycle()
+    val currentCity by viewModel.currentCity.collectAsStateWithLifecycle()
 
     val fuelTypes = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ", "Газ")
     val recommendationTriple = aiRecommendation?.let { Triple(it.station, it.fuel, it.distanceKm) }
 
     var userLocation by remember { mutableStateOf<UserLocationState?>(null) }
     var locationStatus by remember { mutableStateOf("Определение местоположения...") }
-    var currentCity by remember { mutableStateOf("Рядом с вами") }
     var showSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var showStationList by remember { mutableStateOf(false) }
@@ -91,9 +88,7 @@ fun MapScreen(
         locationStatus = "📍 Вы здесь"
         viewModel.updateUserLocation(loc.latitude, loc.longitude)
         viewModel.loadNearbyStations(loc.latitude, loc.longitude, 50.0)
-        scope.launch {
-            try { currentCity = viewModel.detectCity(loc.latitude, loc.longitude) } catch (_: Exception) {}
-        }
+        viewModel.updateCityAndPrices(loc.latitude, loc.longitude)
     }
 
     val buildRouteAndClose: (GasStation) -> Unit = { st ->

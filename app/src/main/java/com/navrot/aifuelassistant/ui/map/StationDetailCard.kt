@@ -40,6 +40,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
 import com.navrot.aifuelassistant.ui.components.NetworkImage
 
 @Composable
@@ -177,13 +178,28 @@ fun StationDetailCard(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = String.format("%.2f", fuel.price),
+                            text = "${if (fuel.isMedianFromNetwork) "~" else ""}${String.format("%.2f", fuel.price)}",
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
                         )
                     }
                 }
+            }
+
+            val liveFuels = station.fuelTypes.take(3).filter { it.isMedianFromNetwork }
+            if (liveFuels.isNotEmpty()) {
+                val maxCount = liveFuels.maxOfOrNull { it.sourceCount } ?: 0
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = if (maxCount > 0) {
+                        "🔄 обновлено только что · медиана из $maxCount источников"
+                    } else {
+                        "🔄 обновлено только что · медиана"
+                    },
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
 
             Spacer(modifier = Modifier.height(8.dp))

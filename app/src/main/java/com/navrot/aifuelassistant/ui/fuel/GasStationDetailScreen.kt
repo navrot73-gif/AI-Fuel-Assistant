@@ -23,6 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.Review
+import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
 import com.navrot.aifuelassistant.ui.map.MapViewModel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
@@ -332,7 +333,9 @@ fun PricesTab(station: GasStation) {
                         )
                     }
                     Text(
-                        text = if (fuel.price > 0) "${String.format("%.2f", fuel.price)} ₽" else "Нет данных",
+                        text = if (fuel.price > 0) {
+                            "${if (fuel.isMedianFromNetwork) "~" else ""}${String.format("%.2f", fuel.price)} ₽"
+                        } else "Нет данных",
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold,
                         color = if (fuel.available) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error

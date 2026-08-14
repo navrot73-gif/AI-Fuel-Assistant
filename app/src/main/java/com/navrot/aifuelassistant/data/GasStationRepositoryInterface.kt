@@ -37,6 +37,9 @@ interface GasStationRepositoryInterface {
     /** Принудительное обновление из сети. */
     suspend fun refresh(): List<GasStation>
 
+    /** Пересчитать цены по текущему городу (Benzonavt → user → json) без скачивания станций. */
+    suspend fun refreshPrices(): List<GasStation>
+
     /** Получить заправку по ID. */
     suspend fun getStationById(stationId: Int): GasStation?
 }

@@ -71,4 +71,26 @@ object GeoUtils {
             else -> "вашем районе"
         }
     }
+
+    /**
+     * Преобразует название города (любой падеж) в slug для API прокси.
+     * Если город не определён/не известен — fallback на "chelyabinsk".
+     */
+    fun toCitySlug(cityName: String?): String {
+        val lower = cityName?.lowercase()
+            ?: return "chelyabinsk"
+        return when {
+            lower.contains("челябинс") -> "chelyabinsk"
+            lower.contains("троицк") -> "troitsk"
+            lower.contains("миасс") -> "miass"
+            lower.contains("златоуст") -> "zlatoust"
+            lower.contains("магнитогорск") -> "magnitogorsk"
+            lower.contains("копейск") -> "kopeysk"
+            lower.contains("москв") -> "moscow"
+            lower.contains("екатеринбург") -> "ekaterinburg"
+            lower.contains("тюмен") -> "tyumen"
+            lower.contains("перм") -> "perm"
+            else -> "chelyabinsk"
+        }
+    }
 }

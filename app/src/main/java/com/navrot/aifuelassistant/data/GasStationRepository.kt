@@ -2,8 +2,11 @@ package com.navrot.aifuelassistant.data
 
 import android.content.Context
 import android.util.Log
+import com.navrot.aifuelassistant.data.model.FuelDataSource
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.data.providers.BenzonavtProvider
+import com.navrot.aifuelassistant.data.providers.FuelPriceInfo
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.geo.GeoUtils
 import kotlinx.coroutines.sync.Mutex
@@ -21,10 +24,11 @@ import javax.inject.Singleton
  * Репозиторий АЗС.
  *
  * Приоритет источников цен:
- *  1) пользовательские цены (SharedPreferences, через UserPriceRepository);
- *  2) удалённый stations.json (GitHub raw);
- *  3) локальный кеш последнего успешного ответа;
- *  4) assets/stations.json — офлайн-фолбэк.
+ *  1) Benzonavt (реальные медианы по городу через прокси, свежее по updatedAt);
+ *  2) пользовательские цены (SharedPreferences, через UserPriceRepository);
+ *  3) удалённый stations.json (GitHub raw);
+ *  4) локальный кеш последнего успешного ответа;
+ *  5) assets/stations.json — офлайн-фолбэк.
  *
  * Управляется Hilt (синглтон), потокобезопасен через [Mutex].
  * OkHttpClient и UserPriceRepository приходят из DI (AppModule) — единый клиент
@@ -44,7 +48,8 @@ class GasStationRepository constructor(
     private val context: Context,
     private val httpClient: OkHttpClient,
     private val userPrices: UserPriceRepository,
-    private val getBestStationsUseCase: GetBestStationsUseCase
+    private val getBestStationsUseCase: GetBestStationsUseCase,
+    private val benzonavtProvider: BenzonavtProvider
 ) : GasStationRepositoryInterface {
 
     companion object {
@@ -71,18 +76,29 @@ class GasStationRepository constructor(
                 loadFromCache() ?: loadFromAssets()
             }
 
-        val withUserPrices = applyUserPrices(stations)
-        cachedStations = withUserPrices
-        withUserPrices
+        val withPrices = applyAllPrices(stations)
+        cachedStations = withPrices
+        withPrices
     }
 
     /** Принудительное обновление из сети + применение пользовательских цен. */
     override suspend fun refresh(): List<GasStation> = loadMutex.withLock {
         lastRemoteCheckMs = System.currentTimeMillis()
         val stations = loadFromRemote() ?: loadFromCache() ?: loadFromAssets()
-        val withUserPrices = applyUserPrices(stations)
-        cachedStations = withUserPrices
-        withUserPrices
+        val withPrices = applyAllPrices(stations)
+        cachedStations = withPrices
+        withPrices
+    }
+
+    /**
+     * Пересчитать цены на уже загруженных станциях (после определения города):
+     * Benzonavt (кеш 30 мин) → user prices → stations.json. Без сетевого запроса станций.
+     */
+    override suspend fun refreshPrices(): List<GasStation> = loadMutex.withLock {
+        val base = cachedStations ?: loadFromRemote() ?: loadFromCache() ?: loadFromAssets()
+        val withPrices = applyAllPrices(base)
+        cachedStations = withPrices
+        withPrices
     }
 
     override suspend fun getStationById(stationId: Int): GasStation? = withContext(Dispatchers.IO) {
@@ -96,7 +112,7 @@ class GasStationRepository constructor(
     override suspend fun reportUserPrice(stationId: Int, fuelType: String, price: Double): List<GasStation> =
         loadMutex.withLock {
             userPrices.report(stationId, fuelType, price)
-            val updated = applyUserPrices(cachedStations ?: emptyList())
+            val updated = applyAllPrices(cachedStations ?: emptyList())
             cachedStations = updated
             updated
         }
@@ -107,7 +123,7 @@ class GasStationRepository constructor(
     override suspend fun clearUserPrice(stationId: Int, fuelType: String): List<GasStation> =
         loadMutex.withLock {
             userPrices.clear(stationId, fuelType)
-            val updated = applyUserPrices(cachedStations ?: emptyList())
+            val updated = applyAllPrices(cachedStations ?: emptyList())
             cachedStations = updated
             updated
         }
@@ -216,6 +232,68 @@ class GasStationRepository constructor(
                 }
             }
             station.copy(fuelTypes = newFuelTypes)
+        }
+    }
+
+    /**
+     * Полная цепочка цен: user prices поверх stations.json, затем Benzonavt
+     * поверх всего (если его updatedAt свежее текущей цены).
+     */
+    private suspend fun applyAllPrices(stations: List<GasStation>): List<GasStation> {
+        val withUser = applyUserPrices(stations)
+        val city = benzonavtProvider.currentCity()
+        val benzonavt = benzonavtProvider.fetchCityPrices(city)
+        if (benzonavt.isEmpty()) return withUser
+        return withUser.map { station -> applyBenzonavtToStation(station, benzonavt, city) }
+    }
+
+    private fun applyBenzonavtToStation(
+        station: GasStation,
+        benzonavt: Map<String, FuelPriceInfo>,
+        city: String
+    ): GasStation {
+        var changed = false
+        val newFuelTypes = station.fuelTypes.map { fuel ->
+            val info = benzonavt[fuel.type]
+                ?: benzonavt.entries.firstOrNull { it.key.equals(fuel.type, ignoreCase = true) }?.value
+                ?: return@map fuel
+            val benzonavtTs = parseUpdatedAt(info.updatedAt)
+            // Benzonavt свежее текущего источника (stations.json=0, user price=время отчёта)
+            if (benzonavtTs > fuel.updatedAt) {
+                changed = true
+                fuel.copy(
+                    price = info.median,
+                    available = true,
+                    source = FuelDataSource.BENZONAVT,
+                    sourceCount = info.sourceCount,
+                    updatedAt = benzonavtTs
+                )
+            } else {
+                fuel
+            }
+        }
+        if (!changed) return station
+        Log.d(
+            TAG,
+            "station ${station.id} (${station.brand}): цены обновлены из BENZONAVT, город=$city"
+        )
+        return station.copy(
+            fuelTypes = newFuelTypes,
+            dataSources = station.dataSources + FuelDataSource.BENZONAVT
+        )
+    }
+
+    /** ISO-строка updatedAt → epoch ms. При ошибке парсинга — 0 (устаревший источник). */
+    private fun parseUpdatedAt(value: String): Long {
+        if (value.isBlank()) return 0L
+        return try {
+            java.time.OffsetDateTime.parse(value).toInstant().toEpochMilli()
+        } catch (_: Exception) {
+            try {
+                java.time.Instant.parse(value).toEpochMilli()
+            } catch (_: Exception) {
+                0L
+            }
         }
     }
 

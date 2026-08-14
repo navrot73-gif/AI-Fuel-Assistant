@@ -14,6 +14,7 @@ import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.UserPriceRepository
 import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.data.VehicleRepositoryImpl
+import com.navrot.aifuelassistant.data.providers.BenzonavtProvider
 import com.navrot.aifuelassistant.data.database.AppDatabase
 import com.navrot.aifuelassistant.data.database.DatabaseMigrations
 import com.navrot.aifuelassistant.data.database.dao.FuelRecordDao
@@ -76,7 +77,7 @@ object AppModule {
     fun provideOkHttpClient(): OkHttpClient {
         return OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(60, TimeUnit.SECONDS)
             .addInterceptor(RetryInterceptor())
             .build()
     }
@@ -90,9 +91,12 @@ object AppModule {
         @ApplicationContext context: Context,
         okHttpClient: OkHttpClient,
         userPriceRepository: UserPriceRepository,
-        getBestStationsUseCase: GetBestStationsUseCase
+        getBestStationsUseCase: GetBestStationsUseCase,
+        benzonavtProvider: BenzonavtProvider
     ): GasStationRepositoryInterface {
-        return GasStationRepository(context, okHttpClient, userPriceRepository, getBestStationsUseCase)
+        return GasStationRepository(
+            context, okHttpClient, userPriceRepository, getBestStationsUseCase, benzonavtProvider
+        )
     }
 
     @Provides

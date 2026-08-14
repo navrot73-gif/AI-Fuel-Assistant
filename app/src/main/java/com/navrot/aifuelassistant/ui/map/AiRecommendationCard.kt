@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 
 @Composable
@@ -55,7 +56,8 @@ fun AiRecommendationCard(
         }
         if (station.queueTime <= 0) append(" · без очереди")
         else append(" · очередь ${station.queueTime} мин")
-        append(" · ${String.format("%.0f", fuel.price)} ₽")
+        val tilde = if (fuel.isMedianFromNetwork) "~" else ""
+        append(" · $tilde${String.format("%.0f", fuel.price)} ₽")
     }
 
     Surface(
@@ -110,7 +112,7 @@ fun AiRecommendationCard(
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 // FontFamily.Monospace убран: на старых Android не содержит символ ₽,
                 // поэтому цена отображалась квадратиком.
-                Text("${String.format("%.0f", fuel.price)} ₽", color = FueldeckColors.Amber,
+                Text("${if (fuel.isMedianFromNetwork) "~" else ""}${String.format("%.0f", fuel.price)} ₽", color = FueldeckColors.Amber,
                     fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Text(if (dist == Double.MAX_VALUE) "—" else "${String.format("%.1f", dist)} км",
                     color = FueldeckColors.InkDim, fontSize = 11.sp)

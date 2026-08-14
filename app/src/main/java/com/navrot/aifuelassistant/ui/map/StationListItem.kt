@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
 import com.navrot.aifuelassistant.geo.GeoUtils
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import org.osmdroid.util.GeoPoint
@@ -103,8 +104,10 @@ fun StationListItem(
                             )
                         ) {
                             Text(
-                                text = if (hot) "${fuel.type} ${String.format("%.0f", fuel.price)}"
-                                else "${fuel.type} нет",
+                                text = if (hot) {
+                                    val tilde = if (fuel.isMedianFromNetwork) "~" else ""
+                                    "${fuel.type} $tilde${String.format("%.0f", fuel.price)}"
+                                } else "${fuel.type} нет",
                                 fontSize = 10.sp,
                                 color = if (hot) FueldeckColors.Teal else FueldeckColors.InkFaint,
                                 fontWeight = FontWeight.Medium,
@@ -118,13 +121,21 @@ fun StationListItem(
 
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 primaryFuel?.let { fuel ->
+                    val tilde = if (fuel.isMedianFromNetwork) "~" else ""
                     Text(
-                        text = "${String.format("%.0f", fuel.price)} ₽",
+                        text = "$tilde${String.format("%.0f", fuel.price)} ₽",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         fontFamily = FontFamily.Monospace,
                         color = FueldeckColors.Amber
                     )
+                    if (fuel.isMedianFromNetwork && fuel.sourceCount > 0) {
+                        Text(
+                            text = "🔄 из ${fuel.sourceCount} источников",
+                            fontSize = 9.sp,
+                            color = FueldeckColors.Teal
+                        )
+                    }
                 } ?: Text(
                     text = "Нет топлива",
                     fontSize = 12.sp,
