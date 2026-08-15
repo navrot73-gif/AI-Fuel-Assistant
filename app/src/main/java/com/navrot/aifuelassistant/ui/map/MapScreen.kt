@@ -17,7 +17,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,7 +56,10 @@ fun MapScreen(
     onBack: () -> Unit = {},
     onVehiclesClick: () -> Unit = {},
     pendingRouteStationId: Int? = null,
+    pendingOpenStationId: Int? = null,
+    aiAnswerText: String? = null,
     onConsumePendingRoute: () -> Unit = {},
+    onConsumePendingOpenStation: () -> Unit = {},
     viewModel: MapViewModel = hiltViewModel()
 ) {
     val stations by viewModel.stations.collectAsStateWithLifecycle()
@@ -82,6 +88,9 @@ fun MapScreen(
     var zoomInTick by remember { mutableIntStateOf(0) }
     var zoomOutTick by remember { mutableIntStateOf(0) }
     val yellowRouteVisible = selectedStation != null || (route != null && routeStation != null)
+
+    // Floating buttons visible only on clean map (no station card, no list, no AI card)
+    val showFloatingButtons = !showStationList && selectedStation == null && aiRecommendation == null
 
     val onLocationUpdate: (UserLocationState) -> Unit = { loc ->
         userLocation = loc
@@ -113,6 +122,24 @@ fun MapScreen(
         }
     }
 
+    // Handle pending open station from AI card handoff
+    LaunchedEffect(pendingOpenStationId, stations) {
+        val id = pendingOpenStationId ?: return@LaunchedEffect
+        stations.firstOrNull { it.id == id }?.let { station ->
+            selectedStation = station
+            onConsumePendingOpenStation()
+        }
+    }
+
+    // Snackbar for AI answer handoff
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(aiAnswerText, snackbarHostState) {
+        aiAnswerText?.let { text ->
+            val snippet = if (text.length > 100) text.substring(0, 100) + "…" else text
+            snackbarHostState.showSnackbar(message = snippet)
+        }
+    }
+
     LocationPermissionHandler(
         onLocationUpdate = onLocationUpdate,
         onPermissionDenied = {
@@ -138,7 +165,8 @@ fun MapScreen(
                 vehicleId = vehicleId, vehicleName = vehicleName, currentCity = currentCity,
                 onBack = onBack, onSearchClick = { showSearch = !showSearch }, onVehiclesClick = onVehiclesClick
             )
-        }
+        },
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
             MapSearchBar(
@@ -250,6 +278,7 @@ fun MapScreen(
                     }
                 )
 
+                if (showFloatingButtons) {
                 MapFloatingActions(
                     bottomPadding = when {
                         showStationList -> 452.dp
@@ -266,6 +295,7 @@ fun MapScreen(
                         }
                     } else null
                 )
+            }
             }
         }
     }

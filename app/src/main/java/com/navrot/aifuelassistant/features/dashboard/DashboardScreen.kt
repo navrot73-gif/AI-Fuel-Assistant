@@ -74,6 +74,8 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
     val userQuestion by viewModel.userQuestion.collectAsStateWithLifecycle()
     val userAnswer by viewModel.userAnswer.collectAsStateWithLifecycle()
     val pendingRouteStationId by viewModel.pendingRouteStationId.collectAsStateWithLifecycle()
+    val pendingRouteMode by viewModel.pendingRouteMode.collectAsStateWithLifecycle()
+    val pendingOpenStationId by viewModel.pendingOpenStationId.collectAsStateWithLifecycle()
     val navController = rememberNavController()
     var expanded by remember { mutableStateOf(false) }
 
@@ -91,6 +93,34 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
         },
         onPermissionDenied = { /* Location not available, AI will work without it */ }
     )
+
+    // Auto-navigate to map after AI answer based on mode
+    androidx.compose.runtime.LaunchedEffect(pendingRouteMode, pendingRouteStationId, pendingOpenStationId, userAnswer) {
+        when (pendingRouteMode) {
+            DashboardViewModel.PendingRouteMode.ROUTE -> {
+                pendingRouteStationId?.let { stationId ->
+                    navController.navigate("map/build_route_station_id/$stationId")
+                    // Pass AI answer via savedStateHandle for Snackbar on map
+                    userAnswer?.let { answer ->
+                        navController.previousBackStackEntry?.savedStateHandle?.set("ai_answer_text", answer)
+                    }
+                    viewModel.onRouteHandoffConsumed()
+                }
+            }
+            DashboardViewModel.PendingRouteMode.CARD -> {
+                pendingOpenStationId?.let { stationId ->
+                    navController.navigate("map")
+                    // Pass stationId and AI answer via savedStateHandle to MapScreen
+                    navController.previousBackStackEntry?.savedStateHandle?.set("open_station_id", stationId)
+                    userAnswer?.let { answer ->
+                        navController.previousBackStackEntry?.savedStateHandle?.set("ai_answer_text", answer)
+                    }
+                    viewModel.onCardHandoffConsumed()
+                }
+            }
+            else -> { /* stay on AI screen */ }
+        }
+    }
 
     Column(
         modifier = modifier
