@@ -367,51 +367,40 @@ class DashboardViewModel @Inject constructor(
             _isAnalyzing.value = true
             _error.value = null
             _userAnswer.value = null
-            _pendingRouteStationId.value = null
-            _pendingRouteMode.value = PendingRouteMode.NONE
-            _pendingOpenStationId.value = null
-            try {
-                val context = buildUserContext()
-                val fullPrompt = if (context.text.isNotBlank()) {
-                    "${context.text}\n\nВопрос пользователя: $question"
-                } else question
 
-                val answer = aiRouter.ask(
-                    prompt = fullPrompt,
-                    lat = context.text.takeIf { it.isNotBlank() }?.let { _userLocation.value?.first } ?: null,
-                    lon = context.text.takeIf { it.isNotBlank() }?.let { _userLocation.value?.second } ?: null,
-                    isGasStationQuery = true,
-                    history = _chatMessages.value.takeLast(6)
-                )
-                _userAnswer.value = answer
+            val context = buildUserContext()
+            val fullPrompt = if (context.text.isNotBlank()) {
+                "${context.text}\n\nВопрос пользователя: $question"
+            } else question
 
-                // Add to chat history
-                addChatMessage(ChatMessage(role = "user", text = question, ts = System.currentTimeMillis()))
-                addChatMessage(ChatMessage(role = "ai", text = answer, ts = System.currentTimeMillis()))
-
-                // Determine mode from question keywords
-                val lowerQuestion = question.lowercase()
-                val routeKeywords = listOf("маршрут", "поехать", "доехать", "дорога до", "отведи")
-                val cardKeywords = listOf("ближайш", "дешев", "лучш", "порекоменд", "какая заправка", "где заправ")
-
-                when {
-                    routeKeywords.any { lowerQuestion.contains(it) } -> {
-                        _pendingRouteMode.value = PendingRouteMode.ROUTE
-                        context.nearestStationId?.let { _pendingRouteStationId.value = it }
-                    }
-                    cardKeywords.any { lowerQuestion.contains(it) } -> {
-                        _pendingRouteMode.value = PendingRouteMode.CARD
-                        context.nearestStationId?.let { _pendingOpenStationId.value = it }
-                    }
-                    else -> {
-                        _pendingRouteMode.value = PendingRouteMode.NONE
+            // Create history array for AI request (last 6 messages, role "ai" -> "assistant")
+            val history = _chatMessages.value
+                .takeLast(6)
+                .map { msg ->
+                    org.json.JSONObject().apply {
+                        put("role", if (msg.role == "ai") "assistant" else msg.role)
+                        put("content", msg.text)
                     }
                 }
-            } catch (e: Throwable) {
-                _error.value = e.message ?: "Не удалось получить ответ"
-            } finally {
-                _isAnalyzing.value = false
+
+            val answer = aiRouter.ask(fullPrompt, history = history)
+            _userAnswer.value = answer
+
+            // Add both messages to chat history
+            addChatMessage(ChatMessage(role = "user", text = question, ts = System.currentTimeMillis()))
+            addChatMessage(ChatMessage(role = "ai", text = answer, ts = System.currentTimeMillis()))
+
+            // Determine mode from question keywords
+            val lowerQuestion = question.lowercase()
+            val routeKeywords = listOf("маршрут", "поехать", "доехать", "дорога до", "отведи")
+            val cardKeywords = listOf("ближайш", "дешев", "лучш", "порекоменд", "какая заправка", "где заправ")
+            when {
+                routeKeywords.any { lowerQuestion.contains(it) } -> _pendingRouteMode.value = PendingRouteMode.ROUTE
+                cardKeywords.any { lowerQuestion.contains(it) } -> _pendingRouteMode.value = PendingRouteMode.CARD
+                else -> _pendingRouteMode.value = PendingRouteMode.NONE
             }
+
+            _isAnalyzing.value = false
         }
     }
 
