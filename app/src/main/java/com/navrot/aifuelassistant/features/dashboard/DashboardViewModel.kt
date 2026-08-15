@@ -1,7 +1,6 @@
 package com.navrot.aifuelassistant.features.dashboard
 
 import android.annotation.SuppressLint
-import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
 import android.location.Location
