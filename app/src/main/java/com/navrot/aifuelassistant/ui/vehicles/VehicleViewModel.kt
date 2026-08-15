@@ -8,6 +8,7 @@ import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.ui.components.VehicleCardUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -23,6 +24,14 @@ class VehicleViewModel @Inject constructor(
     private val vehicleRepository: VehicleRepository,
     private val fuelRecordRepository: FuelRecordRepository
 ) : ViewModel() {
+
+    // Track active vehicle ID (selected by user tapping a card)
+    private val _activeVehicleId = MutableStateFlow<Long?>(null)
+    val activeVehicleId: StateFlow<Long?> = _activeVehicleId
+
+    fun setActiveVehicle(vehicleId: Long?) {
+        _activeVehicleId.value = vehicleId
+    }
 
     val vehiclesWithStats: StateFlow<List<VehicleCardUiState>> = combine(
         vehicleRepository.getAllVehicles(),

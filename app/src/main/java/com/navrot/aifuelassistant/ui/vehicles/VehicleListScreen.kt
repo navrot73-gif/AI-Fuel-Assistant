@@ -4,7 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -23,7 +25,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.navrot.aifuelassistant.ui.components.VehicleCard
@@ -38,15 +43,55 @@ fun VehicleListScreen(
     viewModel: VehicleViewModel = hiltViewModel()
 ) {
     val vehicles by viewModel.vehiclesWithStats.collectAsStateWithLifecycle()
+    val activeVehicleId by viewModel.activeVehicleId.collectAsStateWithLifecycle()
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Мои автомобили") }) },
+        topBar = {
+            TopAppBar(
+                title = {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 16.dp, end = 16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column {
+                            Text(
+                                text = "ВАШ ПАРК",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Normal,
+                                color = FueldeckColors.Mint,
+                                letterSpacing = 1.sp,
+                                textAlign = TextAlign.Start,
+                            )
+                            Text(
+                                text = "Гараж",
+                                fontSize = 24.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = FueldeckColors.Ink,
+                                textAlign = TextAlign.Start,
+                            )
+                        }
+                        Text(
+                            text = "${vehicles.size} авто",
+                            fontSize = 14.sp,
+                            color = Color(0xFF8A949E),
+                        )
+                    }
+                },
+                colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(
+                    containerColor = FueldeckColors.Bg1,
+                ),
+            )
+        },
         containerColor = FueldeckColors.Bg1,
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onAddClick,
                 containerColor = FueldeckColors.Amber,
                 contentColor = Color(0xFF1A1205),
+                shape = androidx.compose.foundation.shape.RoundedCornerShape(20.dp),
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Добавить автомобиль")
             }
@@ -66,11 +111,16 @@ fun VehicleListScreen(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 items(vehicles, key = { it.id }) { vehicle ->
+                    val isActive = activeVehicleId == vehicle.id
                     VehicleCard(
                         state = vehicle,
+                        isActive = isActive,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .clickable { onVehicleClick(vehicle.id, vehicle.name) },
+                            .clickable {
+                                viewModel.setActiveVehicle(vehicle.id)
+                                onVehicleClick(vehicle.id, vehicle.name)
+                            },
                     )
                 }
             }
