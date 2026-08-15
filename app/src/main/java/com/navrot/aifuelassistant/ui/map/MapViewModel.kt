@@ -27,7 +27,8 @@ class MapViewModel @Inject constructor(
     private val repository: GasStationRepositoryInterface,
     private val okHttpClient: OkHttpClient,
     private val getBestStationsUseCase: GetBestStationsUseCase,
-    private val benzonavtProvider: BenzonavtProvider
+    private val benzonavtProvider: BenzonavtProvider,
+    private val tileWarmupService: TileWarmupService
 ) : ViewModel() {
 
     companion object {
@@ -82,6 +83,9 @@ class MapViewModel @Inject constructor(
         viewModelScope.launch {
             try { benzonavtProvider.fetchCityPrices() } catch (_: Exception) { /* ignore */ }
         }
+
+        // Warmup: pre-fetch map tiles for Chelyabinsk (fire-and-forget, low priority)
+        tileWarmupService.startPrefetch()
     }
 
     /** AI-рекомендация лучшей станции из текущего списка. */

@@ -27,6 +27,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import com.navrot.aifuelassistant.network.RetryInterceptor
+import com.navrot.aifuelassistant.ui.map.TileWarmupService
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
@@ -102,4 +103,11 @@ object AppModule {
     @Provides
     @Singleton
     fun provideAiRouter(okHttpClient: OkHttpClient): AiRouter = AiRouterFactory.create(okHttpClient)
+
+    @Provides
+    @Singleton
+    fun provideTileWarmupService(
+        @ApplicationContext context: Context,
+        okHttpClient: OkHttpClient
+    ): TileWarmupService = TileWarmupService(context, okHttpClient)
 }

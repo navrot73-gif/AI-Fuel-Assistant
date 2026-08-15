@@ -116,7 +116,8 @@ fun OsmMapView(
             config.osmdroidBasePath = File(ctx.cacheDir, "osmdroid")
             config.osmdroidTileCache = File(ctx.cacheDir, "osmdroid/tiles")
             config.tileFileSystemCacheMaxBytes = 512 * 1024 * 1024L
-            config.tileFileSystemThreads = 4  // Tile cache: 4 threads
+            config.tileFileSystemThreads = 12  // Tile cache: 12 threads
+            config.tileDownloadThreads = 12    // Tile download: 12 threads
             config.userAgentValue = ctx.packageName
 
             MapView(ctx).apply {
