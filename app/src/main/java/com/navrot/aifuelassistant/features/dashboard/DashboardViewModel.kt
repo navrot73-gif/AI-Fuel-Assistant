@@ -373,15 +373,8 @@ class DashboardViewModel @Inject constructor(
                 "${context.text}\n\nВопрос пользователя: $question"
             } else question
 
-            // Create history array for AI request (last 6 messages, role "ai" -> "assistant")
-            val history = _chatMessages.value
-                .takeLast(6)
-                .map { msg ->
-                    org.json.JSONObject().apply {
-                        put("role", if (msg.role == "ai") "assistant" else msg.role)
-                        put("content", msg.text)
-                    }
-                }
+            // Create history for AI request (last 6 messages, role "ai" -> "assistant" conversion happens in provider)
+            val history = _chatMessages.value.takeLast(6)
 
             val answer = aiRouter.ask(fullPrompt, history = history)
             _userAnswer.value = answer
