@@ -3,10 +3,13 @@ package com.navrot.aifuelassistant.features.dashboard
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
+import android.content.SharedPreferences
 import android.location.Location
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.location.LocationServices
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import com.navrot.aifuelassistant.ai.FuelAnalysisPromptBuilder
 import com.navrot.aifuelassistant.ai.router.AiRouter
 import com.navrot.aifuelassistant.data.FuelRecordRepository
@@ -90,11 +93,43 @@ class DashboardViewModel @Inject constructor(
     private val _userLocation = MutableStateFlow<Pair<Double, Double>?>(null)
     val userLocation: StateFlow<Pair<Double, Double>?> = _userLocation.asStateFlow()
 
+    // Chat history - last 20 messages persisted in SharedPreferences
+    private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
+    val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
+
+    private val chatPrefs: SharedPreferences by lazy {
+        applicationContext.getSharedPreferences("chat_history", Context.MODE_PRIVATE)
+    }
+    private val gson = Gson()
+
     fun updateUserLocation(lat: Double, lon: Double) {
         _userLocation.value = lat to lon
     }
 
+    private fun loadChatHistory() {
+        val json = chatPrefs.getString("messages", "[]") ?: "[]"
+        val type = object : TypeToken<List<ChatMessage>>() {}.type
+        _chatMessages.value = gson.fromJson(json, type)
+    }
+
+    private fun saveChatHistory(messages: List<ChatMessage>) {
+        val json = gson.toJson(messages)
+        chatPrefs.edit().putString("messages", json).apply()
+    }
+
+    fun addChatMessage(message: ChatMessage) {
+        val updated = (_chatMessages.value + message).takeLast(20)
+        _chatMessages.value = updated
+        saveChatHistory(updated)
+    }
+
+    fun clearChatHistory() {
+        _chatMessages.value = emptyList()
+        saveChatHistory(emptyList())
+    }
+
     init {
+        loadChatHistory()
         loadVehicles()
         loadStations()
         loadMetrics()
@@ -341,8 +376,18 @@ class DashboardViewModel @Inject constructor(
                     "${context.text}\n\nВопрос пользователя: $question"
                 } else question
 
-                val answer = aiRouter.ask(fullPrompt)
+                val answer = aiRouter.ask(
+                    prompt = fullPrompt,
+                    lat = context.text.takeIf { it.isNotBlank() }?.let { _userLocation.value?.first } ?: null,
+                    lon = context.text.takeIf { it.isNotBlank() }?.let { _userLocation.value?.second } ?: null,
+                    isGasStationQuery = true,
+                    history = _chatMessages.value.takeLast(6)
+                )
                 _userAnswer.value = answer
+
+                // Add to chat history
+                addChatMessage(ChatMessage(role = "user", text = question, ts = System.currentTimeMillis()))
+                addChatMessage(ChatMessage(role = "ai", text = answer, ts = System.currentTimeMillis()))
 
                 // Determine mode from question keywords
                 val lowerQuestion = question.lowercase()

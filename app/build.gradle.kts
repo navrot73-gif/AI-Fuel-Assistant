@@ -124,6 +124,9 @@ dependencies {
     // Serialization
     implementation(libs.kotlinx.serialization.json)
 
+    // Gson for JSON serialization
+    implementation(libs.gson)
+
     // Network
     implementation(libs.okhttp)
 

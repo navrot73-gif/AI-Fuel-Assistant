@@ -3,6 +3,7 @@ package com.navrot.aifuelassistant.ai.router
 import android.util.Log
 import com.navrot.aifuelassistant.ai.AiProvider
 import com.navrot.aifuelassistant.ai.AiResponseCache
+import com.navrot.aifuelassistant.features.dashboard.ChatMessage
 import kotlinx.coroutines.*
 
 class AiRouter(
@@ -42,7 +43,8 @@ class AiRouter(
         prompt: String,
         lat: Double? = null,
         lon: Double? = null,
-        isGasStationQuery: Boolean = false
+        isGasStationQuery: Boolean = false,
+        history: List<ChatMessage> = emptyList()
     ): String = coroutineScope {
         val ttlMs = if (isGasStationQuery) {
             AiResponseCache.TTL_GAS_STATION_MS
@@ -62,7 +64,7 @@ class AiRouter(
             val name = provider.javaClass.simpleName
             try {
                 log("AiRouter", "→ $name стартует")
-                val answer = withTimeout(perProviderTimeoutMs) { provider.ask(prompt) }
+                val answer = withTimeout(perProviderTimeoutMs) { provider.ask(prompt, history) }
                 log("AiRouter", "✅ $name вернул ответ")
                 cache.put(prompt, lat, lon, answer, ttlMs)
                 return@coroutineScope answer

@@ -21,22 +21,32 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -61,6 +71,7 @@ import com.navrot.aifuelassistant.ui.map.UserLocationState
 import com.navrot.aifuelassistant.ui.map.components.LocationPermissionHandler
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
+import kotlinx.coroutines.delay
 
 @Composable
 fun DashboardScreen(modifier: Modifier = Modifier) {
@@ -76,8 +87,10 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
     val pendingRouteStationId by viewModel.pendingRouteStationId.collectAsStateWithLifecycle()
     val pendingRouteMode by viewModel.pendingRouteMode.collectAsStateWithLifecycle()
     val pendingOpenStationId by viewModel.pendingOpenStationId.collectAsStateWithLifecycle()
+    val chatMessages by viewModel.chatMessages.collectAsStateWithLifecycle(initialValue = emptyList())
     val navController = rememberNavController()
     var expanded by remember { mutableStateOf(false) }
+    var badgesExpanded by remember { mutableStateOf(true) }
 
     val consumption = metrics.consumption
     val efficiency = metrics.efficiency
@@ -85,6 +98,10 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
     val spark = metrics.sparklineData
     val isEmpty = metrics.fillCount == 0
     val hasSparkline = spark.size >= 2
+
+    // Chat scroll state for auto-scroll
+    val chatListState = rememberLazyListState()
+    val chatMessagesList = chatMessages.toList() // already collected as list
 
     // Location permission handler for location-aware AI
     LocationPermissionHandler(
@@ -95,12 +112,11 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
     )
 
     // Auto-navigate to map after AI answer based on mode
-    androidx.compose.runtime.LaunchedEffect(pendingRouteMode, pendingRouteStationId, pendingOpenStationId, userAnswer) {
+    LaunchedEffect(pendingRouteMode, pendingRouteStationId, pendingOpenStationId, userAnswer) {
         when (pendingRouteMode) {
             DashboardViewModel.PendingRouteMode.ROUTE -> {
                 pendingRouteStationId?.let { stationId ->
                     navController.navigate("map/build_route_station_id/$stationId")
-                    // Pass AI answer via savedStateHandle for Snackbar on map
                     userAnswer?.let { answer ->
                         navController.previousBackStackEntry?.savedStateHandle?.set("ai_answer_text", answer)
                     }
@@ -110,7 +126,6 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
             DashboardViewModel.PendingRouteMode.CARD -> {
                 pendingOpenStationId?.let { stationId ->
                     navController.navigate("map")
-                    // Pass stationId and AI answer via savedStateHandle to MapScreen
                     navController.previousBackStackEntry?.savedStateHandle?.set("open_station_id", stationId)
                     userAnswer?.let { answer ->
                         navController.previousBackStackEntry?.savedStateHandle?.set("ai_answer_text", answer)
@@ -122,29 +137,54 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
         }
     }
 
+    // Auto-scroll to bottom when new messages arrive
+    LaunchedEffect(chatMessages.size) {
+        delay(100) // Wait for layout
+        if (chatListState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
+            chatListState.animateScrollToItem(chatMessages.size - 1)
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .statusBarsPadding()
-            .padding(16.dp),
+            .statusBarsPadding(),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // ===== Шапка =====
-        Column {
-            Text(
-                "AI‑помощник",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                color = FueldeckColors.Ink,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "анализ стиля вождения и топлива",
-                fontSize = 12.sp,
-                color = FueldeckColors.InkDim,
-                letterSpacing = 0.4.sp,
-            )
+        // ===== Шапка с кнопкой очистки истории =====
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column {
+                Text(
+                    "AI‑помощник",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = FueldeckColors.Ink,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "анализ стиля вождения и топлива",
+                    fontSize = 12.sp,
+                    color = FueldeckColors.InkDim,
+                    letterSpacing = 0.4.sp,
+                )
+            }
+            // Clear history button
+            if (chatMessages.isNotEmpty()) {
+                IconButton(onClick = { viewModel.clearChatHistory() }) {
+                    Icon(
+                        Icons.Default.Delete,
+                        contentDescription = "Очистить историю",
+                        tint = FueldeckColors.Coral,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
         }
 
         // ===== Селектор автомобиля =====
@@ -152,7 +192,10 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
             shape = FueldeckShapes.Pill,
             color = FueldeckColors.Surface,
             border = BorderStroke(1.dp, FueldeckColors.Line),
-            modifier = Modifier.clickable { expanded = !expanded }
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .clickable { expanded = !expanded }
         ) {
             Box {
                 Row(
@@ -189,123 +232,125 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
             }
         }
 
-        // ===== Свободный вопрос (сразу виден без скролла) =====
-        Panel(modifier = Modifier.fillMaxWidth()) {
-            Text("Задать AI любой вопрос", fontSize = 11.sp, color = FueldeckColors.InkFaint,
-                letterSpacing = 1.2.sp)
-            Spacer(Modifier.height(8.dp))
-            OutlinedTextField(
-                value = userQuestion,
-                onValueChange = { viewModel.setUserQuestion(it) },
-                placeholder = { Text("Например: какая АЗС дешевле рядом?") },
-                modifier = Modifier.fillMaxWidth(),
-                minLines = 1,
-                maxLines = 4,
-            )
-            Spacer(Modifier.height(10.dp))
-            Button(
-                onClick = { viewModel.askUserQuestion() },
-                enabled = !isAnalyzing && userQuestion.isNotBlank(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = FueldeckColors.Mint,
-                    contentColor = Color.White,
-                    disabledContainerColor = FueldeckColors.Mint.copy(alpha = 0.4f),
-                ),
-                shape = FueldeckShapes.Md,
-                modifier = Modifier.fillMaxWidth().height(46.dp),
-            ) {
-                Icon(Icons.Default.Send, contentDescription = null,
-                    modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Спросить", fontWeight = FontWeight.SemiBold)
-            }
-        }
-
-        // ===== Ответ на свободный вопрос =====
-        userAnswer?.let { answer ->
+        // ===== Гейджи расхода (сворачиваемый блок) =====
+        if (badgesExpanded) {
             Surface(
-                shape = FueldeckShapes.Md,
                 color = FueldeckColors.Surface,
+                shape = FueldeckShapes.Lg,
                 border = BorderStroke(1.dp, FueldeckColors.Line),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
             ) {
-                Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-                    Box(
-                        Modifier
-                            .fillMaxHeight()
-                            .width(3.dp)
-                            .background(FueldeckColors.Amber)
-                    )
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Text("AI ответил", fontSize = 11.sp, color = FueldeckColors.Amber,
-                            letterSpacing = 1.2.sp)
-                        Spacer(Modifier.height(6.dp))
-                        Text(answer, fontSize = 13.5.sp, color = FueldeckColors.Ink,
-                            lineHeight = 19.sp)
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("Метрики", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = FueldeckColors.Ink)
+                        IconButton(onClick = { badgesExpanded = false }) {
+                            Icon(Icons.Default.ExpandLess, contentDescription = "Свернуть", tint = FueldeckColors.InkDim, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        // Consumption gauge
+                        Panel(modifier = Modifier.weight(1f)) {
+                            ConsumptionGauge(value = consumption)
+                        }
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Panel(modifier = Modifier.weight(1f)) {
+                                Text("эффективность", fontSize = 11.sp, color = FueldeckColors.InkFaint,
+                                    letterSpacing = 1.2.sp, textAlign = TextAlign.Center,
+                                    modifier = Modifier.fillMaxWidth())
+                                Spacer(Modifier.height(6.dp))
+                                MiniRing(value = efficiency)
+                            }
+                            Panel(modifier = Modifier.weight(1f)) {
+                                Text("расход ₽/км", fontSize = 11.sp, color = FueldeckColors.InkFaint,
+                                    letterSpacing = 1.2.sp)
+                                Spacer(Modifier.height(8.dp))
+                                Row(verticalAlignment = Alignment.Bottom) {
+                                    Text(
+                                        if (isEmpty) "—" else String.format("%.2f", rubPerKm),
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 19.sp,
+                                        color = FueldeckColors.Ink,
+                                    )
+                                    Text(" ₽", fontSize = 11.sp, color = FueldeckColors.InkFaint)
+                                }
+                            }
+                        }
                     }
                 }
             }
-            // Show route button if there's a pending route station
-            if (pendingRouteStationId != null) {
-                Button(
-                    onClick = {
-                        navController.navigate("map/build_route_station_id/$pendingRouteStationId")
-                        viewModel.onRouteHandoffConsumed()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = FueldeckColors.Amber,
-                        contentColor = Color(0xFF1A1205),
-                    ),
-                    shape = FueldeckShapes.Lg,
+        } else {
+            // Collapsed badge bar
+            Surface(
+                color = FueldeckColors.Surface,
+                shape = FueldeckShapes.Lg,
+                border = BorderStroke(1.dp, FueldeckColors.Line),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp, bottom = 4.dp),
+                        .padding(16.dp)
+                        .clickable { badgesExpanded = true },
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(8.dp))
-                    Text("🗺️ Показать маршрут на карте", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("📊 ", fontSize = 12.sp)
+                        Text("расход: ${if (isEmpty) "—" else "%.1f".format(consumption)} л/100км", fontSize = 12.sp, color = FueldeckColors.Ink)
+                        Text("•", fontSize = 12.sp, color = FueldeckColors.InkDim)
+                        Text("эфф.: $efficiency%", fontSize = 12.sp, color = FueldeckColors.Ink)
+                        Text("•", fontSize = 12.sp, color = FueldeckColors.InkDim)
+                        Text("₽/км: ${if (isEmpty) "—" else "%.2f".format(rubPerKm)}", fontSize = 12.sp, color = FueldeckColors.Ink)
+                    }
+                    Icon(Icons.Default.ExpandMore, contentDescription = "Развернуть", tint = FueldeckColors.InkDim, modifier = Modifier.size(20.dp))
                 }
             }
         }
 
-        // ===== Метрики =====
-        Row(
-            modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Max),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Panel(modifier = Modifier.weight(1.15f)) {
-                ConsumptionGauge(value = consumption)
-            }
-            Column(
-                modifier = Modifier.weight(0.85f),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+        // ===== Чат история (LazyColumn) =====
+        if (chatMessages.isNotEmpty()) {
+            Surface(
+                color = FueldeckColors.Surface,
+                shape = FueldeckShapes.Lg,
+                border = BorderStroke(1.dp, FueldeckColors.Line),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .weight(1f, fill = false)
+                    .height(300.dp) // Fixed height for chat area
             ) {
-                Panel(modifier = Modifier.weight(1f)) {
-                    Text("эффективность", fontSize = 11.sp, color = FueldeckColors.InkFaint,
-                        letterSpacing = 1.2.sp, textAlign = TextAlign.Center,
-                        modifier = Modifier.fillMaxWidth())
-                    Spacer(Modifier.height(6.dp))
-                    MiniRing(value = efficiency)
-                }
-                Panel(modifier = Modifier.weight(1f)) {
-                    Text("расход ₽/км", fontSize = 11.sp, color = FueldeckColors.InkFaint,
-                        letterSpacing = 1.2.sp)
-                    Spacer(Modifier.height(8.dp))
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        Text(
-                            if (isEmpty) "—" else String.format("%.2f", rubPerKm),
-                            fontFamily = FontFamily.Monospace,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 19.sp,
-                            color = FueldeckColors.Ink,
-                        )
-                        Text(" ₽", fontSize = 11.sp, color = FueldeckColors.InkFaint)
+                androidx.compose.foundation.lazy.LazyColumn(
+                    state = chatListState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    reverseLayout = false
+                ) {
+                    items(chatMessages) { message ->
+                        ChatBubble(message = message)
                     }
                 }
             }
         }
 
         // ===== График расхода =====
-        Panel(modifier = Modifier.fillMaxWidth()) {
+        Panel(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -353,6 +398,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
                     .border(1.dp, FueldeckColors.Line2, FueldeckShapes.Md)
                     .padding(18.dp),
                 contentAlignment = Alignment.Center,
@@ -372,6 +418,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 shape = FueldeckShapes.Md,
                 color = FueldeckColors.Surface,
                 border = BorderStroke(1.dp, FueldeckColors.Line),
+                modifier = Modifier.padding(horizontal = 16.dp),
             ) {
                 Row(modifier = Modifier.height(IntrinsicSize.Min)) {
                     Box(
@@ -392,7 +439,51 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
         }
 
         error?.let {
-            Text(it, color = FueldeckColors.Coral, fontSize = 13.sp)
+            Text(it, color = FueldeckColors.Coral, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 16.dp))
+        }
+
+        // ===== Поле ввода + кнопка "Спросить" (фиксированно внизу) =====
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedTextField(
+                value = userQuestion,
+                onValueChange = { viewModel.setUserQuestion(it) },
+                placeholder = { Text("Например: какая АЗС дешевле рядом?") },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 1,
+                maxLines = 4,
+                singleLine = false,
+            )
+            Button(
+                onClick = { viewModel.askUserQuestion() },
+                enabled = !isAnalyzing && userQuestion.isNotBlank(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = FueldeckColors.Mint,
+                    contentColor = Color.White,
+                    disabledContainerColor = FueldeckColors.Mint.copy(alpha = 0.4f),
+                ),
+                shape = FueldeckShapes.Md,
+                modifier = Modifier.fillMaxWidth().height(46.dp),
+            ) {
+                if (isAnalyzing) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.dp,
+                        color = Color.White,
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text("Думаю...", fontWeight = FontWeight.SemiBold)
+                } else {
+                    Icon(Icons.Default.Send, contentDescription = null,
+                        modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Спросить", fontWeight = FontWeight.SemiBold)
+                }
+            }
         }
 
         // ===== Кнопка AI-анализа =====
@@ -406,7 +497,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 disabledContentColor = Color(0xFF1A1205),
             ),
             shape = FueldeckShapes.Md,
-            modifier = Modifier.fillMaxWidth().height(54.dp),
+            modifier = Modifier.fillMaxWidth().padding(16.dp).height(54.dp),
         ) {
             if (isAnalyzing) {
                 CircularProgressIndicator(
@@ -424,7 +515,92 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 )
             }
         }
+
+        // Show route button if there's a pending route station
+        if (pendingRouteStationId != null) {
+            Button(
+                onClick = {
+                    navController.navigate("map/build_route_station_id/$pendingRouteStationId")
+                    viewModel.onRouteHandoffConsumed()
+                },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = FueldeckColors.Amber,
+                    contentColor = Color(0xFF1A1205),
+                ),
+                shape = FueldeckShapes.Lg,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+            ) {
+                Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("🗺️ Показать маршрут на карте", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            }
+        }
+
+        // Bottom padding for navigation bar
+        Spacer(Modifier.height(16.dp))
     }
+}
+
+@Composable
+private fun ChatBubble(message: ChatMessage) {
+    val isUser = message.role == "user"
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
+    ) {
+        // AI has amber accent bar on left
+        if (!isUser) {
+            Box(
+                Modifier
+                    .width(3.dp)
+                    .height(IntrinsicSize.Min)
+                    .background(FueldeckColors.Amber)
+                    .padding(top = 4.dp, bottom = 4.dp)
+            )
+        }
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 8.dp)
+                .widthIn(max = 280.dp)
+                .align(Alignment.CenterVertically)
+        ) {
+            // Bubble
+            Surface(
+                color = if (isUser) FueldeckColors.Amber else FueldeckColors.Surface2,
+                shape = FueldeckShapes.Md,
+                border = if (!isUser) BorderStroke(1.dp, FueldeckColors.Line) else BorderStroke(0.dp, Color.Transparent),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(12.dp)) {
+                    Text(
+                        message.text,
+                        fontSize = 13.5.sp,
+                        color = if (isUser) Color(0xFF1A1205) else FueldeckColors.Ink,
+                        lineHeight = 19.sp,
+                    )
+                }
+            }
+            // Timestamp
+            Text(
+                formatTimestamp(message.ts),
+                fontSize = 10.sp,
+                color = FueldeckColors.InkFaint,
+                modifier = Modifier.padding(top = 2.dp, start = 4.dp, end = 4.dp)
+            )
+        }
+        // User has amber bubble on right (no accent bar needed since bubble is amber)
+        if (isUser) {
+            Spacer(Modifier.width(4.dp))
+        }
+    }
+}
+
+private fun formatTimestamp(ts: Long): String {
+    val date = java.util.Date(ts)
+    val formatter = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
+    return formatter.format(date)
 }
 
 @Composable

@@ -4,19 +4,21 @@ import android.util.Log
 import com.navrot.aifuelassistant.BuildConfig
 import com.navrot.aifuelassistant.ai.AiException
 import com.navrot.aifuelassistant.ai.AiProvider
+import com.navrot.aifuelassistant.features.dashboard.ChatMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
  * Cloudflare Worker прокси. Проксирует запрос к нескольким AI-провайдерам
  * и возвращает ответ первого успешного (fallback внутри прокси).
  *
- * POST /  body: {"prompt": "...", "context": "..."}
+ * POST /  body: {"prompt": "...", "context": "...", "history": [...]}
  * Response: {"provider": "qwen", "text": "...", "ms": 1075}
  */
 class AiProxyProvider(
@@ -31,19 +33,36 @@ class AiProxyProvider(
     }
 
     override suspend fun ask(prompt: String): String = withContext(Dispatchers.IO) {
+        askInternal(prompt, emptyList())
+    }
+
+    override suspend fun ask(prompt: String, history: List<ChatMessage>): String = withContext(Dispatchers.IO) {
+        askInternal(prompt, history)
+    }
+
+    private suspend fun askInternal(prompt: String, history: List<ChatMessage>): String {
         val body = JSONObject()
             .put("prompt", prompt)
             .put("context", AiProvider.SYSTEM_PROMPT)
-            .toString()
+        
+        if (history.isNotEmpty()) {
+            val historyArray = JSONArray()
+            history.forEach { msg ->
+                historyArray.put(JSONObject().put("role", msg.apiRole()).put("content", msg.text))
+            }
+            body.put("history", historyArray)
+        }
+        
+        val jsonBody = body.toString()
 
         val request = Request.Builder()
             .url(baseUrl)
             .addHeader("X-Proxy-Token", BuildConfig.PROXY_TOKEN)
             .addHeader("Content-Type", "application/json")
-            .post(body.toRequestBody("application/json".toMediaType()))
+            .post(jsonBody.toRequestBody("application/json".toMediaType()))
             .build()
 
-        try {
+        return try {
             httpClient.newCall(request).execute().use { response ->
                 val responseBody = response.body?.string()
                 if (!response.isSuccessful) {

@@ -21,6 +21,7 @@ coil = "2.7.0"
 junit = "4.13.2"
 junitExt = "1.1.5"
 espresso = "3.5.1"
+gson = "2.11.0"
 
 [libraries]
 # Core
@@ -67,6 +68,9 @@ desugar = { group = "com.android.tools", name = "desugar_jdk_libs", version.ref 
 
 # Image loading
 coil-compose = { group = "io.coil-kt", name = "coil-compose", version.ref = "coil" }
+
+# JSON
+gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }
