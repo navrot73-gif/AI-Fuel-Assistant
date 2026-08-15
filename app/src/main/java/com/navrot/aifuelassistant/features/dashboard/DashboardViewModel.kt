@@ -67,6 +67,14 @@ class DashboardViewModel @Inject constructor(
     private val _pendingRouteStationId = MutableStateFlow<Int?>(null)
     val pendingRouteStationId: StateFlow<Int?> = _pendingRouteStationId.asStateFlow()
 
+    enum class PendingRouteMode { NONE, ROUTE, CARD }
+
+    private val _pendingRouteMode = MutableStateFlow(PendingRouteMode.NONE)
+    val pendingRouteMode: StateFlow<PendingRouteMode> = _pendingRouteMode.asStateFlow()
+
+    private val _pendingOpenStationId = MutableStateFlow<Int?>(null)
+    val pendingOpenStationId: StateFlow<Int?> = _pendingOpenStationId.asStateFlow()
+
     private val _isAnalyzing = MutableStateFlow(false)
     val isAnalyzing: StateFlow<Boolean> = _isAnalyzing.asStateFlow()
 
@@ -325,6 +333,8 @@ class DashboardViewModel @Inject constructor(
             _error.value = null
             _userAnswer.value = null
             _pendingRouteStationId.value = null
+            _pendingRouteMode.value = PendingRouteMode.NONE
+            _pendingOpenStationId.value = null
             try {
                 val context = buildUserContext()
                 val fullPrompt = if (context.text.isNotBlank()) {
@@ -333,11 +343,23 @@ class DashboardViewModel @Inject constructor(
 
                 val answer = aiRouter.ask(fullPrompt)
                 _userAnswer.value = answer
-                // Set pending route station if AI mentioned a station and user asked about route
-                context.nearestStationId?.let { stationId ->
-                    val routeKeywords = listOf("маршрут", "ближайш", "заправк", "азс", "куда", "доехать")
-                    if (routeKeywords.any { question.lowercase().contains(it) }) {
-                        _pendingRouteStationId.value = stationId
+
+                // Determine mode from question keywords
+                val lowerQuestion = question.lowercase()
+                val routeKeywords = listOf("маршрут", "поехать", "доехать", "дорога до", "отведи")
+                val cardKeywords = listOf("ближайш", "дешев", "лучш", "порекоменд", "какая заправка", "где заправ")
+
+                when {
+                    routeKeywords.any { lowerQuestion.contains(it) } -> {
+                        _pendingRouteMode.value = PendingRouteMode.ROUTE
+                        context.nearestStationId?.let { _pendingRouteStationId.value = it }
+                    }
+                    cardKeywords.any { lowerQuestion.contains(it) } -> {
+                        _pendingRouteMode.value = PendingRouteMode.CARD
+                        context.nearestStationId?.let { _pendingOpenStationId.value = it }
+                    }
+                    else -> {
+                        _pendingRouteMode.value = PendingRouteMode.NONE
                     }
                 }
             } catch (e: Throwable) {
@@ -350,5 +372,11 @@ class DashboardViewModel @Inject constructor(
 
     fun onRouteHandoffConsumed() {
         _pendingRouteStationId.value = null
+        _pendingRouteMode.value = PendingRouteMode.NONE
+    }
+
+    fun onCardHandoffConsumed() {
+        _pendingOpenStationId.value = null
+        _pendingRouteMode.value = PendingRouteMode.NONE
     }
 }

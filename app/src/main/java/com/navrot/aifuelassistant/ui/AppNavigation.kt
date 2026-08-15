@@ -144,10 +144,22 @@ fun AppNavigation() {
                 val pendingRouteId by backStackEntry.savedStateHandle
                     .getStateFlow<Int?>("build_route_station_id", null)
                     .collectAsStateWithLifecycle()
+                val pendingOpenStationId by backStackEntry.savedStateHandle
+                    .getStateFlow<Int?>("open_station_id", null)
+                    .collectAsStateWithLifecycle()
+                val aiAnswerText by backStackEntry.savedStateHandle
+                    .getStateFlow<String?>("ai_answer_text", null)
+                    .collectAsStateWithLifecycle()
                 MapScreen(
                     pendingRouteStationId = pendingRouteId,
+                    pendingOpenStationId = pendingOpenStationId,
+                    aiAnswerText = aiAnswerText,
                     onConsumePendingRoute = {
                         backStackEntry.savedStateHandle.remove<Int>("build_route_station_id")
+                    },
+                    onConsumePendingOpenStation = {
+                        backStackEntry.savedStateHandle.remove<Int>("open_station_id")
+                        backStackEntry.savedStateHandle.remove<String>("ai_answer_text")
                     }
                 )
             }
@@ -155,8 +167,12 @@ fun AppNavigation() {
             composable<MapBuildRouteRoute> { backStackEntry ->
                 val route = backStackEntry.toRoute<MapBuildRouteRoute>()
                 val pendingRouteId = route.stationId
+                val aiAnswerText by backStackEntry.savedStateHandle
+                    .getStateFlow<String?>("ai_answer_text", null)
+                    .collectAsStateWithLifecycle()
                 MapScreen(
                     pendingRouteStationId = pendingRouteId,
+                    aiAnswerText = aiAnswerText,
                     onConsumePendingRoute = { /* consumed automatically when navigation happens */ }
                 )
             }
