@@ -52,8 +52,6 @@ fun MapScreen(
     vehicleName: String = "",
     onBack: () -> Unit = {},
     onVehiclesClick: () -> Unit = {},
-    onStationClick: (GasStation) -> Unit = {},
-    onRouteClick: (Int) -> Unit = {},
     pendingRouteStationId: Int? = null,
     onConsumePendingRoute: () -> Unit = {},
     viewModel: MapViewModel = hiltViewModel()
@@ -229,7 +227,7 @@ fun MapScreen(
                     onSortChange = { mode ->
                         viewModel.setSortMode(mode, userLocation?.latitude, userLocation?.longitude)
                     },
-                    onStationClick = { selectedStation = it; onStationClick(it) },
+                    onStationClick = { selectedStation = it },
                     onToggleVisibility = { showStationList = !showStationList }
                 )
 

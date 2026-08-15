@@ -42,6 +42,7 @@ import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
 import com.navrot.aifuelassistant.ui.components.NetworkImage
 import com.navrot.aifuelassistant.ui.map.components.StationActionsBlock
+import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -184,7 +185,8 @@ fun StationDetailCard(
                             text = "${if (fuel.isMedianFromNetwork) "~" else ""}${String.format("%.2f", fuel.price)}",
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
+                            fontSize = 16.sp,
+                            color = FueldeckColors.Mint
                         )
                     }
                 }
@@ -212,11 +214,21 @@ fun StationDetailCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(
-                    "Очередь: ${station.queueTime} мин",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                if (station.queueTime > 0) {
+                    Text(
+                        "Очередь: ${station.queueTime} мин",
+                        fontSize = 12.sp,
+                        color = FueldeckColors.Danger,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                } else {
+                    Text(
+                        "Без очереди",
+                        fontSize = 12.sp,
+                        color = FueldeckColors.Mint,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
                 Text(
                     "Надёжность: ${station.reliability}%",
                     fontSize = 12.sp,

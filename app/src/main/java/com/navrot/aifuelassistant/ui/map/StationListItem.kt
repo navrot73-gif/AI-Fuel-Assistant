@@ -127,7 +127,7 @@ fun StationListItem(
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         fontFamily = FontFamily.Monospace,
-                        color = FueldeckColors.Amber
+                        color = FueldeckColors.Mint
                     )
                     if (fuel.isMedianFromNetwork && fuel.sourceCount > 0) {
                         Text(
@@ -152,15 +152,10 @@ fun StationListItem(
                 }
 
                 if (station.queueTime > 0) {
-                    val queueColor = when {
-                        station.queueTime <= 5 -> FueldeckColors.Mint
-                        station.queueTime <= 15 -> FueldeckColors.Amber
-                        else -> FueldeckColors.Coral
-                    }
                     Text(
                         text = "${station.queueTime} мин",
                         fontSize = 11.sp,
-                        color = queueColor,
+                        color = FueldeckColors.Danger,
                         fontWeight = FontWeight.Medium
                     )
                 }

@@ -39,6 +39,8 @@ object FueldeckColors {
     val MintSoft  = Color(0x244DB6AC) // rgba(...,.14)
     val Coral     = Color(0xFFFF6F61)
     val CoralSoft = Color(0x24FF6F61) // rgba(...,.14)
+
+    val Danger    = Color(0xFFE57373) // очередь на АЗС > 0
 }
 
 object FueldeckShapes {
