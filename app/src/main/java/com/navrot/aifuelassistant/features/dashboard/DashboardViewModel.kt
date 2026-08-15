@@ -64,6 +64,9 @@ class DashboardViewModel @Inject constructor(
     private val _userAnswer = MutableStateFlow<String?>(null)
     val userAnswer: StateFlow<String?> = _userAnswer.asStateFlow()
 
+    private val _pendingRouteStationId = MutableStateFlow<Int?>(null)
+    val pendingRouteStationId: StateFlow<Int?> = _pendingRouteStationId.asStateFlow()
+
     private val _isAnalyzing = MutableStateFlow(false)
     val isAnalyzing: StateFlow<Boolean> = _isAnalyzing.asStateFlow()
 
@@ -277,9 +280,11 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    private suspend fun buildUserContext(): String {
+    private data class UserContext(val text: String, val nearestStationId: Int?)
+
+    private suspend fun buildUserContext(): UserContext {
         val location = getLastLocation()
-            ?: return ""
+            ?: return UserContext("", null)
 
         val lat = location.latitude
         val lon = location.longitude
@@ -287,9 +292,10 @@ class DashboardViewModel @Inject constructor(
         // Get city name
         val city = GeoUtils.hardcodedDetectCity(lat, lon)
 
-        // Get nearby stations (top 5 within 50km)
+        // Get nearby stations (top 5 within 50km), closest first
         val nearbyStations = try {
             gasStationRepository.getNearbyStations(lat, lon, 50.0)
+                .sortedBy { GeoUtils.calculateDistance(lat, lon, it.latitude, it.longitude) }
         } catch (_: Exception) {
             emptyList<GasStation>()
         }
@@ -306,7 +312,8 @@ class DashboardViewModel @Inject constructor(
             }
         } else "нет станций в радиусе 50км"
 
-        return "Пользователь: $lat, $lon, город: $city.\nБлижайшие АЗС:\n$stationsInfo"
+        val text = "Пользователь: $lat, $lon, город: $city.\nБлижайшие АЗС:\n$stationsInfo"
+        return UserContext(text, top5.firstOrNull()?.id)
     }
 
     fun askUserQuestion() {
@@ -317,19 +324,31 @@ class DashboardViewModel @Inject constructor(
             _isAnalyzing.value = true
             _error.value = null
             _userAnswer.value = null
+            _pendingRouteStationId.value = null
             try {
                 val context = buildUserContext()
-                val fullPrompt = if (context.isNotBlank()) {
-                    "$context\n\nВопрос пользователя: $question"
+                val fullPrompt = if (context.text.isNotBlank()) {
+                    "${context.text}\n\nВопрос пользователя: $question"
                 } else question
 
                 val answer = aiRouter.ask(fullPrompt)
                 _userAnswer.value = answer
+                // Set pending route station if AI mentioned a station and user asked about route
+                context.nearestStationId?.let { stationId ->
+                    val routeKeywords = listOf("маршрут", "ближайш", "заправк", "азс", "куда", "доехать")
+                    if (routeKeywords.any { question.lowercase().contains(it) }) {
+                        _pendingRouteStationId.value = stationId
+                    }
+                }
             } catch (e: Throwable) {
                 _error.value = e.message ?: "Не удалось получить ответ"
             } finally {
                 _isAnalyzing.value = false
             }
         }
+    }
+
+    fun onRouteHandoffConsumed() {
+        _pendingRouteStationId.value = null
     }
 }

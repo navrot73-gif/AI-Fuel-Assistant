@@ -26,6 +26,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -52,6 +53,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.navrot.aifuelassistant.ui.components.ConsumptionGauge
 import com.navrot.aifuelassistant.ui.components.Sparkline
 import com.navrot.aifuelassistant.ui.map.UserLocationState
@@ -70,6 +73,8 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
     val selectedVehicleId by viewModel.selectedVehicleId.collectAsStateWithLifecycle()
     val userQuestion by viewModel.userQuestion.collectAsStateWithLifecycle()
     val userAnswer by viewModel.userAnswer.collectAsStateWithLifecycle()
+    val pendingRouteStationId by viewModel.pendingRouteStationId.collectAsStateWithLifecycle()
+    val navController = rememberNavController()
     var expanded by remember { mutableStateOf(false) }
 
     val consumption = metrics.consumption
@@ -207,6 +212,27 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                         Text(answer, fontSize = 13.5.sp, color = FueldeckColors.Ink,
                             lineHeight = 19.sp)
                     }
+                }
+            }
+            // Show route button if there's a pending route station
+            if (pendingRouteStationId != null) {
+                Button(
+                    onClick = {
+                        navController.navigate("map/build_route_station_id/$pendingRouteStationId")
+                        viewModel.onRouteHandoffConsumed()
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = FueldeckColors.Amber,
+                        contentColor = Color(0xFF1A1205),
+                    ),
+                    shape = FueldeckShapes.Lg,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 8.dp, bottom = 4.dp),
+                ) {
+                    Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("🗺️ Показать маршрут на карте", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 }
             }
         }

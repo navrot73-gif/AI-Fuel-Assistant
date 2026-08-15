@@ -36,6 +36,10 @@ object MapRoute {
 }
 
 @Serializable
+@SerialName("map/build_route_station_id")
+data class MapBuildRouteRoute(val stationId: Int)
+
+@Serializable
 @SerialName("ai")
 object DashboardRoute {
     val route = "ai"
@@ -136,6 +140,15 @@ fun AppNavigation() {
                     onConsumePendingRoute = {
                         backStackEntry.savedStateHandle.remove<Int>("build_route_station_id")
                     }
+                )
+            }
+
+            composable<MapBuildRouteRoute> { backStackEntry ->
+                val route = backStackEntry.toRoute<MapBuildRouteRoute>()
+                val pendingRouteId = route.stationId
+                MapScreen(
+                    pendingRouteStationId = pendingRouteId,
+                    onConsumePendingRoute = { /* consumed automatically when navigation happens */ }
                 )
             }
 
