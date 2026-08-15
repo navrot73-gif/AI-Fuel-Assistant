@@ -10,6 +10,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -18,6 +20,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
+import com.navrot.aifuelassistant.R
 import com.navrot.aifuelassistant.features.dashboard.DashboardScreen
 import com.navrot.aifuelassistant.ui.fuel.AddFuelRecordScreen
 import com.navrot.aifuelassistant.ui.fuel.FuelRecordListScreen
@@ -65,13 +68,16 @@ data class FuelRecordListRoute(val vehicleId: Long, val vehicleName: String)
 @SerialName("add_fuel_record")
 data class AddFuelRecordRoute(val vehicleId: Long, val vehicleName: String)
 
-private data class Tab(val route: String, val glyph: String, val title: String)
+private data class Tab(val route: String, val iconRes: Int, val title: String)
 
 private val TABS = listOf(
-    Tab(MapRoute.route, "🗺️", "Карта"),
-    Tab(DashboardRoute.route, "🤖", "AI"),
-    Tab(VehicleListRoute.route, "🚗", "Гараж")
+    Tab(MapRoute.route, R.drawable.ic_tab_map, "Карта"),
+    Tab(DashboardRoute.route, R.drawable.ic_tab_ai, "AI"),
+    Tab(VehicleListRoute.route, R.drawable.ic_tab_car, "Гараж")
 )
+
+private val TAB_ACTIVE_COLOR = Color(0xFFE8A750)
+private val TAB_INACTIVE_COLOR = Color(0xFF8A949E)
 
 private val TAB_ROUTES = TABS.map { it.route }.toSet()
 
@@ -105,19 +111,22 @@ fun AppNavigation() {
                             selected = selected,
                             onClick = { go(tab.route) },
                             icon = {
-                                Text(
-                                    text = tab.glyph,
-                                    fontSize = 22.sp,
-                                    letterSpacing = 0.sp
+                                androidx.compose.material3.Icon(
+                                    painter = painterResource(id = tab.iconRes),
+                                    contentDescription = tab.title
                                 )
                             },
                             label = {
                                 Text(
                                     text = tab.title,
-                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
+                                    fontSize = 11.sp,
+                                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal,
+                                    color = if (selected) TAB_ACTIVE_COLOR else TAB_INACTIVE_COLOR
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = TAB_ACTIVE_COLOR,
+                                unselectedIconColor = TAB_INACTIVE_COLOR,
                                 indicatorColor = MaterialTheme.colorScheme.secondaryContainer
                             )
                         )
