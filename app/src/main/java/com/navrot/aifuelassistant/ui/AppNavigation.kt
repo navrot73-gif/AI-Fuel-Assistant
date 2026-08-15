@@ -21,7 +21,6 @@ import androidx.navigation.toRoute
 import com.navrot.aifuelassistant.features.dashboard.DashboardScreen
 import com.navrot.aifuelassistant.ui.fuel.AddFuelRecordScreen
 import com.navrot.aifuelassistant.ui.fuel.FuelRecordListScreen
-import com.navrot.aifuelassistant.ui.fuel.GasStationDetailScreen
 import com.navrot.aifuelassistant.ui.map.MapScreen
 import com.navrot.aifuelassistant.ui.vehicles.AddVehicleScreen
 import com.navrot.aifuelassistant.ui.vehicles.VehicleListScreen
@@ -53,10 +52,6 @@ object VehicleListRoute {
 object AddVehicleRoute {
     val route = "add_vehicle"
 }
-
-@Serializable
-@SerialName("station_detail")
-data class StationDetailRoute(val stationId: Int)
 
 @Serializable
 @SerialName("fuel_records")
@@ -137,12 +132,6 @@ fun AppNavigation() {
                     .getStateFlow<Int?>("build_route_station_id", null)
                     .collectAsStateWithLifecycle()
                 MapScreen(
-                    onStationClick = { station ->
-                        navController.navigate(StationDetailRoute(station.id))
-                    },
-                    onRouteClick = { stationId ->
-                        navController.navigate(StationDetailRoute(stationId))
-                    },
                     pendingRouteStationId = pendingRouteId,
                     onConsumePendingRoute = {
                         backStackEntry.savedStateHandle.remove<Int>("build_route_station_id")
@@ -163,19 +152,6 @@ fun AppNavigation() {
 
             composable<AddVehicleRoute> {
                 AddVehicleScreen(onNavigateBack = { navController.popBackStack() })
-            }
-
-            composable<StationDetailRoute> { backStackEntry ->
-                val route = backStackEntry.toRoute<StationDetailRoute>()
-                GasStationDetailScreen(
-                    stationId = route.stationId,
-                    onBack = { navController.popBackStack() },
-                    onRouteClick = {
-                        navController.previousBackStackEntry?.savedStateHandle
-                            ?.set("build_route_station_id", route.stationId)
-                        navController.popBackStack()
-                    }
-                )
             }
 
             composable<FuelRecordListRoute> { backStackEntry ->
