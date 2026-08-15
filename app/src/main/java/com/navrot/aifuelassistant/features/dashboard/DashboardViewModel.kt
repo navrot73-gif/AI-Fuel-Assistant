@@ -324,51 +324,54 @@ class DashboardViewModel @Inject constructor(
         return UserContext(text, top5.firstOrNull()?.id)
     }
 
-    fun askUserQuestion() {
-        val question = _userQuestion.value.trim()
-        if (question.isEmpty() || _isAnalyzing.value) return
+fun askUserQuestion() {
+    val question = _userQuestion.value.trim()
+    if (question.isEmpty() || _isAnalyzing.value) return
 
-        viewModelScope.launch {
-            _isAnalyzing.value = true
-            _error.value = null
-            _userAnswer.value = null
-            _pendingRouteStationId.value = null
-            _pendingRouteMode.value = PendingRouteMode.NONE
-            _pendingOpenStationId.value = null
-            try {
-                val context = buildUserContext()
-                val fullPrompt = if (context.text.isNotBlank()) {
-                    "${context.text}\n\nВопрос пользователя: $question"
-                } else question
+    val userMsg = ChatMessage(role = "user", text = question, ts = System.currentTimeMillis())
+    _chatHistory.value = _chatHistory.value + userMsg
+    _userQuestion.value = ""
+    saveChatHistory()
 
-                val answer = aiRouter.ask(fullPrompt)
-                _userAnswer.value = answer
+    viewModelScope.launch {
+        _isAnalyzing.value = true
+        _error.value = null
+        _userAnswer.value = null
 
-                // Determine mode from question keywords
-                val lowerQuestion = question.lowercase()
-                val routeKeywords = listOf("маршрут", "поехать", "доехать", "дорога до", "отведи")
-                val cardKeywords = listOf("ближайш", "дешев", "лучш", "порекоменд", "какая заправка", "где заправ")
+        val context = buildUserContext()
+        val fullPrompt = if (context.isNotBlank()) {
+            "${context}\n\nВопрос пользователя: $question"
+        } else question
 
-                when {
-                    routeKeywords.any { lowerQuestion.contains(it) } -> {
-                        _pendingRouteMode.value = PendingRouteMode.ROUTE
-                        context.nearestStationId?.let { _pendingRouteStationId.value = it }
-                    }
-                    cardKeywords.any { lowerQuestion.contains(it) } -> {
-                        _pendingRouteMode.value = PendingRouteMode.CARD
-                        context.nearestStationId?.let { _pendingOpenStationId.value = it }
-                    }
-                    else -> {
-                        _pendingRouteMode.value = PendingRouteMode.NONE
-                    }
+        // ЕДИНСТВЕННЫЙ запрос — с историей (6 последних сообщений)
+        val history = _chatHistory.value
+            .takeLast(6)
+            .map { msg ->
+                JSONObject().apply {
+                    put("role", if (msg.role == "ai") "assistant" else msg.role)
+                    put("content", msg.text)
                 }
-            } catch (e: Throwable) {
-                _error.value = e.message ?: "Не удалось получить ответ"
-            } finally {
-                _isAnalyzing.value = false
             }
+        val answer = aiRouter.ask(fullPrompt, history = history)
+        _userAnswer.value = answer
+
+        val aiMsg = ChatMessage(role = "ai", text = answer, ts = System.currentTimeMillis())
+        _chatHistory.value = _chatHistory.value + aiMsg
+        saveChatHistory()
+
+        // Авто-переход route/card
+        val lowerQuestion = question.lowercase()
+        val routeKeywords = listOf("маршрут", "поехать", "доехать", "дорога до", "отведи")
+        val cardKeywords = listOf("ближайш", "дешев", "лучш", "порекоменд", "какая заправка", "где заправ")
+        when {
+            routeKeywords.any { lowerQuestion.contains(it) } -> _pendingRouteMode.value = PendingRouteMode.ROUTE
+            cardKeywords.any { lowerQuestion.contains(it) } -> _pendingRouteMode.value = PendingRouteMode.CARD
+            else -> _pendingRouteMode.value = PendingRouteMode.NONE
         }
+
+        _isAnalyzing.value = false
     }
+}
 
     fun onRouteHandoffConsumed() {
         _pendingRouteStationId.value = null
