@@ -199,8 +199,8 @@ fun AppNavigation() {
             composable<DashboardRoute> { DashboardScreen() }
 
             // Garage nested navigation
-            navigation(startDestination = GarageRoute.route, route = "garage") {
-                composable<GarageRoute> {
+            navigation(startDestination = "garage_list", route = "garage") {
+                composable(route = "garage_list") {
                     val garageViewModel: VehicleViewModel = hiltViewModel()
                     GarageListScreen(
                         onAddClick = { navController.navigate(AddVehicleRoute) },
