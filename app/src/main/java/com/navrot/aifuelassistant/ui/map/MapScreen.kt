@@ -75,6 +75,8 @@ fun MapScreen(
     val aiRecommendation by viewModel.aiRecommendation.collectAsStateWithLifecycle()
     val currentCity by viewModel.currentCity.collectAsStateWithLifecycle()
     val geocodedLocation by viewModel.geocodedLocation.collectAsStateWithLifecycle()
+    val bestStationRanked by viewModel.bestStationRanked.collectAsStateWithLifecycle()
+    val avgPrice by viewModel.avgPrice.collectAsStateWithLifecycle()
 
     val fuelTypes = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ", "Газ")
     val recommendationTriple = aiRecommendation?.let { Triple(it.station, it.fuel, it.distanceKm) }
@@ -249,6 +251,8 @@ fun MapScreen(
                     visible = showStationList, isLoading = isLoading,
                     stations = viewModel.filterStationsByBrands(stations),
                     aiRecommendation = recommendationTriple?.first,
+                    bestStation = bestStationRanked,
+                    avgPrice = avgPrice,
                     selectedFuelTypes = selectedFuelTypes, sortMode = sortMode,
                     userLocation = userLocation?.toGeoPoint(), fuelTypes = fuelTypes,
                     brands = viewModel.availableBrands(), selectedBrands = selectedBrands,
