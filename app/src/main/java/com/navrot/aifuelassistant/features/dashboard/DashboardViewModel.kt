@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import java.util.Calendar
 import javax.inject.Inject
 import kotlin.coroutines.resume
 
@@ -47,6 +48,9 @@ class DashboardViewModel @Inject constructor(
 
     private val _metrics = MutableStateFlow(DashboardMetrics())
     val metrics: StateFlow<DashboardMetrics> = _metrics.asStateFlow()
+
+    private val _weeklyConsumption = MutableStateFlow<List<Pair<String, Float>>>(emptyList())
+    val weeklyConsumption: StateFlow<List<Pair<String, Float>>> = _weeklyConsumption.asStateFlow()
 
     private val _selectedFuelType = MutableStateFlow("АИ-95")
     val selectedFuelType: StateFlow<String> = _selectedFuelType.asStateFlow()
@@ -188,8 +192,11 @@ class DashboardViewModel @Inject constructor(
                 fuelRecordRepository.getAll()
             }
             flow
-                .catch { _metrics.value = DashboardMetrics() }
-                .collect { records -> _metrics.value = computeMetrics(records) }
+                .catch { _metrics.value = DashboardMetrics(); _weeklyConsumption.value = emptyList() }
+                .collect { records ->
+                    _metrics.value = computeMetrics(records)
+                    _weeklyConsumption.value = computeWeeklyConsumption(records)
+                }
         }
     }
 
@@ -260,6 +267,54 @@ class DashboardViewModel @Inject constructor(
                 val avg = (totalLiters / totalKm * 100).toFloat()
                 result.addAll(List(3) { avg })
             }
+        }
+
+        return result
+    }
+
+    private fun computeWeeklyConsumption(records: List<FuelRecordEntity>): List<Pair<String, Float>> {
+        if (records.isEmpty()) return emptyList()
+
+        // Filter records for the selected vehicle only
+        val vehicleId = _selectedVehicleId.value
+        val filteredRecords = if (vehicleId != null && vehicleId > 0) {
+            records.filter { it.vehicleId == vehicleId }
+        } else records
+
+        // Group by day of week (Calendar.DAY_OF_WEEK: 1=Sun, 2=Mon, ..., 7=Sat)
+        val dayNames = arrayOf("Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб")
+        val grouped = mutableMapOf<Int, MutableList<Float>>()
+
+        val sorted = filteredRecords.sortedBy { it.date }
+        for (i in 1 until sorted.size) {
+            val curr = sorted[i]
+            val prev = sorted[i - 1]
+            val km = curr.mileage - prev.mileage
+            val liters = curr.fuelAmount
+            if (km > 0 && liters > 0) {
+                val consumption = (liters / km * 100).toFloat()
+                if (consumption in 2f..50f) {
+                    val cal = Calendar.getInstance()
+                    cal.timeInMillis = curr.date
+                    val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK) // 1=Sun...7=Sat
+                    grouped.getOrPut(dayOfWeek) { mutableListOf() }.add(consumption)
+                }
+            }
+        }
+
+        // Build result: only days with data, in order Mon-Sun
+        val result = mutableListOf<Pair<String, Float>>()
+        for (day in 2..7) { // Mon=2 to Sat=7
+            val consumptions = grouped[day]
+            if (consumptions != null && consumptions.isNotEmpty()) {
+                val avg = consumptions.average().toFloat()
+                result.add(dayNames[day] to avg)
+            }
+        }
+        // Add Sunday (1) at the end if it has data
+        val sunConsumptions = grouped[1]
+        if (sunConsumptions != null && sunConsumptions.isNotEmpty()) {
+            result.add(dayNames[1] to sunConsumptions.average().toFloat())
         }
 
         return result
