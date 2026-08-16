@@ -45,8 +45,9 @@ import com.navrot.aifuelassistant.ui.map.components.MapTopBar
 import com.navrot.aifuelassistant.ui.map.components.RouteOverlay
 import com.navrot.aifuelassistant.ui.map.components.StationDetailOverlay
 import com.navrot.aifuelassistant.ui.map.components.StationListBottomSheet
+import com.navrot.aifuelassistant.geo.GeoPoint
 import kotlinx.coroutines.delay
-import org.osmdroid.util.GeoPoint
+import org.osmdroid.util.GeoPoint as OsmGeoPoint
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -73,6 +74,7 @@ fun MapScreen(
     val openOnly by viewModel.openOnly.collectAsStateWithLifecycle()
     val aiRecommendation by viewModel.aiRecommendation.collectAsStateWithLifecycle()
     val currentCity by viewModel.currentCity.collectAsStateWithLifecycle()
+    val geocodedLocation by viewModel.geocodedLocation.collectAsStateWithLifecycle()
 
     val fuelTypes = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ", "Газ")
     val recommendationTriple = aiRecommendation?.let { Triple(it.station, it.fuel, it.distanceKm) }
@@ -179,6 +181,7 @@ fun MapScreen(
                 },
                 onClear = {
                     searchQuery = ""
+                    viewModel.clearGeocodedLocation()
                     userLocation?.let { loc ->
                         viewModel.loadNearbyStations(loc.latitude, loc.longitude, 50.0)
                     }
@@ -191,6 +194,7 @@ fun MapScreen(
                     selectedFuelTypes = selectedFuelTypes, route = route,
                     recenterRequest = recenterTick,
                     zoomInRequest = zoomInTick, zoomOutRequest = zoomOutTick,
+                    focusPoint = geocodedLocation?.let { OsmGeoPoint(it.latitude, it.longitude) },
                     onStationClick = { selectedStation = it }
                 )
 

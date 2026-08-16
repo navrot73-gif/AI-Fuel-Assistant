@@ -30,6 +30,41 @@ import java.io.File
 
 private const val MAP_BACKGROUND = "#17222B"
 
+/** Создаёт СИНЮЮ метку адреса (drop shape #4285F4 с белой точкой в центре). */
+private fun createBlueAddressPinIcon(context: android.content.Context): BitmapDrawable {
+    val density = context.resources.displayMetrics.density
+    val width = (32 * density).toInt()
+    val height = (40 * density).toInt()
+    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(bitmap)
+
+    val pinPaint = Paint().apply {
+        isAntiAlias = true
+        color = Color.parseColor("#4285F4") // Google Blue
+        style = Paint.Style.FILL
+    }
+    val dotPaint = Paint().apply {
+        isAntiAlias = true
+        color = Color.WHITE
+        style = Paint.Style.FILL
+    }
+
+    val path = Path().apply {
+        moveTo(width / 2f, height.toFloat())
+        cubicTo(width / 2f, height.toFloat(), 0f, height * 0.55f, 0f, height * 0.35f)
+        cubicTo(0f, height * 0.15f, width * 0.35f, 0f, width / 2f, 0f)
+        cubicTo(width * 0.65f, 0f, width.toFloat(), height * 0.15f, width.toFloat(), height * 0.35f)
+        cubicTo(width.toFloat(), height * 0.55f, width / 2f, height.toFloat(), width / 2f, height.toFloat())
+        close()
+    }
+    canvas.drawPath(path, pinPaint)
+
+    val dotRadius = (4 * density).toInt()
+    canvas.drawCircle(width / 2f, height * 0.28f, dotRadius.toFloat(), dotPaint)
+
+    return BitmapDrawable(context.resources, bitmap)
+}
+
 /** ColorMatrix tuned for Google Maps dark palette over CARTO Dark Matter (no labels) tiles. */
 private val GOOGLE_DARK_COLOR_MATRIX = ColorMatrix(
     floatArrayOf(
@@ -94,18 +129,56 @@ fun OsmMapView(
     recenterRequest: Int = 0,
     zoomInRequest: Int = 0,
     zoomOutRequest: Int = 0,
+    focusPoint: GeoPoint? = null,
     onStationClick: (GasStation) -> Unit
 ) {
     val context = LocalContext.current
     val mapViewRef = remember { arrayOfNulls<MapView>(1) }
     val locationDotRef = remember { arrayOfNulls<MyLocationDot>(1) }
     val lastFittedRoute = remember { arrayOfNulls<MapViewModel.RouteUiState>(1) }
+    val focusMarkerRef = remember { arrayOfNulls<Marker>(1) }
+    val lastFocusPoint = remember { arrayOfNulls<GeoPoint>(1) }
 
     LaunchedEffect(zoomInRequest) {
         if (zoomInRequest > 0) mapViewRef[0]?.controller?.zoomIn()
     }
     LaunchedEffect(zoomOutRequest) {
         if (zoomOutRequest > 0) mapViewRef[0]?.controller?.zoomOut()
+    }
+
+    // Обработка focusPoint: добавляем/обновляем/удаляем синюю метку и анимируем камеру
+    LaunchedEffect(focusPoint) {
+        val mapView = mapViewRef[0] ?: return@LaunchedEffect
+        
+        // Удаляем старую метку если была
+        lastFocusPoint[0]?.let { oldPoint ->
+            focusMarkerRef[0]?.let { marker ->
+                mapView.overlays.remove(marker)
+            }
+            focusMarkerRef[0] = null
+        }
+        
+        focusPoint?.let { newPoint ->
+            // Создаём синюю метку адреса
+            val marker = Marker(mapView).apply {
+                position = GeoPoint(newPoint.latitude, newPoint.longitude)
+                icon = createBlueAddressPinIcon(context)
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                title = "Найденный адрес"
+            }
+            mapView.overlays.add(marker)
+            focusMarkerRef[0] = marker
+            lastFocusPoint[0] = newPoint
+            
+            // Плавно перемещаем камеру к точке
+            mapView.controller.animateTo(GeoPoint(newPoint.latitude, newPoint.longitude))
+            // Устанавливаем зум подходящий для адреса (16-17)
+            mapView.postDelayed({
+                if (mapView.zoomLevelDouble < 16.0) {
+                    mapView.controller.setZoom(16.0)
+                }
+            }, 500)
+        }
     }
 
     AndroidView(
@@ -178,6 +251,11 @@ fun OsmMapView(
                     onStationClick(station)
                     true
                 }
+                mapView.overlays.add(marker)
+            }
+
+            // Добавляем синюю метку фокуса обратно (после очистки overlays)
+            focusMarkerRef[0]?.let { marker ->
                 mapView.overlays.add(marker)
             }
 

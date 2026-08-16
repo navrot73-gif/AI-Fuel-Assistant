@@ -1,5 +1,6 @@
 package com.navrot.aifuelassistant.features
 
+import android.content.Context
 import com.navrot.aifuelassistant.ai.router.AiRouter
 import com.navrot.aifuelassistant.data.FuelRecordRepository
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
@@ -23,6 +24,7 @@ class DashboardViewModelTest {
     private val mockVehicleRepo = mock<VehicleRepository>()
     private val mockStationRepo = mock<GasStationRepositoryInterface>()
     private val mockAiRouter = mock<AiRouter>()
+    private val mockContext = mock<Context>()
     
     private val testDispatcher = StandardTestDispatcher()
 
@@ -41,7 +43,8 @@ class DashboardViewModelTest {
             fuelRecordRepository = mockRecordRepo,
             vehicleRepository = mockVehicleRepo,
             gasStationRepository = mockStationRepo,
-            aiRouter = mockAiRouter
+            aiRouter = mockAiRouter,
+            applicationContext = mockContext
         )
     }
 
