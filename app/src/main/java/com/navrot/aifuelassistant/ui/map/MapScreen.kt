@@ -126,11 +126,13 @@ fun MapScreen(
         }
     }
 
-    // Handle pending open station from AI card handoff
+    // Handle pending open station from AI card handoff - bind route to opened station
     LaunchedEffect(pendingOpenStationId, stations) {
         val id = pendingOpenStationId ?: return@LaunchedEffect
         stations.firstOrNull { it.id == id }?.let { station ->
             selectedStation = station
+            // Bug 4 fix: Build route to the opened station
+            buildRouteAndClose(station)
             onConsumePendingOpenStation()
         }
     }

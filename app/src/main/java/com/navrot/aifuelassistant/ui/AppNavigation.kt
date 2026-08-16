@@ -105,7 +105,7 @@ fun AppNavigation() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    val showBottomBar = currentRoute in TAB_ROUTES
+    val showBottomBar = currentRoute in TAB_ROUTES || currentRoute?.isGarageRoute() == true
 
     fun go(route: String) {
         navController.navigate(route) {
@@ -199,8 +199,8 @@ fun AppNavigation() {
             composable<DashboardRoute> { DashboardScreen() }
 
             // Garage nested navigation
-            navigation(startDestination = GarageRoute.route, route = "garage") {
-                composable<GarageRoute> {
+            navigation(startDestination = "garage_list", route = "garage") {
+                composable("garage_list") {
                     val garageViewModel: VehicleViewModel = hiltViewModel()
                     GarageListScreen(
                         onAddClick = { navController.navigate(AddVehicleRoute) },
