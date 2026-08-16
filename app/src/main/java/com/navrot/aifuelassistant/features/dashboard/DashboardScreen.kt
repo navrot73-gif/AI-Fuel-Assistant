@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -23,10 +24,12 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
@@ -36,9 +39,11 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
@@ -53,9 +58,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -65,6 +74,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
+import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.ui.components.ConsumptionGauge
 import com.navrot.aifuelassistant.ui.components.Sparkline
 import com.navrot.aifuelassistant.ui.map.UserLocationState
@@ -72,6 +82,7 @@ import com.navrot.aifuelassistant.ui.map.components.LocationPermissionHandler
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
 import kotlinx.coroutines.delay
+import java.util.Calendar
 
 @Composable
 fun DashboardScreen(modifier: Modifier = Modifier) {
@@ -88,6 +99,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
     val pendingRouteMode by viewModel.pendingRouteMode.collectAsStateWithLifecycle()
     val pendingOpenStationId by viewModel.pendingOpenStationId.collectAsStateWithLifecycle()
     val chatMessages by viewModel.chatMessages.collectAsStateWithLifecycle(initialValue = emptyList())
+    val weeklyConsumption by viewModel.weeklyConsumption.collectAsStateWithLifecycle(initialValue = emptyList())
     val navController = rememberNavController()
     var expanded by remember { mutableStateOf(false) }
     var badgesExpanded by remember { mutableStateOf(true) }
@@ -187,139 +199,33 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
             }
         }
 
-        // ===== Селектор автомобиля =====
-        Surface(
-            shape = FueldeckShapes.Pill,
-            color = FueldeckColors.Surface,
-            border = BorderStroke(1.dp, FueldeckColors.Line),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .clickable { expanded = !expanded }
-        ) {
-            Box {
-                Row(
-                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(7.dp),
-                ) {
-                    Box(Modifier.size(7.dp).background(FueldeckColors.Amber, CircleShape))
-                    Text(
-                        vehicles.find { it.id == selectedVehicleId }?.name ?: "Выберите авто",
-                        fontSize = 13.sp,
-                        color = FueldeckColors.Ink
-                    )
-                    Text(
-                        if (expanded) "▴" else "▾",
-                        fontSize = 11.sp,
-                        color = FueldeckColors.InkDim
-                    )
-                }
-                DropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false },
-                ) {
-                    vehicles.forEach { vehicle ->
-                        DropdownMenuItem(
-                            text = { Text(vehicle.name) },
-                            onClick = {
-                                viewModel.selectVehicle(vehicle.id)
-                                expanded = false
-                            }
-                        )
-                    }
-                }
-            }
-        }
+        // ===== VehicleChipsRow — горизонтальный ряд чипов авто =====
+        VehicleChipsRow(
+            vehicles = vehicles,
+            selectedId = selectedVehicleId,
+            onSelect = { viewModel.selectVehicle(it) },
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
 
-        // ===== Гейджи расхода (сворачиваемый блок) =====
-        if (badgesExpanded) {
-            Surface(
-                color = FueldeckColors.Surface,
-                shape = FueldeckShapes.Lg,
-                border = BorderStroke(1.dp, FueldeckColors.Line),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text("Метрики", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = FueldeckColors.Ink)
-                        IconButton(onClick = { badgesExpanded = false }) {
-                            Icon(Icons.Default.ExpandLess, contentDescription = "Свернуть", tint = FueldeckColors.InkDim, modifier = Modifier.size(20.dp))
-                        }
-                    }
-                    Spacer(Modifier.height(12.dp))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        // Consumption gauge
-                        Panel(modifier = Modifier.weight(1f)) {
-                            ConsumptionGauge(value = consumption)
-                        }
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Panel(modifier = Modifier.weight(1f)) {
-                                Text("эффективность", fontSize = 11.sp, color = FueldeckColors.InkFaint,
-                                    letterSpacing = 1.2.sp, textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth())
-                                Spacer(Modifier.height(6.dp))
-                                MiniRing(value = efficiency)
-                            }
-                            Panel(modifier = Modifier.weight(1f)) {
-                                Text("расход ₽/км", fontSize = 11.sp, color = FueldeckColors.InkFaint,
-                                    letterSpacing = 1.2.sp)
-                                Spacer(Modifier.height(8.dp))
-                                Row(verticalAlignment = Alignment.Bottom) {
-                                    Text(
-                                        if (isEmpty) "—" else String.format("%.2f", rubPerKm),
-                                        fontFamily = FontFamily.Monospace,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 19.sp,
-                                        color = FueldeckColors.Ink,
-                                    )
-                                    Text(" ₽", fontSize = 11.sp, color = FueldeckColors.InkFaint)
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        } else {
-            // Collapsed badge bar
-            Surface(
-                color = FueldeckColors.Surface,
-                shape = FueldeckShapes.Lg,
-                border = BorderStroke(1.dp, FueldeckColors.Line),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                        .clickable { badgesExpanded = true },
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("📊 ", fontSize = 12.sp)
-                        Text("расход: ${if (isEmpty) "—" else "%.1f".format(consumption)} л/100км", fontSize = 12.sp, color = FueldeckColors.Ink)
-                        Text("•", fontSize = 12.sp, color = FueldeckColors.InkDim)
-                        Text("эфф.: $efficiency%", fontSize = 12.sp, color = FueldeckColors.Ink)
-                        Text("•", fontSize = 12.sp, color = FueldeckColors.InkDim)
-                        Text("₽/км: ${if (isEmpty) "—" else "%.2f".format(rubPerKm)}", fontSize = 12.sp, color = FueldeckColors.Ink)
-                    }
-                    Icon(Icons.Default.ExpandMore, contentDescription = "Развернуть", tint = FueldeckColors.InkDim, modifier = Modifier.size(20.dp))
-                }
+        // ===== Метрики: крупный круговой индикатор расхода + две малые карточки =====
+        MetricsRow(
+            consumption = consumption,
+            efficiency = efficiency,
+            rubPerKm = rubPerKm,
+            isEmpty = isEmpty,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
+        // ===== Недельный бар-чарт расхода =====
+        WeeklyConsumptionBarChart(
+            data = weeklyConsumption,
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
+        // ===== AI-инсайт (опционально) =====
+        analysis?.let { text ->
+if (text.isNotBlank()) {
+                AIInsightCard(text = text, modifier = Modifier.padding(horizontal = 16.dp))
             }
         }
 
@@ -344,95 +250,6 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
                 ) {
                     items(chatMessages) { message ->
                         ChatBubble(message = message)
-                    }
-                }
-            }
-        }
-
-        // ===== График расхода =====
-        Panel(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text("расход · 30 дней", fontSize = 11.sp, color = FueldeckColors.InkFaint,
-                    letterSpacing = 1.2.sp)
-                Text(
-                    if (isEmpty) "нет данных" else "обновлено 4 мин назад",
-                    fontSize = 11.sp, color = FueldeckColors.InkDim
-                )
-            }
-            Spacer(Modifier.height(10.dp))
-            if (isEmpty || !hasSparkline) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        if (isEmpty) "Добавьте заправки для отображения"
-                        else "Недостаточно данных для графика",
-                        fontSize = 12.sp,
-                        color = FueldeckColors.InkDim
-                    )
-                }
-            } else {
-                Sparkline(data = spark)
-                Spacer(Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text("мин ${"%.1f".format(spark.min())}", fontSize = 11.5.sp, color = FueldeckColors.InkFaint)
-                    Text("средн ${"%.1f".format(spark.average())}",
-                        fontSize = 11.5.sp, color = FueldeckColors.InkFaint)
-                    Text("макс ${"%.1f".format(spark.max())}", fontSize = 11.5.sp, color = FueldeckColors.InkFaint)
-                }
-            }
-        }
-
-        // ===== AI-анализ =====
-        if (analysis == null && !isAnalyzing) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .border(1.dp, FueldeckColors.Line2, FueldeckShapes.Md)
-                    .padding(18.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    if (isEmpty) "Сначала добавьте автомобиль и заправки, затем я смогу проанализировать стиль вождения."
-                    else "Нажмите ниже — проанализирую последние заправки и стиль вождения за месяц.",
-                    fontSize = 13.5.sp,
-                    color = FueldeckColors.InkDim,
-                    textAlign = TextAlign.Center,
-                )
-            }
-        }
-
-        analysis?.let { text ->
-            Surface(
-                shape = FueldeckShapes.Md,
-                color = FueldeckColors.Surface,
-                border = BorderStroke(1.dp, FueldeckColors.Line),
-                modifier = Modifier.padding(horizontal = 16.dp),
-            ) {
-                Row(modifier = Modifier.height(IntrinsicSize.Min)) {
-                    Box(
-                        Modifier
-                            .fillMaxHeight()
-                            .width(3.dp)
-                            .background(FueldeckColors.Mint)
-                    )
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Text("AI‑анализ", fontSize = 11.sp, color = FueldeckColors.Mint,
-                            letterSpacing = 1.2.sp)
-                        Spacer(Modifier.height(6.dp))
-                        Text(text, fontSize = 13.5.sp, color = FueldeckColors.Ink,
-                            lineHeight = 19.sp)
                     }
                 }
             }
@@ -637,5 +454,252 @@ private fun MiniRing(value: Int) {
             fontSize = 21.sp,
             color = FueldeckColors.Ink,
         )
+    }
+}
+
+@Composable
+fun VehicleChipsRow(
+    vehicles: List<VehicleEntity>,
+    selectedId: Long?,
+    onSelect: (Long) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    LazyRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = PaddingValues(horizontal = 16.dp)
+    ) {
+        items(vehicles) { v ->
+            FilterChip(
+                selected = v.id == selectedId,
+                onClick = { onSelect(v.id) },
+                label = { Text(v.name) },
+                colors = FilterChipDefaults.filterChipColors(
+                    selectedContainerColor = FueldeckColors.Mint,
+                    selectedLabelColor = Color.White,
+                    containerColor = FueldeckColors.Surface,
+                    labelColor = FueldeckColors.InkDim
+                )
+            )
+        }
+    }
+}
+
+@Composable
+fun MetricsRow(
+    consumption: Float,
+    efficiency: Int,
+    rubPerKm: Float,
+    isEmpty: Boolean,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        // Left: Large consumption gauge (weight 0.6f)
+        Panel(modifier = Modifier.weight(0.6f)) {
+            LargeConsumptionGauge(value = consumption, isEmpty = isEmpty)
+        }
+        // Right: Two small cards (weight 0.4f)
+        Column(
+            modifier = Modifier.weight(0.4f),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            // Efficiency card
+            Panel(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (efficiency > 0) {
+                        Box(
+                            modifier = Modifier
+                                .width(4.dp)
+                                .fillMaxHeight()
+                                .background(FueldeckColors.Mint)
+                        )
+                        Spacer(Modifier.width(8.dp))
+                    }
+                    Column {
+                        Text(
+                            if (isEmpty) "—" else "$efficiency%",
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 24.sp,
+                            color = FueldeckColors.Ink,
+                        )
+                        Text("Эффективность", fontSize = 11.sp, color = FueldeckColors.InkFaint)
+                    }
+                }
+            }
+            // Cost card
+            Panel(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .width(4.dp)
+                            .fillMaxHeight()
+                            .background(FueldeckColors.Amber)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            if (isEmpty) "—" else String.format("%.2f", rubPerKm),
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 24.sp,
+                            color = FueldeckColors.Ink,
+                        )
+                        Text("₽/км", fontSize = 11.sp, color = FueldeckColors.InkFaint)
+                        Text("Стоимость", fontSize = 11.sp, color = FueldeckColors.InkFaint)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun LargeConsumptionGauge(value: Float, isEmpty: Boolean) {
+    val progress by animateFloatAsState(
+        targetValue = if (isEmpty) 0f else (value / 15f).coerceIn(0f, 1f),
+        animationSpec = tween(1500),
+        label = "consumption",
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        val gaugeSize = 120.dp
+        Canvas(modifier = Modifier.size(gaugeSize)) {
+            val stroke = Stroke(width = 12.dp.toPx(), cap = StrokeCap.Round)
+            val center = gaugeSize.toPx() / 2
+            val radius = center - stroke.width / 2
+            // Background arc
+            drawArc(
+                color = FueldeckColors.Line,
+                startAngle = 135f,
+                sweepAngle = 270f,
+                useCenter = false,
+                style = stroke,
+                topLeft = Offset(0f, 0f),
+                size = Size(gaugeSize.toPx(), gaugeSize.toPx())
+            )
+            // Progress arc
+            drawArc(
+                color = FueldeckColors.Mint,
+                startAngle = 135f,
+                sweepAngle = 270f * progress,
+                useCenter = false,
+                style = stroke,
+                topLeft = Offset(0f, 0f),
+                size = Size(gaugeSize.toPx(), gaugeSize.toPx())
+            )
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                if (isEmpty) "—" else String.format("%.1f", value),
+                fontFamily = FontFamily.Monospace,
+                fontWeight = FontWeight.Bold,
+                fontSize = 32.sp,
+                color = FueldeckColors.Ink,
+            )
+            Text("л/100км", fontSize = 12.sp, color = FueldeckColors.InkDim)
+            Text("Средний расход", fontSize = 11.sp, color = FueldeckColors.InkFaint)
+        }
+    }
+}
+
+@Composable
+fun WeeklyConsumptionBarChart(
+    data: List<Pair<String, Float>>,
+    modifier: Modifier = Modifier
+) {
+    if (data.isEmpty()) return
+    val maxConsumption = data.maxOfOrNull { it.second } ?: 1f
+    val textMeasurer = rememberTextMeasurer()
+
+    Card(
+        modifier = modifier.fillMaxWidth().height(180.dp),
+        colors = CardDefaults.cardColors(containerColor = FueldeckColors.Surface),
+        shape = RoundedCornerShape(16.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text("Расход по дням", color = FueldeckColors.Ink, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(12.dp))
+
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val barWidth = size.width / (data.size * 2)
+                data.forEachIndexed { index, (day, consumption) ->
+                    val barHeight = (consumption / maxConsumption) * size.height * 0.8f
+                    val x = index * barWidth * 2 + barWidth / 2
+
+                    drawRect(
+                        color = FueldeckColors.Mint,
+                        topLeft = Offset(x, size.height - barHeight),
+                        size = Size(barWidth, barHeight)
+                    )
+
+                    // Day label at bottom
+                    drawText(
+                        textMeasurer = textMeasurer,
+                        text = day,
+                        topLeft = Offset(x + barWidth / 2, size.height - 8f),
+                        style = androidx.compose.ui.text.TextStyle(
+                            fontSize = 10.sp,
+                            color = Color(0xFF8A949E),
+                            textAlign = TextAlign.Center
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AIInsightCard(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    if (text.isBlank()) return
+    Surface(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp, bottom = 8.dp),
+        shape = RoundedCornerShape(12.dp),
+        color = FueldeckColors.Surface,
+        border = BorderStroke(1.dp, FueldeckColors.Line)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(4.dp)
+                    .fillMaxHeight()
+                    .background(FueldeckColors.Amber)
+            )
+            Spacer(Modifier.width(12.dp))
+            Text(
+                text,
+                fontSize = 13.sp,
+                color = FueldeckColors.Ink,
+                lineHeight = 18.sp,
+            )
+        }
     }
 }
