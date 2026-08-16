@@ -95,6 +95,7 @@ fun StationListItem(
                 ) {
                     station.fuelTypes.filter { selectedFuelTypes.contains(it.type) }.forEach { fuel ->
                         val hot = fuel.available
+                        val isPrimary = primaryFuel != null && fuel.type == primaryFuel.type
                         Surface(
                             shape = RoundedCornerShape(6.dp),
                             color = if (hot) FueldeckColors.MintSoft else Color(0x0AFFFFFF),
@@ -103,17 +104,42 @@ fun StationListItem(
                                 if (hot) FueldeckColors.Mint.copy(alpha = 0.35f) else FueldeckColors.Line
                             )
                         ) {
-                            Text(
-                                text = if (hot) {
-                                    val tilde = if (fuel.isMedianFromNetwork) "~" else ""
-                                    "${fuel.type} $tilde${String.format("%.0f", fuel.price)}"
-                                } else "${fuel.type} нет",
-                                fontSize = 10.sp,
-                                color = if (hot) FueldeckColors.Mint else FueldeckColors.InkFaint,
-                                fontWeight = FontWeight.Medium,
-                                fontFamily = if (hot) FontFamily.Monospace else FontFamily.SansSerif,
-                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = if (hot) {
+                                        val tilde = if (fuel.isMedianFromNetwork) "~" else ""
+                                        "${fuel.type} $tilde${String.format("%.0f", fuel.price)}"
+                                    } else "${fuel.type} нет",
+                                    fontSize = 10.sp,
+                                    color = if (hot) FueldeckColors.Mint else FueldeckColors.InkFaint,
+                                    fontWeight = FontWeight.Medium,
+                                    fontFamily = if (hot) FontFamily.Monospace else FontFamily.SansSerif,
+                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                                // Show queue + reliability icons only for selected fuel type
+                                if (isPrimary && hot) {
+                                    if (station.queueTime > 0) {
+                                        Text(
+                                            text = " 👥${station.queueTime}мин",
+                                            fontSize = 10.sp,
+                                            color = FueldeckColors.Danger,
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier.padding(start = 2.dp, top = 2.dp, end = 0.dp, bottom = 2.dp)
+                                        )
+                                    }
+                                    if (station.reliability > 0) {
+                                        Text(
+                                            text = " ⭐${station.reliability}",
+                                            fontSize = 10.sp,
+                                            color = FueldeckColors.Amber,
+                                            fontWeight = FontWeight.Medium,
+                                            modifier = Modifier.padding(start = 2.dp, top = 2.dp, end = 0.dp, bottom = 2.dp)
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -148,15 +174,6 @@ fun StationListItem(
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         color = FueldeckColors.InkDim
-                    )
-                }
-
-                if (station.queueTime > 0) {
-                    Text(
-                        text = "${station.queueTime} мин",
-                        fontSize = 11.sp,
-                        color = FueldeckColors.Danger,
-                        fontWeight = FontWeight.Medium
                     )
                 }
             }

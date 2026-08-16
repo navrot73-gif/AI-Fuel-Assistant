@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.ui.map.components.AiPickCard
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import org.osmdroid.util.GeoPoint
 
@@ -46,6 +47,8 @@ fun StationBottomSheet(
     isLoading: Boolean,
     stations: List<GasStation>,
     aiRecommendation: GasStation?,
+    bestStation: GasStation?,
+    avgPrice: Double,
     selectedFuelTypes: Set<String>,
     sortMode: MapViewModel.SortMode,
     userLocation: GeoPoint?,
@@ -61,10 +64,9 @@ fun StationBottomSheet(
     onToggleVisibility: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // AI-рекомендация всегда первая, дальше — список без неё
-    val displayList = remember(stations, aiRecommendation) {
-        val rec = aiRecommendation
-        if (rec == null) stations else listOf(rec) + stations.filter { it.id != rec.id }
+    // Список станций без дублирования лучшей (она показана в карточке сверху)
+    val displayList = remember(stations, bestStation) {
+        if (bestStation == null) stations else stations.filter { it.id != bestStation.id }
     }
     val visibleCount = remember(displayList.size) {
         if (displayList.size <= PAGE_SIZE) displayList.size else PAGE_SIZE
@@ -193,39 +195,24 @@ fun StationBottomSheet(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(displayList.take(visibleCount), key = { it.id }) { station ->
-                            val isAiPick = aiRecommendation != null && station.id == aiRecommendation.id
-                            if (isAiPick) {
-                                Box {
-                                    StationListItem(
-                                        station = station,
-                                        selectedFuelTypes = selectedFuelTypes,
-                                        userLocation = userLocation,
-                                        onClick = { onStationClick(station) }
-                                    )
-                                    Text(
-                                        "✨ AI рекомендует",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF1A1205),
-                                        modifier = Modifier
-                                            .align(Alignment.TopEnd)
-                                            .padding(top = 4.dp, end = 4.dp)
-                                            .background(
-                                                FueldeckColors.Amber,
-                                                RoundedCornerShape(8.dp)
-                                            )
-                                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                                    )
-                                }
-                            } else {
-                                StationListItem(
-                                    station = station,
-                                    selectedFuelTypes = selectedFuelTypes,
-                                    userLocation = userLocation,
-                                    onClick = { onStationClick(station) }
+                        // AI Pick Card at the top
+                        if (bestStation != null) {
+                            item {
+                                AiPickCard(
+                                    bestStation = bestStation,
+                                    avgPrice = avgPrice,
+                                    onClick = { onStationClick(bestStation) }
                                 )
                             }
+                        }
+
+                        items(displayList.take(visibleCount).filter { bestStation == null || it.id != bestStation.id }, key = { it.id }) { station ->
+                            StationListItem(
+                                station = station,
+                                selectedFuelTypes = selectedFuelTypes,
+                                userLocation = userLocation,
+                                onClick = { onStationClick(station) }
+                            )
                         }
 
                         if (hasMore) {

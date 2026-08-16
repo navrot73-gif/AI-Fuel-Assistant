@@ -21,6 +21,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMap
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
@@ -84,6 +91,27 @@ class MapViewModel @Inject constructor(
 
     private val _bestStation = MutableStateFlow<GasStation?>(null)
     val bestStation: StateFlow<GasStation?> = _bestStation.asStateFlow()
+
+    /** Лучшая станция из getBestStations (уже ранжированная). */
+    val bestStationRanked: StateFlow<GasStation?> = _stations
+        .map { stations ->
+            stations.firstOrNull()
+        }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Lazily, null)
+
+    /** Средняя цена по текущему выбранному типу топлива среди видимых станций. */
+    val avgPrice: StateFlow<Double> = _stations
+        .map { stations ->
+            val fuelType = _selectedFuelTypes.value.firstOrNull() ?: "АИ-95"
+            val prices = stations
+                .flatMap { it.fuelTypes }
+                .filter { it.type == fuelType && it.available }
+                .map { it.price }
+            if (prices.isEmpty()) 0.0 else prices.average()
+        }
+        .distinctUntilChanged()
+        .stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.Lazily, 0.0)
 
     private val _userLocation = MutableStateFlow<Pair<Double, Double>?>(null)
     val userLocation: StateFlow<Pair<Double, Double>?> = _userLocation.asStateFlow()
