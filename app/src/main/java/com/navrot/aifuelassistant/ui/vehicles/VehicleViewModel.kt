@@ -20,7 +20,7 @@ import java.util.Locale
 import javax.inject.Inject
 
 @HiltViewModel
-class VehicleViewModel @Inject constructor(
+open class VehicleViewModel @Inject constructor(
     private val vehicleRepository: VehicleRepository,
     private val fuelRecordRepository: FuelRecordRepository
 ) : ViewModel() {

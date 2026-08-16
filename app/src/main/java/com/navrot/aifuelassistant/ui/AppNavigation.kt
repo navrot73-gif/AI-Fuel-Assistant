@@ -15,9 +15,13 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavType
+import androidx.navigation.NavController
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.toRoute
 import com.navrot.aifuelassistant.R
@@ -26,7 +30,11 @@ import com.navrot.aifuelassistant.ui.fuel.AddFuelRecordScreen
 import com.navrot.aifuelassistant.ui.fuel.FuelRecordListScreen
 import com.navrot.aifuelassistant.ui.map.MapScreen
 import com.navrot.aifuelassistant.ui.vehicles.AddVehicleScreen
+import com.navrot.aifuelassistant.ui.vehicles.GarageListScreen
+import com.navrot.aifuelassistant.ui.vehicles.VehicleDetailScreen
 import com.navrot.aifuelassistant.ui.vehicles.VehicleListScreen
+import com.navrot.aifuelassistant.ui.vehicles.VehicleViewModel
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -48,9 +56,15 @@ object DashboardRoute {
     val route = "ai"
 }
 
+// Garage sealed class for nested navigation
+sealed class GarageDestination {
+    object List : GarageDestination()
+    data class Detail(val vehicleId: Long, val vehicleName: String) : GarageDestination()
+}
+
 @Serializable
 @SerialName("garage")
-object VehicleListRoute {
+object GarageRoute {
     val route = "garage"
 }
 
@@ -73,13 +87,18 @@ private data class Tab(val route: String, val iconRes: Int, val title: String)
 private val TABS = listOf(
     Tab(MapRoute.route, R.drawable.ic_tab_map, "Карта"),
     Tab(DashboardRoute.route, R.drawable.ic_tab_ai, "AI"),
-    Tab(VehicleListRoute.route, R.drawable.ic_tab_car, "Гараж")
+    Tab(GarageRoute.route, R.drawable.ic_tab_car, "Гараж")
 )
 
 private val TAB_ACTIVE_COLOR = Color(0xFFE8A750)
 private val TAB_INACTIVE_COLOR = Color(0xFF8A949E)
 
 private val TAB_ROUTES = TABS.map { it.route }.toSet()
+
+// Helper to check if route is in garage sub-navigation
+private fun String.isGarageRoute(): Boolean {
+    return this == GarageRoute.route || this.startsWith("garage/")
+}
 
 @Composable
 fun AppNavigation() {
@@ -179,13 +198,35 @@ fun AppNavigation() {
 
             composable<DashboardRoute> { DashboardScreen() }
 
-            composable<VehicleListRoute> {
-                VehicleListScreen(
-                    onAddClick = { navController.navigate(AddVehicleRoute) },
-                    onVehicleClick = { vehicleId, vehicleName ->
-                        navController.navigate(FuelRecordListRoute(vehicleId, vehicleName))
-                    }
-                )
+            // Garage nested navigation
+            navigation(startDestination = GarageRoute.route, route = "garage") {
+                composable<GarageRoute> {
+                    val garageViewModel: VehicleViewModel = hiltViewModel()
+                    GarageListScreen(
+                        onAddClick = { navController.navigate(AddVehicleRoute) },
+                        onVehicleClick = { vehicleId ->
+                            val vehicle = garageViewModel.vehiclesWithStats.value.find { it.id == vehicleId }
+                            val vehicleName = vehicle?.name ?: ""
+                            navController.navigate("garage/detail/$vehicleId/$vehicleName")
+                        },
+                        viewModel = garageViewModel
+                    )
+                }
+                
+                composable(
+                    route = "detail/{vehicleId}/{vehicleName}"
+                ) { backStackEntry ->
+                    val arguments = backStackEntry.arguments
+                    val vehicleId = arguments?.getLong("vehicleId") ?: -1L
+                    val vehicleName = arguments?.getString("vehicleName") ?: ""
+                    VehicleDetailScreen(
+                        vehicleId = vehicleId,
+                        vehicleName = vehicleName,
+                        onBack = { navController.popBackStack() },
+                        onAddClick = { navController.navigate(AddFuelRecordRoute(vehicleId, vehicleName)) },
+                        viewModel = hiltViewModel()
+                    )
+                }
             }
 
             composable<AddVehicleRoute> {
