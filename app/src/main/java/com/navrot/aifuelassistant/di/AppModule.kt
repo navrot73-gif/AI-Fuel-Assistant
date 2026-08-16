@@ -20,6 +20,8 @@ import com.navrot.aifuelassistant.data.database.DatabaseMigrations
 import com.navrot.aifuelassistant.data.database.dao.FuelRecordDao
 import com.navrot.aifuelassistant.data.database.dao.VehicleDao
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
+import com.navrot.aifuelassistant.geo.GeocodingProvider
+import com.navrot.aifuelassistant.geo.NominatimGeocodingProvider
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -110,4 +112,9 @@ object AppModule {
         @ApplicationContext context: Context,
         okHttpClient: OkHttpClient
     ): TileWarmupService = TileWarmupService(context, okHttpClient)
+
+    @Provides
+    @Singleton
+    fun provideGeocodingProvider(okHttpClient: OkHttpClient): GeocodingProvider =
+        NominatimGeocodingProvider(httpClient = okHttpClient)
 }

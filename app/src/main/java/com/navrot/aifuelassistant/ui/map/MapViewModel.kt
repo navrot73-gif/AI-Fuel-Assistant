@@ -11,15 +11,18 @@ import com.navrot.aifuelassistant.data.providers.BenzonavtProvider
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.geo.GeoPoint
 import com.navrot.aifuelassistant.geo.GeoUtils
-import com.navrot.aifuelassistant.geo.NominatimGeocodingProvider
+import com.navrot.aifuelassistant.geo.GeocodingProvider
+import com.navrot.aifuelassistant.geo.GeoException
 import com.navrot.aifuelassistant.geo.OpenRouteServiceProvider
 import com.navrot.aifuelassistant.geo.RoutingProvider
 import okhttp3.OkHttpClient
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
 @HiltViewModel
@@ -28,7 +31,8 @@ class MapViewModel @Inject constructor(
     private val okHttpClient: OkHttpClient,
     private val getBestStationsUseCase: GetBestStationsUseCase,
     private val benzonavtProvider: BenzonavtProvider,
-    private val tileWarmupService: TileWarmupService
+    private val tileWarmupService: TileWarmupService,
+    private val geocodingProvider: GeocodingProvider
 ) : ViewModel() {
 
     companion object {
@@ -42,7 +46,17 @@ class MapViewModel @Inject constructor(
             .takeIf { it.isNotBlank() }
             ?.let { OpenRouteServiceProvider(apiKey = it, httpClient = okHttpClient) }
 
-    private val geocodingProvider = NominatimGeocodingProvider(httpClient = okHttpClient)
+    // Race-guard для быстрого ввода: инкрементируется при каждом новом запросе
+    private val searchRequestId = AtomicInteger(0)
+
+    // Гэокодированная точка для фокуса карты (синяя метка адреса)
+    private val _geocodedLocation = MutableStateFlow<GeoPoint?>(null)
+    val geocodedLocation: StateFlow<GeoPoint?> = _geocodedLocation.asStateFlow()
+
+    /** Сбрасывает гэокодированную точку (при очистке поиска). */
+    fun clearGeocodedLocation() {
+        _geocodedLocation.value = null
+    }
 
     private val _stations = MutableStateFlow<List<GasStation>>(emptyList())
     val stations: StateFlow<List<GasStation>> = _stations.asStateFlow()
@@ -169,16 +183,78 @@ class MapViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Поиск АЗС с fallback на Nominatim-геокодинг.
+     *
+     * 1. Сначала ищем в локальном списке (repository.searchStations)
+     * 2. Если локальных совпадений нет — геокодим запрос через Nominatim (debounce 400мс)
+     * 3. Race-guard: только последний запрос срабатывает (AtomicInteger)
+     */
     fun searchStations(query: String) {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) {
+            clearGeocodedLocation()
+            return
+        }
+
+        val currentRequestId = searchRequestId.incrementAndGet()
         viewModelScope.launch {
             _isLoading.value = true
+            _error.value = null
             try {
-                _stations.value = repository.searchStations(query)
-                updateAiRecommendation()
+                // 1. Локальный поиск
+                val localResults = repository.searchStations(trimmed)
+
+                if (localResults.isNotEmpty()) {
+                    // Есть локальные совпадения — используем их, сбрасываем фокус
+                    if (currentRequestId == searchRequestId.get()) {
+                        _stations.value = localResults
+                        _geocodedLocation.value = null
+                        updateAiRecommendation()
+                    }
+                    return@launch
+                }
+
+                // 2. Нет локальных совпадений → геокодинг с debounce 400мс
+                kotlinx.coroutines.delay(400)
+                if (currentRequestId != searchRequestId.get()) return@launch // устарел
+
+                val result = geocodingProvider.geocode(trimmed)
+                if (currentRequestId != searchRequestId.get()) return@launch // устарел
+
+                // Сохраняем геокодированную точку для фокуса карты (синяя метка)
+                _geocodedLocation.value = result.point
+
+                // Ищем станции рядом с геокодированной точкой
+                val nearby = repository.getNearbyStations(
+                    result.point.latitude, result.point.longitude, 10.0
+                )
+                if (currentRequestId == searchRequestId.get()) {
+                    _stations.value = nearby
+                    updateAiRecommendation(result.point.latitude, result.point.longitude)
+                }
+
+            } catch (e: GeoException.NoResults) {
+                // Ничего не найдено — пустой список без ошибки
+                if (currentRequestId == searchRequestId.get()) {
+                    _stations.value = emptyList()
+                    _geocodedLocation.value = null
+                }
+            } catch (e: GeoException.NetworkError) {
+                // Ошибка сети — логируем, оставляем последнюю локацию
+                Log.w(TAG, "Geocoding network error: ${e.message}")
+                if (currentRequestId == searchRequestId.get()) {
+                    _stations.value = emptyList()
+                    _error.value = "Нет сети для геокодинга"
+                }
             } catch (e: Exception) {
-                _error.value = "Ошибка поиска: ${e.message}"
+                if (currentRequestId == searchRequestId.get()) {
+                    _error.value = "Ошибка поиска: ${e.message}"
+                }
             } finally {
-                _isLoading.value = false
+                if (currentRequestId == searchRequestId.get()) {
+                    _isLoading.value = false
+                }
             }
         }
     }
