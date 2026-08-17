@@ -266,19 +266,41 @@ fun OsmMapView(
                 try {
                     val osmPoints = r.points.map { GeoPoint(it.latitude, it.longitude) }
                     if (osmPoints.size >= 2) {
-                        val polyline = Polyline()
-                        polyline.setPoints(osmPoints)
-                        polyline.paint.color = android.graphics.Color.parseColor("#8AB4F8")
-                        polyline.outlinePaint.color = android.graphics.Color.parseColor("#1B4F9C")
-                        polyline.outlinePaint.strokeWidth = 12f
-                        mapView.overlays.add(polyline)
+                        val density = context.resources.displayMetrics.density
+
+                        // Glow Polyline (под ней, width 16dp, alpha 30%)
+                        val glowPolyline = Polyline().apply {
+                            setPoints(osmPoints)
+                            outlinePaint.color = android.graphics.Color.TRANSPARENT
+                            outlinePaint.strokeWidth = 0f
+                            paint.color = android.graphics.Color.parseColor("#4D40C4FF")
+                            paint.strokeWidth = 16f * density
+                            paint.strokeCap = android.graphics.Paint.Cap.ROUND
+                            paint.strokeJoin = android.graphics.Paint.Join.ROUND
+                            paint.isAntiAlias = true
+                        }
+                        mapView.overlays.add(glowPolyline)
+
+                        // Main Polyline (width 8dp, color #40C4FF)
+                        val mainPolyline = Polyline().apply {
+                            setPoints(osmPoints)
+                            outlinePaint.color = android.graphics.Color.TRANSPARENT
+                            outlinePaint.strokeWidth = 0f
+                            paint.color = android.graphics.Color.parseColor("#40C4FF")
+                            paint.strokeWidth = 8f * density
+                            paint.strokeCap = android.graphics.Paint.Cap.ROUND
+                            paint.strokeJoin = android.graphics.Paint.Join.ROUND
+                            paint.isAntiAlias = true
+                        }
+                        mapView.overlays.add(mainPolyline)
 
                         val finishPoint = r.points.last()
-                        val finishMarker = Marker(mapView)
-                        finishMarker.position = GeoPoint(finishPoint.latitude, finishPoint.longitude)
-                        finishMarker.icon = createRedPinIcon(context)
-                        finishMarker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                        finishMarker.title = "Финиш"
+                        val finishMarker = Marker(mapView).apply {
+                            position = GeoPoint(finishPoint.latitude, finishPoint.longitude)
+                            icon = createRedPinIcon(context)
+                            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                            title = "Финиш"
+                        }
                         mapView.overlays.add(finishMarker)
 
                         if (lastFittedRoute[0] !== r) {

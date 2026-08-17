@@ -10,6 +10,8 @@ import com.navrot.aifuelassistant.geo.GeoException
 import com.navrot.aifuelassistant.geo.GeocodingProvider
 import com.navrot.aifuelassistant.geo.GeocodingResult
 import com.navrot.aifuelassistant.geo.GeoPoint
+import com.navrot.aifuelassistant.network.FuelApi
+import com.navrot.aifuelassistant.network.RouteResponse
 import com.navrot.aifuelassistant.ui.map.TileWarmupService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -62,6 +64,9 @@ class MapViewModelSearchTest {
     private lateinit var okHttpClient: OkHttpClient
 
     @Mock
+    private lateinit var fuelApi: FuelApi
+
+    @Mock
     private lateinit var getBestStationsUseCase: GetBestStationsUseCase
 
     @Mock
@@ -90,6 +95,7 @@ class MapViewModelSearchTest {
         viewModel = MapViewModel(
             repository = repository,
             okHttpClient = okHttpClient,
+            fuelApi = fuelApi,
             getBestStationsUseCase = getBestStationsUseCase,
             benzonavtProvider = benzonavtProvider,
             tileWarmupService = tileWarmupService,
@@ -284,5 +290,52 @@ class MapViewModelSearchTest {
         assertNotNull(focus)
         assertEquals(55.555, focus!!.latitude, 0.001)
         assertEquals(61.666, focus.longitude, 0.001)
+    }
+
+    @Test
+    fun `buildRouteTo success populates route with points and duration`() = runTest {
+        viewModel.updateUserLocation(55.0, 61.0)
+        val station = makeStation(1, "АЗС 1", "Лукойл", 55.1, 61.1)
+
+        whenever(fuelApi.getRoute(61.0, 55.0, 61.1, 55.1)).thenReturn(
+            RouteResponse(
+                distance_m = 6877.0,
+                duration_s = 598.0,
+                points = listOf(
+                    listOf(55.0, 61.0),
+                    listOf(55.05, 61.05),
+                    listOf(55.1, 61.1)
+                )
+            )
+        )
+
+        viewModel.buildRouteTo(station)
+        advanceUntilIdle()
+
+        val route = viewModel.route.value
+        assertNotNull(route)
+        assertEquals(3, route!!.points.size)
+        assertEquals("6.9 км", route.distanceText)
+        assertEquals("10 мин", route.durationText)
+        assertEquals(false, route.isDirect)
+        assertEquals(false, route.isStraightLine)
+    }
+
+    @Test
+    fun `buildRouteTo failure falls back to straight line`() = runTest {
+        viewModel.updateUserLocation(55.0, 61.0)
+        val station = makeStation(1, "АЗС 1", "Лукойл", 55.1, 61.1)
+
+        whenever(fuelApi.getRoute(61.0, 55.0, 61.1, 55.1)).doThrow(RuntimeException("Network error"))
+
+        viewModel.buildRouteTo(station)
+        advanceUntilIdle()
+
+        val route = viewModel.route.value
+        assertNotNull(route)
+        assertEquals(2, route!!.points.size)
+        assertEquals("по прямой", route.durationText)
+        assertEquals(true, route.isDirect)
+        assertEquals(true, route.isStraightLine)
     }
 }

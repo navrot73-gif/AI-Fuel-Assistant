@@ -245,7 +245,13 @@ fun MapScreen(
                 StationDetailOverlay(
                     station = selectedStation, selectedFuelTypes = selectedFuelTypes,
                     isRouting = isRouting,
-                    routeText = route?.let { "${it.distanceText} · ${it.durationText} · до ${it.destination}" },
+                    routeText = route?.let {
+                        if (it.isDirect || it.isStraightLine) {
+                            "${it.distanceText} по прямой"
+                        } else {
+                            "${it.distanceText} · ${it.durationText}"
+                        }
+                    },
                     onClose = { selectedStation = null },
                     onBuildRoute = { selectedStation?.let { buildRouteAndClose(it) } },
                     onClearRoute = { viewModel.clearRoute(); routeStation = null },

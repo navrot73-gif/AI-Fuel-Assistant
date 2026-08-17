@@ -117,4 +117,9 @@ object AppModule {
     @Singleton
     fun provideGeocodingProvider(okHttpClient: OkHttpClient): GeocodingProvider =
         NominatimGeocodingProvider(httpClient = okHttpClient)
+
+    @Provides
+    @Singleton
+    fun provideFuelApi(okHttpClient: OkHttpClient): com.navrot.aifuelassistant.network.FuelApi =
+        com.navrot.aifuelassistant.network.FuelApiImpl(okHttpClient)
 }
