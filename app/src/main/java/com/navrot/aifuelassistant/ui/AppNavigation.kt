@@ -52,6 +52,12 @@ object MapRoute {
 data class MapBuildRouteRoute(val stationId: Int)
 
 @Serializable
+@SerialName("map/show_stations")
+object MapShowStationsRoute {
+    val route = "map/show_stations"
+}
+
+@Serializable
 @SerialName("ai")
 object DashboardRoute {
     val route = "ai"
@@ -201,6 +207,20 @@ fun AppNavigation() {
                     pendingRouteStationId = pendingRouteId,
                     aiAnswerText = aiAnswerText,
                     onConsumePendingRoute = { /* consumed automatically when navigation happens */ }
+                )
+            }
+
+            composable<MapShowStationsRoute> { backStackEntry ->
+                val aiAnswerText by backStackEntry.savedStateHandle
+                    .getStateFlow<String?>("ai_answer_text", null)
+                    .collectAsStateWithLifecycle()
+                MapScreen(
+                    showStationList = true,
+                    aiAnswerText = aiAnswerText,
+                    onConsumePendingOpenStation = {
+                        // No specific pending station ID to consume here, just the list flag which is implicit
+                        backStackEntry.savedStateHandle.remove<String>("ai_answer_text")
+                    }
                 )
             }
 

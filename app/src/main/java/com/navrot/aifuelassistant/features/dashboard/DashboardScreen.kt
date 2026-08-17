@@ -98,29 +98,25 @@ fun DashboardScreen(
         onPermissionDenied = { /* Location not available, AI will work without it */ }
     )
 
-    // Auto-navigate to map after AI answer based on mode
-    LaunchedEffect(pendingRouteMode, pendingRouteStationId, pendingOpenStationId, userAnswer) {
+    // NEW LaunchedEffect for handling navigation based on pendingRouteMode
+    LaunchedEffect(pendingRouteStationId, pendingRouteMode) {
+        val mapEntry = navController.getBackStackEntry("map")
         when (pendingRouteMode) {
             DashboardViewModel.PendingRouteMode.ROUTE -> {
-                pendingRouteStationId?.let { stationId ->
-                    navController.navigate("map/build_route_station_id/$stationId")
-                    userAnswer?.let { answer ->
-                        navController.previousBackStackEntry?.savedStateHandle?.set("ai_answer_text", answer)
-                    }
-                    viewModel.onRouteHandoffConsumed()
+                pendingRouteStationId?.let { id ->
+                    mapEntry.savedStateHandle["build_route_station_id"] = id
                 }
+                navController.navigate("map")
+                // Consume the route event after navigation
+                viewModel.onRouteHandoffConsumed()
             }
             DashboardViewModel.PendingRouteMode.CARD -> {
-                pendingOpenStationId?.let { stationId ->
-                    navController.navigate("map")
-                    navController.previousBackStackEntry?.savedStateHandle?.set("open_station_id", stationId)
-                    userAnswer?.let { answer ->
-                        navController.previousBackStackEntry?.savedStateHandle?.set("ai_answer_text", answer)
-                    }
-                    viewModel.onCardHandoffConsumed()
-                }
+                // Navigate to the new route that shows the station list
+                navController.navigate(MapShowStationsRoute)
+                // Consume the card event after navigation
+                viewModel.onCardHandoffConsumed()
             }
-            else -> { /* stay on AI screen */ }
+            DashboardViewModel.PendingRouteMode.NONE -> { /* nothing */ }
         }
     }
 
