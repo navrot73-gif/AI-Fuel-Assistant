@@ -25,12 +25,15 @@ class DashboardViewModelTest {
     private val mockStationRepo = mock<GasStationRepositoryInterface>()
     private val mockAiRouter = mock<AiRouter>()
     private val mockContext = mock<Context>()
+    private val mockPrefs = mock<android.content.SharedPreferences>()
     
     private val testDispatcher = StandardTestDispatcher()
 
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
+        whenever(mockContext.getSharedPreferences(any(), any())).thenReturn(mockPrefs)
+        whenever(mockPrefs.getString(any(), any())).thenReturn("[]")
     }
 
     @After

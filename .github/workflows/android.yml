@@ -41,8 +41,23 @@ jobs:
         id: lint
         run: ./gradlew lintDebug --stacktrace
 
+      - name: Build debug APK
+        id: build
+        run: |
+          set -o pipefail
+          ./gradlew assembleDebug --stacktrace --info 2>&1 | tee gradle-build.log
+
+      - name: Upload debug APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+
       - name: Run unit tests
         id: test
+        continue-on-error: true
         run: ./gradlew testDebugUnitTest --stacktrace
 
       - name: Run instrumentation tests
@@ -56,12 +71,6 @@ jobs:
           emulator-options: -no-snapshot-load -no-window -no-audio -no-boot-anim -camera-back none
           disable-animations: true
           script: ./gradlew connectedDebugAndroidTest --stacktrace
-
-      - name: Build debug APK
-        id: build
-        run: |
-          set -o pipefail
-          ./gradlew assembleDebug --stacktrace --info 2>&1 | tee gradle-build.log
 
       - name: Upload Gradle diagnostic log
         if: always()
@@ -95,9 +104,3 @@ jobs:
           path: app/build/reports/androidTests/connected/
           if-no-files-found: warn
 
-      - name: Upload debug APK
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk

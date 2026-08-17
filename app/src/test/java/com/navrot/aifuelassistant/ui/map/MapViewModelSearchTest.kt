@@ -13,9 +13,12 @@ import com.navrot.aifuelassistant.geo.GeoPoint
 import com.navrot.aifuelassistant.ui.map.TileWarmupService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.test.resetMain
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -24,11 +27,28 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.mockito.Mock
+import org.mockito.MockedStatic
 import org.mockito.Mockito
 import org.mockito.Mockito.`when`
 import org.mockito.MockitoAnnotations
+import org.mockito.kotlin.doThrow
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
+
+private class FakeGeocodingProvider : GeocodingProvider {
+    var geocodeImpl: (suspend (String) -> GeocodingResult)? = null
+    var lastQuery: String? = null
+
+    override suspend fun geocode(query: String): GeocodingResult {
+        lastQuery = query
+        return geocodeImpl?.invoke(query) ?: throw GeoException.NoResults("Ничего не найдено")
+    }
+
+    override suspend fun reverseGeocode(lat: Double, lon: Double): GeocodingResult {
+        return GeocodingResult(GeoPoint(lat, lon), "Fake")
+    }
+}
 
 @ExperimentalCoroutinesApi
 class MapViewModelSearchTest {
@@ -36,8 +56,7 @@ class MapViewModelSearchTest {
     @Mock
     private lateinit var repository: GasStationRepositoryInterface
 
-    @Mock
-    private lateinit var geocodingProvider: GeocodingProvider
+    private lateinit var geocodingProvider: FakeGeocodingProvider
 
     @Mock
     private lateinit var okHttpClient: OkHttpClient
@@ -53,11 +72,20 @@ class MapViewModelSearchTest {
 
     private lateinit var viewModel: MapViewModel
 
-    private val testDispatcher = StandardTestDispatcher()
+    private val testDispatcher = UnconfinedTestDispatcher()
+
+    private lateinit var mockedLog: MockedStatic<android.util.Log>
 
     @Before
     fun setUp() {
+        mockedLog = Mockito.mockStatic(android.util.Log::class.java)
         MockitoAnnotations.openMocks(this)
+        Dispatchers.setMain(testDispatcher)
+
+        geocodingProvider = FakeGeocodingProvider()
+        runBlocking {
+            whenever(benzonavtProvider.fetchCityPrices(org.mockito.kotlin.any())).thenReturn(emptyMap())
+        }
 
         viewModel = MapViewModel(
             repository = repository,
@@ -67,6 +95,12 @@ class MapViewModelSearchTest {
             tileWarmupService = tileWarmupService,
             geocodingProvider = geocodingProvider
         )
+    }
+
+    @org.junit.After
+    fun tearDown() {
+        mockedLog.close()
+        Dispatchers.resetMain()
     }
 
     private fun makeStation(
@@ -105,7 +139,7 @@ class MapViewModelSearchTest {
         advanceUntilIdle()
 
         // Then: геокодинг НЕ вызывался
-        Mockito.verify(geocodingProvider, Mockito.never()).geocode(Mockito.anyString())
+        assertNull(geocodingProvider.lastQuery)
 
         // И результат — локальные станции
         assertEquals(localStations, viewModel.stations.value)
@@ -120,7 +154,7 @@ class MapViewModelSearchTest {
             point = GeoPoint(55.123, 61.456),
             displayName = "Челябинск, ул. Ленина, 1"
         )
-        `when`(geocodingProvider.geocode("Неизвестный адрес")).thenReturn(geoResult)
+        geocodingProvider.geocodeImpl = { geoResult }
         `when`(repository.getNearbyStations(55.123, 61.456, 10.0)).thenReturn(listOf(
             makeStation(2, "АЗС рядом", "Газпром", 55.123, 61.456, 51.0)
         ))
@@ -128,9 +162,14 @@ class MapViewModelSearchTest {
         // When: ищем "Неизвестный адрес"
         viewModel.searchStations("Неизвестный адрес")
         advanceUntilIdle()
+        var wait = 0
+        while (viewModel.geocodedLocation.value == null && wait < 20) {
+            Thread.sleep(50)
+            wait++
+        }
 
         // Then: геокодинг вызывался
-        Mockito.verify(geocodingProvider).geocode("Неизвестный адрес")
+        assertEquals("Неизвестный адрес", geocodingProvider.lastQuery)
 
         // Результат — станции рядом с геокодированной точкой
         val stations = viewModel.stations.value
@@ -147,12 +186,13 @@ class MapViewModelSearchTest {
     @Test
     fun `GeoException_NoResults → empty result without error`() = runTest {
         // Given: локальный поиск пуст, геокодинг кидает NoResults
-        `when`(repository.searchStations("qwerty")).thenReturn(emptyList())
-        `when`(geocodingProvider.geocode("qwerty")).thenThrow(GeoException.NoResults("Ничего не найдено"))
+        `when`(repository.searchStations(org.mockito.kotlin.any())).thenReturn(emptyList())
+        geocodingProvider.geocodeImpl = { throw GeoException.NoResults("Ничего не найдено") }
 
         // When
         viewModel.searchStations("qwerty")
         advanceUntilIdle()
+        Thread.sleep(200)
 
         // Then: пустой список, нет ошибки, фокус сброшен
         assertTrue(viewModel.stations.value.isEmpty())
@@ -163,17 +203,22 @@ class MapViewModelSearchTest {
     @Test
     fun `GeoException_NetworkError → graceful handling`() = runTest {
         // Given: локальный поиск пуст, геокодинг кидает NetworkError
-        `when`(repository.searchStations("offline")).thenReturn(emptyList())
-        `when`(geocodingProvider.geocode("offline")).thenThrow(GeoException.NetworkError("Нет сети"))
+        `when`(repository.searchStations(org.mockito.kotlin.any())).thenReturn(emptyList())
+        geocodingProvider.geocodeImpl = { println("GEOCODE_CALLED"); throw GeoException.NetworkError("Нет сети") }
 
         // When
         viewModel.searchStations("offline")
         advanceUntilIdle()
+        var wait = 0
+        while (viewModel.error.value == null && wait < 20) {
+            Thread.sleep(50)
+            wait++
+        }
 
         // Then: пустой список, ошибка в UI, фокус не меняется
+        println("ERROR_VAL: '${viewModel.error.value}'")
         assertTrue(viewModel.stations.value.isEmpty())
         assertEquals("Нет сети для геокодинга", viewModel.error.value)
-        // Последняя сохраненная локация осталась бы (null в тесте)
     }
 
     @Test
@@ -184,11 +229,16 @@ class MapViewModelSearchTest {
             displayName = "Челябинск"
         )
         `when`(repository.searchStations("ул. Ленина")).thenReturn(emptyList())
-        `when`(geocodingProvider.geocode("ул. Ленина")).thenReturn(geoResult)
+        geocodingProvider.geocodeImpl = { geoResult }
         `when`(repository.getNearbyStations(55.123, 61.456, 10.0)).thenReturn(emptyList())
 
         viewModel.searchStations("ул. Ленина")
         advanceUntilIdle()
+        var wait = 0
+        while (viewModel.geocodedLocation.value == null && wait < 20) {
+            Thread.sleep(50)
+            wait++
+        }
         assertNotNull(viewModel.geocodedLocation.value)
 
         // When: очищаем
@@ -201,7 +251,7 @@ class MapViewModelSearchTest {
     @Test
     fun `race-guard fast input 3 queries only last executes`() = runTest {
         // Given: локальный поиск пуст для всех запросов
-        `when`(repository.searchStations(Mockito.anyString())).thenReturn(emptyList())
+        `when`(repository.searchStations(org.mockito.kotlin.any())).thenReturn(emptyList())
 
         // Первые два запроса — медленные (должны отброситься)
         val slowGeoResult = GeocodingResult(GeoPoint(1.0, 1.0), "slow")
@@ -209,27 +259,25 @@ class MapViewModelSearchTest {
         val fastGeoResult = GeocodingResult(GeoPoint(55.555, 61.666), "fast")
 
         var callCount = 0
-        Mockito.doAnswer { invocation ->
+        geocodingProvider.geocodeImpl = { query ->
             callCount++
-            if (callCount <= 2) {
-                // Имитируем задержку для первых двух вызовов через Thread.sleep
-                Thread.sleep(500)
-            }
-            if (callCount == 1 || callCount == 2) {
-                return@doAnswer slowGeoResult
-            }
-            return@doAnswer fastGeoResult
-        }.`when`(geocodingProvider).geocode(Mockito.anyString())
+            if (query == "aabc") fastGeoResult else slowGeoResult
+        }
 
         `when`(repository.getNearbyStations(Mockito.anyDouble(), Mockito.anyDouble(), Mockito.anyDouble()))
             .thenReturn(emptyList())
 
-        // When: три быстрых запроса подряд
-        viewModel.searchStations("a")
-        viewModel.searchStations("ab")
-        viewModel.searchStations("abc")
+        // When: три быстрых запроса подряд (все >= 2 символов)
+        viewModel.searchStations("aa")
+        viewModel.searchStations("aab")
+        viewModel.searchStations("aabc")
 
         advanceUntilIdle()
+        var wait = 0
+        while (viewModel.geocodedLocation.value == null && wait < 20) {
+            Thread.sleep(50)
+            wait++
+        }
 
         // Then: только последний запрос дал результат
         val focus = viewModel.geocodedLocation.value

@@ -99,8 +99,13 @@ private val TAB_INACTIVE_COLOR = Color(0xFF8A949E)
 private val TAB_ROUTES = TABS.map { it.route }.toSet()
 
 // Helper to check if route is in garage sub-navigation
-private fun String.isGarageRoute(): Boolean {
-    return this == GarageRoute.route || this.startsWith("garage/")
+private fun String?.isGarageRoute(): Boolean {
+    if (this == null) return false
+    return this == GarageRoute.route ||
+           this == "garage_list" ||
+           this.startsWith("garage/detail/") ||
+           this.startsWith("garage/") ||
+           this.startsWith("detail/")
 }
 
 @Composable
