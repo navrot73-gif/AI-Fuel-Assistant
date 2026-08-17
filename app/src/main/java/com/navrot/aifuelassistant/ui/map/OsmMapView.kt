@@ -268,26 +268,16 @@ fun OsmMapView(
                     if (osmPoints.size >= 2) {
                         val density = context.resources.displayMetrics.density
 
-                        // Glow Polyline (под ней, width 12dp, color #40C4FF with alpha 0.18 -> #2E40C4FF)
-                        val glowPolyline = Polyline().apply {
-                            setPoints(osmPoints)
-                            outlinePaint.color = android.graphics.Color.TRANSPARENT
-                            outlinePaint.strokeWidth = 0f
-                            paint.color = android.graphics.Color.parseColor("#2E40C4FF")
-                            paint.strokeWidth = 12f * density
-                            paint.strokeCap = android.graphics.Paint.Cap.ROUND
-                            paint.strokeJoin = android.graphics.Paint.Join.ROUND
-                            paint.isAntiAlias = true
-                        }
-                        mapView.overlays.add(glowPolyline)
-
-                        // Main Polyline (width 6dp, color #40C4FF, cap ROUND, join ROUND)
+                        // Main Polyline (width 5dp, color #64B5F6, outline width 9dp, color #0D47A1, cap ROUND, join ROUND)
                         val mainPolyline = Polyline().apply {
                             setPoints(osmPoints)
-                            outlinePaint.color = android.graphics.Color.TRANSPARENT
-                            outlinePaint.strokeWidth = 0f
-                            paint.color = android.graphics.Color.parseColor("#40C4FF")
-                            paint.strokeWidth = 6f * density
+                            outlinePaint.color = android.graphics.Color.parseColor("#0D47A1") // Dark blue outline
+                            outlinePaint.strokeWidth = 9f * density // 9dp outline
+                            outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
+                            outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
+                            outlinePaint.isAntiAlias = true
+                            paint.color = android.graphics.Color.parseColor("#64B5F6") // Light blue main
+                            paint.strokeWidth = 5f * density // 5dp main
                             paint.strokeCap = android.graphics.Paint.Cap.ROUND
                             paint.strokeJoin = android.graphics.Paint.Join.ROUND
                             paint.isAntiAlias = true
