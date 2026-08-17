@@ -23,6 +23,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import androidx.navigation.toRoute
 import com.navrot.aifuelassistant.R
 import com.navrot.aifuelassistant.features.dashboard.DashboardScreen
@@ -61,6 +62,8 @@ sealed class GarageDestination {
     object List : GarageDestination()
     data class Detail(val vehicleId: Long, val vehicleName: String) : GarageDestination()
 }
+
+const val GARAGE_DETAIL_ROUTE = "garage/detail/{vehicleId}/{vehicleName}"
 
 @Serializable
 @SerialName("garage")
@@ -207,14 +210,21 @@ fun AppNavigation() {
                         onVehicleClick = { vehicleId ->
                             val vehicle = garageViewModel.vehiclesWithStats.value.find { it.id == vehicleId }
                             val vehicleName = vehicle?.name ?: ""
-                            navController.navigate("garage/detail/$vehicleId/$vehicleName")
+                            val routeStr = GARAGE_DETAIL_ROUTE
+                                .replace("{vehicleId}", vehicleId.toString())
+                                .replace("{vehicleName}", vehicleName)
+                            navController.navigate(routeStr)
                         },
                         viewModel = garageViewModel
                     )
                 }
                 
                 composable(
-                    route = "detail/{vehicleId}/{vehicleName}"
+                    route = GARAGE_DETAIL_ROUTE,
+                    arguments = listOf(
+                        navArgument("vehicleId") { type = NavType.LongType },
+                        navArgument("vehicleName") { type = NavType.StringType }
+                    )
                 ) { backStackEntry ->
                     val arguments = backStackEntry.arguments
                     val vehicleId = arguments?.getLong("vehicleId") ?: -1L
