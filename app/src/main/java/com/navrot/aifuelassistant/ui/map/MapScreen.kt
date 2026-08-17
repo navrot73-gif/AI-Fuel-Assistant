@@ -267,73 +267,94 @@ fun MapScreen(
                     }
                 )
 
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 16.dp, bottom = bottomPadding),
-                    horizontalAlignment = Alignment.End
-                ) {
-                    if (yellowRouteVisible) {
-                        androidx.compose.material3.SmallFloatingActionButton(
-                            onClick = {
-                                viewModel.clearRoute()
-                                routeStation = null
-                                selectedStation = null
-                            },
+                if (selectedStation == null && !showStationList) {
+                    Column(
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 16.dp, bottom = bottomPadding),
+                        horizontalAlignment = Alignment.End
+                    ) {
+                        if (yellowRouteVisible) {
+                            androidx.compose.material3.SmallFloatingActionButton(
+                                onClick = {
+                                    viewModel.clearRoute()
+                                    routeStation = null
+                                    selectedStation = null
+                                },
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                shape = CircleShape
+                            ) {
+                                Icon(
+                                    Icons.Default.Clear,
+                                    contentDescription = "Сбросить маршрут",
+                                    tint = Color(0xFFF08070)
+                                )
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
+
+                        androidx.compose.material3.FloatingActionButton(
+                            onClick = { if (userLocation != null) recenterTick++ },
                             containerColor = MaterialTheme.colorScheme.surface,
                             shape = CircleShape
                         ) {
                             Icon(
-                                Icons.Default.Clear,
-                                contentDescription = "Сбросить маршрут",
-                                tint = Color(0xFFF08070)
+                                Icons.Default.LocationOn,
+                                contentDescription = "Моё местоположение",
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
-                        Spacer(Modifier.height(8.dp))
-                    }
 
-                    androidx.compose.material3.FloatingActionButton(
-                        onClick = { if (userLocation != null) recenterTick++ },
+                        Spacer(Modifier.height(8.dp))
+
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                            shadowElevation = 4.dp
+                        ) {
+                            IconButton(onClick = { zoomInTick++ }) {
+                                Icon(Icons.Default.Add, contentDescription = "Увеличить", tint = Color.White, modifier = Modifier.size(44.dp))
+                            }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                            shadowElevation = 4.dp
+                        ) {
+                            IconButton(onClick = { zoomOutTick++ }) {
+                                Box(
+                                    modifier = Modifier.size(44.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(20.dp, 2.5.dp)
+                                            .background(Color.White, RoundedCornerShape(1.dp))
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                if (yellowRouteVisible) {
+                    androidx.compose.material3.SmallFloatingActionButton(
+                        onClick = {
+                            viewModel.clearRoute()
+                            routeStation = null
+                            selectedStation = null
+                        },
                         containerColor = MaterialTheme.colorScheme.surface,
                         shape = CircleShape
                     ) {
                         Icon(
-                            Icons.Default.LocationOn,
-                            contentDescription = "Моё местоположение",
-                            tint = MaterialTheme.colorScheme.primary
+                            Icons.Default.Clear,
+                            contentDescription = "Сбросить маршрут",
+                            tint = Color(0xFFF08070)
                         )
                     }
-
                     Spacer(Modifier.height(8.dp))
-
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                        shadowElevation = 4.dp
-                    ) {
-                        IconButton(onClick = { zoomInTick++ }) {
-                            Icon(Icons.Default.Add, contentDescription = "Увеличить", tint = Color.White, modifier = Modifier.size(44.dp))
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                        shadowElevation = 4.dp
-                    ) {
-                        IconButton(onClick = { zoomOutTick++ }) {
-                            Box(
-                                modifier = Modifier.size(44.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp, 2.5.dp)
-                                        .background(Color.White, RoundedCornerShape(1.dp))
-                                )
-                            }
-                        }
-                    }
                 }
             }
         }
