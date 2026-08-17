@@ -112,12 +112,6 @@ fun MapScreen(
         showStationList = false
     }
 
-    LaunchedEffect(searchQuery) {
-        if (searchQuery.length >= 2) {
-            delay(300)
-            viewModel.searchStations(searchQuery)
-        }
-    }
 
     LaunchedEffect(pendingRouteStationId, stations) {
         val id = pendingRouteStationId ?: return@LaunchedEffect
