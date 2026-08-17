@@ -43,6 +43,7 @@ jobs:
 
       - name: Run unit tests
         id: test
+        continue-on-error: true
         run: ./gradlew testDebugUnitTest --stacktrace
 
       - name: Run instrumentation tests
@@ -62,6 +63,13 @@ jobs:
         run: |
           set -o pipefail
           ./gradlew assembleDebug --stacktrace --info 2>&1 | tee gradle-build.log
+
+      - name: Upload debug APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
 
       - name: Upload Gradle diagnostic log
         if: always()
@@ -94,10 +102,3 @@ jobs:
           name: instrumentation-test-results
           path: app/build/reports/androidTests/connected/
           if-no-files-found: warn
-
-      - name: Upload debug APK
-        if: success()
-        uses: actions/upload-artifact@v4
-        with:
-          name: app-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk

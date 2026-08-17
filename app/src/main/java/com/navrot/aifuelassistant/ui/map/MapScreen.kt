@@ -122,6 +122,8 @@ fun MapScreen(
     LaunchedEffect(pendingRouteStationId, stations) {
         val id = pendingRouteStationId ?: return@LaunchedEffect
         stations.firstOrNull { it.id == id }?.let { station ->
+            showStationList = false
+            selectedStation = null
             buildRouteAndClose(station)
             onConsumePendingRoute()
         }
