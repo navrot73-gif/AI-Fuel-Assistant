@@ -91,17 +91,20 @@ fun MapScreen(
     var recenterTick by remember { mutableIntStateOf(0) }
     var zoomInTick by remember { mutableIntStateOf(0) }
     var zoomOutTick by remember { mutableIntStateOf(0) }
+    var initialCentered by remember { mutableStateOf(false) }
     val yellowRouteVisible = selectedStation != null || (route != null && routeStation != null)
 
-    // Floating buttons visible only on clean map (no station card, no list, no AI card)
-    val showFloatingButtons = !showStationList && selectedStation == null && aiRecommendation == null
-
     val onLocationUpdate: (UserLocationState) -> Unit = { loc ->
+        val isFirst = userLocation == null && !initialCentered
         userLocation = loc
         locationStatus = "📍 Вы здесь"
         viewModel.updateUserLocation(loc.latitude, loc.longitude)
         viewModel.loadNearbyStations(loc.latitude, loc.longitude, 50.0)
         viewModel.updateCityAndPrices(loc.latitude, loc.longitude)
+        if (isFirst) {
+            initialCentered = true
+            recenterTick++
+        }
     }
 
     val buildRouteAndClose: (GasStation) -> Unit = { st ->
@@ -285,7 +288,6 @@ fun MapScreen(
                     }
                 )
 
-                if (showFloatingButtons) {
                 MapFloatingActions(
                     bottomPadding = when {
                         showStationList -> 452.dp
@@ -302,7 +304,6 @@ fun MapScreen(
                         }
                     } else null
                 )
-            }
             }
         }
     }

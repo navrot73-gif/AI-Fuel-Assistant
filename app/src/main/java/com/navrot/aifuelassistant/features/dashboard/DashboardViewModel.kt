@@ -127,8 +127,15 @@ class DashboardViewModel @Inject constructor(
     }
 
     fun clearChatHistory() {
+        if (_chatMessages.value.isEmpty()) return
         _chatMessages.value = emptyList()
-        saveChatHistory(emptyList())
+        _userAnswer.value = null
+        _userQuestion.value = ""
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                saveChatHistory(emptyList())
+            } catch (_: Exception) { }
+        }
     }
 
     init {

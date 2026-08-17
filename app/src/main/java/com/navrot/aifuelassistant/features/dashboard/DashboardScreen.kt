@@ -152,7 +152,7 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
     // Auto-scroll to bottom when new messages arrive
     LaunchedEffect(chatMessages.size) {
         delay(100) // Wait for layout
-        if (chatListState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
+        if (chatMessages.isNotEmpty() && chatListState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
             chatListState.animateScrollToItem(chatMessages.size - 1)
         }
     }

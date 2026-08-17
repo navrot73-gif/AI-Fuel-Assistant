@@ -103,4 +103,3 @@ jobs:
           name: instrumentation-test-results
           path: app/build/reports/androidTests/connected/
           if-no-files-found: warn
-

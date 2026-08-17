@@ -101,11 +101,7 @@ private val TAB_ROUTES = TABS.map { it.route }.toSet()
 // Helper to check if route is in garage sub-navigation
 private fun String?.isGarageRoute(): Boolean {
     if (this == null) return false
-    return this == GarageRoute.route ||
-           this == "garage_list" ||
-           this.startsWith("garage/detail/") ||
-           this.startsWith("garage/") ||
-           this.startsWith("detail/")
+    return this == "garage" || this == "garage_list" || this.startsWith("garage/")
 }
 
 @Composable
@@ -113,7 +109,7 @@ fun AppNavigation() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    val showBottomBar = currentRoute in TAB_ROUTES
+    val showBottomBar = currentRoute in TAB_ROUTES || currentRoute.isGarageRoute()
 
     fun go(route: String) {
         navController.navigate(route) {

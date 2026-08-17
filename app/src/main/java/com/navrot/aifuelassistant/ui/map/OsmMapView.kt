@@ -314,7 +314,7 @@ fun OsmMapView(
         if (recenterRequest > 0) {
             userLocation?.toGeoPoint()?.let { loc ->
                 mapViewRef[0]?.controller?.animateTo(loc)
-                mapViewRef[0]?.controller?.setZoom(15.0)
+                mapViewRef[0]?.controller?.setZoom(16.0)
             }
         }
     }
