@@ -55,6 +55,37 @@ fun BoxScope.RouteOverlay(
 ) {
     val context = LocalContext.current
 
+    if (route != null && selectedStation == null && !showStationList) {
+        val routeText = if (route.isDirect || route.isStraightLine) {
+            "${route.distanceText} по прямой"
+        } else {
+            "${route.distanceText} · ${route.durationText}"
+        }
+        Surface(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 16.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = FueldeckColors.Surface,
+            border = BorderStroke(1.dp, FueldeckColors.Line),
+            shadowElevation = 6.dp
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text("🧭", fontSize = 14.sp)
+                Text(
+                    routeText,
+                    color = FueldeckColors.Ink,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp
+                )
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .align(Alignment.BottomCenter)

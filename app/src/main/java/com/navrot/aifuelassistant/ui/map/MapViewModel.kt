@@ -15,6 +15,7 @@ import com.navrot.aifuelassistant.geo.GeocodingProvider
 import com.navrot.aifuelassistant.geo.GeoException
 import com.navrot.aifuelassistant.geo.OpenRouteServiceProvider
 import com.navrot.aifuelassistant.geo.RoutingProvider
+import com.navrot.aifuelassistant.network.FuelApi
 import okhttp3.OkHttpClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -36,6 +37,7 @@ import javax.inject.Inject
 class MapViewModel @Inject constructor(
     private val repository: GasStationRepositoryInterface,
     private val okHttpClient: OkHttpClient,
+    private val fuelApi: FuelApi,
     private val getBestStationsUseCase: GetBestStationsUseCase,
     private val benzonavtProvider: BenzonavtProvider,
     private val tileWarmupService: TileWarmupService,
@@ -145,7 +147,10 @@ class MapViewModel @Inject constructor(
         val distanceText: String,
         val durationText: String,
         val destination: String,
-        val isStraightLine: Boolean = false
+        val isStraightLine: Boolean = false,
+        val isDirect: Boolean = isStraightLine,
+        val distanceMeters: Double = 0.0,
+        val durationSeconds: Double = 0.0
     )
 
     private val _route = MutableStateFlow<RouteUiState?>(null)
@@ -404,33 +409,52 @@ class MapViewModel @Inject constructor(
         val distKm = GeoUtils.calculateDistance(
             start.first, start.second, station.latitude, station.longitude
         )
-        _route.value = RouteUiState(
+        val fallbackState = RouteUiState(
             points = listOf(
                 GeoPoint(start.first, start.second),
                 GeoPoint(station.latitude, station.longitude)
             ),
-            distanceText = String.format("~ %.1f км", distKm),
+            distanceText = String.format(java.util.Locale.US, "%.1f км", distKm),
             durationText = "по прямой",
             destination = station.brand,
-            isStraightLine = true
+            isStraightLine = true,
+            isDirect = true,
+            distanceMeters = distKm * 1000.0,
+            durationSeconds = 0.0
         )
 
-        val provider = routingProvider ?: return
         viewModelScope.launch {
             _isRouting.value = true
             try {
-                val result = provider.route(
-                    from = GeoPoint(start.first, start.second),
-                    to = GeoPoint(station.latitude, station.longitude)
+                // GET worker route: from={lon},{lat}&to={lon},{lat} with 3s timeout
+                val response = fuelApi.getRoute(
+                    fromLon = start.second,
+                    fromLat = start.first,
+                    toLon = station.longitude,
+                    toLat = station.latitude
                 )
+                val routePoints = response.points.map { pt ->
+                    GeoPoint(latitude = pt[0], longitude = pt[1])
+                }
+                if (routePoints.isEmpty()) {
+                    throw Exception("Worker returned empty points")
+                }
+                val min = Math.round(response.duration_s / 60.0).toInt()
+                val durText = if (min < 60) "$min мин" else "${min / 60} ч ${min % 60} мин"
+
                 _route.value = RouteUiState(
-                    points = result.points,
-                    distanceText = String.format("%.1f км", result.distanceMeters / 1000.0),
-                    durationText = formatDuration(result.durationSeconds),
-                    destination = station.brand
+                    points = routePoints,
+                    distanceText = String.format(java.util.Locale.US, "%.1f км", response.distance_m / 1000.0),
+                    durationText = durText,
+                    destination = station.brand,
+                    isStraightLine = false,
+                    isDirect = false,
+                    distanceMeters = response.distance_m,
+                    durationSeconds = response.duration_s
                 )
             } catch (e: Exception) {
-                Log.w(TAG, "Не удалось уточнить маршрут по дорогам: ${e.message}")
+                Log.w(TAG, "Worker routing failed: ${e.message}, fallback to straight line")
+                _route.value = fallbackState
             } finally {
                 _isRouting.value = false
             }
