@@ -12,6 +12,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -91,10 +93,15 @@ fun MapScreen(
     var recenterTick by remember { mutableIntStateOf(0) }
     var zoomInTick by remember { mutableIntStateOf(0) }
     var zoomOutTick by remember { mutableIntStateOf(0) }
+    var hasInitialCentered by remember { mutableStateOf(false) }
     val yellowRouteVisible = selectedStation != null || (route != null && routeStation != null)
 
-    // Floating buttons visible only on clean map (no station card, no list, no AI card)
-    val showFloatingButtons = !showStationList && selectedStation == null && aiRecommendation == null
+    val bottomPadding = when {
+        showStationList -> 452.dp
+        aiRecommendation != null -> 150.dp
+        yellowRouteVisible -> 88.dp
+        else -> 16.dp
+    }
 
     val onLocationUpdate: (UserLocationState) -> Unit = { loc ->
         userLocation = loc
@@ -102,6 +109,11 @@ fun MapScreen(
         viewModel.updateUserLocation(loc.latitude, loc.longitude)
         viewModel.loadNearbyStations(loc.latitude, loc.longitude, 50.0)
         viewModel.updateCityAndPrices(loc.latitude, loc.longitude)
+
+        if (!hasInitialCentered) {
+            hasInitialCentered = true
+            recenterTick++
+        }
     }
 
     val buildRouteAndClose: (GasStation) -> Unit = { st ->
@@ -201,42 +213,6 @@ fun MapScreen(
 
                 LocationStatusIndicator(status = locationStatus, visible = userLocation == null)
 
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(end = 16.dp, top = 16.dp),
-                    horizontalAlignment = Alignment.End
-                ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                        shadowElevation = 4.dp
-                    ) {
-                        IconButton(onClick = { zoomInTick++ }) {
-                            Icon(Icons.Default.Add, contentDescription = "Увеличить", tint = Color.White, modifier = Modifier.size(44.dp))
-                        }
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    Surface(
-                        shape = CircleShape,
-                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-                        shadowElevation = 4.dp
-                    ) {
-                        IconButton(onClick = { zoomOutTick++ }) {
-                            Box(
-                                modifier = Modifier.size(44.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(20.dp, 2.5.dp)
-                                        .background(Color.White, RoundedCornerShape(1.dp))
-                                )
-                            }
-                        }
-                    }
-                }
-
                 RouteOverlay(
                     selectedStation = selectedStation, route = route, routeStation = routeStation,
                     aiRecommendation = recommendationTriple, showStationList = showStationList,
@@ -285,24 +261,74 @@ fun MapScreen(
                     }
                 )
 
-                if (showFloatingButtons) {
-                MapFloatingActions(
-                    bottomPadding = when {
-                        showStationList -> 452.dp
-                        aiRecommendation != null -> 150.dp
-                        yellowRouteVisible -> 88.dp
-                        else -> 16.dp
-                    },
-                    onRecenter = { if (userLocation != null) recenterTick++ },
-                    onClearClick = if (yellowRouteVisible) {
-                        {
-                            viewModel.clearRoute()
-                            routeStation = null
-                            selectedStation = null
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = bottomPadding),
+                    horizontalAlignment = Alignment.End
+                ) {
+                    if (yellowRouteVisible) {
+                        androidx.compose.material3.SmallFloatingActionButton(
+                            onClick = {
+                                viewModel.clearRoute()
+                                routeStation = null
+                                selectedStation = null
+                            },
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            shape = CircleShape
+                        ) {
+                            Icon(
+                                Icons.Default.Clear,
+                                contentDescription = "Сбросить маршрут",
+                                tint = Color(0xFFF08070)
+                            )
                         }
-                    } else null
-                )
-            }
+                        Spacer(Modifier.height(8.dp))
+                    }
+
+                    androidx.compose.material3.FloatingActionButton(
+                        onClick = { if (userLocation != null) recenterTick++ },
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        shape = CircleShape
+                    ) {
+                        Icon(
+                            Icons.Default.LocationOn,
+                            contentDescription = "Моё местоположение",
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                        shadowElevation = 4.dp
+                    ) {
+                        IconButton(onClick = { zoomInTick++ }) {
+                            Icon(Icons.Default.Add, contentDescription = "Увеличить", tint = Color.White, modifier = Modifier.size(44.dp))
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+                        shadowElevation = 4.dp
+                    ) {
+                        IconButton(onClick = { zoomOutTick++ }) {
+                            Box(
+                                modifier = Modifier.size(44.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(20.dp, 2.5.dp)
+                                        .background(Color.White, RoundedCornerShape(1.dp))
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
     }

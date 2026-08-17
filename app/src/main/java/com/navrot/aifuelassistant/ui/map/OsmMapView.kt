@@ -220,7 +220,7 @@ fun OsmMapView(
                 overlayManager.add(0, labelsOverlay)
 
                 val centerPoint = userLocation?.toGeoPoint() ?: GeoPoint(55.1644, 61.4368)
-                controller.setZoom(13.0)
+                controller.setZoom(if (userLocation != null) 16.0 else 13.0)
                 controller.setCenter(centerPoint)
                 mapViewRef[0] = this
             }
@@ -314,7 +314,7 @@ fun OsmMapView(
         if (recenterRequest > 0) {
             userLocation?.toGeoPoint()?.let { loc ->
                 mapViewRef[0]?.controller?.animateTo(loc)
-                mapViewRef[0]?.controller?.setZoom(15.0)
+                mapViewRef[0]?.controller?.setZoom(16.0)
             }
         }
     }

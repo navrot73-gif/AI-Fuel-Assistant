@@ -151,9 +151,11 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
 
     // Auto-scroll to bottom when new messages arrive
     LaunchedEffect(chatMessages.size) {
-        delay(100) // Wait for layout
-        if (chatListState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
-            chatListState.animateScrollToItem(chatMessages.size - 1)
+        if (chatMessages.isNotEmpty()) {
+            delay(100) // Wait for layout
+            if (chatListState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
+                chatListState.animateScrollToItem(chatMessages.size - 1)
+            }
         }
     }
 
@@ -189,7 +191,11 @@ fun DashboardScreen(modifier: Modifier = Modifier) {
             }
             // Clear history button
             if (chatMessages.isNotEmpty()) {
-                IconButton(onClick = { viewModel.clearChatHistory() }) {
+                IconButton(onClick = {
+                    if (chatMessages.isNotEmpty()) {
+                        viewModel.clearChatHistory()
+                    }
+                }) {
                     Icon(
                         Icons.Default.Delete,
                         contentDescription = "Очистить историю",
