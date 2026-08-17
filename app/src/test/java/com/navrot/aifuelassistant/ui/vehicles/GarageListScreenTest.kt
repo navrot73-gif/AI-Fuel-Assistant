@@ -6,9 +6,14 @@ import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -32,6 +37,7 @@ class GarageListScreenTest {
     private lateinit var mockVehicleRepository: VehicleRepository
     private lateinit var mockFuelRecordRepository: FuelRecordRepository
     private lateinit var viewModel: VehicleViewModel
+    private val testDispatcher = UnconfinedTestDispatcher()
 
     private val vehicle1 = VehicleEntity(
         id = 1,
@@ -57,6 +63,7 @@ class GarageListScreenTest {
 
     @Before
     fun setup() {
+        Dispatchers.setMain(testDispatcher)
         mockVehicleRepository = mock()
         mockFuelRecordRepository = mock()
 
@@ -77,6 +84,11 @@ class GarageListScreenTest {
             vehicleRepository = mockVehicleRepository,
             fuelRecordRepository = mockFuelRecordRepository
         )
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
     }
 
     @Test
