@@ -110,23 +110,32 @@ class DashboardViewModel @Inject constructor(
     }
 
     private fun loadChatHistory() {
-        val json = chatPrefs.getString("messages", "[]") ?: "[]"
-        val type = object : TypeToken<List<ChatMessage>>() {}.type
-        _chatMessages.value = gson.fromJson(json, type)
+        try {
+            val json = chatPrefs.getString("messages", "[]") ?: "[]"
+            val type = object : TypeToken<List<ChatMessage>>() {}.type
+            val loaded: List<ChatMessage>? = gson.fromJson(json, type)
+            _chatMessages.value = loaded?.filterNotNull() ?: emptyList()
+        } catch (_: Exception) {
+            _chatMessages.value = emptyList()
+        }
     }
 
     private fun saveChatHistory(messages: List<ChatMessage>) {
-        val json = gson.toJson(messages)
-        chatPrefs.edit().putString("messages", json).apply()
+        try {
+            val json = gson.toJson(messages)
+            chatPrefs.edit().putString("messages", json).apply()
+        } catch (_: Exception) {}
     }
 
     fun addChatMessage(message: ChatMessage) {
-        val updated = (_chatMessages.value + message).takeLast(20)
+        val current = _chatMessages.value.toList()
+        val updated = (current + message).takeLast(20)
         _chatMessages.value = updated
         saveChatHistory(updated)
     }
 
     fun clearChatHistory() {
+        if (_chatMessages.value.isEmpty()) return
         _chatMessages.value = emptyList()
         saveChatHistory(emptyList())
     }
