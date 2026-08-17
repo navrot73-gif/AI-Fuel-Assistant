@@ -274,6 +274,25 @@ fun MapScreen(
                             .padding(end = 16.dp, bottom = bottomPadding),
                         horizontalAlignment = Alignment.End
                     ) {
+                        if (yellowRouteVisible) {
+                            androidx.compose.material3.SmallFloatingActionButton(
+                                onClick = {
+                                    viewModel.clearRoute()
+                                    routeStation = null
+                                    selectedStation = null
+                                },
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                shape = CircleShape
+                            ) {
+                                Icon(
+                                    Icons.Default.Clear,
+                                    contentDescription = "Сбросить маршрут",
+                                    tint = Color(0xFFF08070)
+                                )
+                            }
+                            Spacer(Modifier.height(8.dp))
+                        }
+
                         androidx.compose.material3.FloatingActionButton(
                             onClick = { if (userLocation != null) recenterTick++ },
                             containerColor = MaterialTheme.colorScheme.surface,
