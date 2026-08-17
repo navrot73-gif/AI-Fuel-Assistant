@@ -100,23 +100,26 @@ fun DashboardScreen(
 
     // NEW LaunchedEffect for handling navigation based on pendingRouteMode
     LaunchedEffect(pendingRouteStationId, pendingRouteMode) {
-        val mapEntry = navController.getBackStackEntry("map")
+        if (pendingRouteMode == DashboardViewModel.PendingRouteMode.NONE) {
+            return@LaunchedEffect
+        }
+
         when (pendingRouteMode) {
             DashboardViewModel.PendingRouteMode.ROUTE -> {
+                // СНАЧАЛА navigate, ПОТОМ получаем backStackEntry —
+                // после navigate "map" гарантированно в стеке
+                navController.navigate("map")
+                val mapEntry = navController.getBackStackEntry("map")
                 pendingRouteStationId?.let { id ->
                     mapEntry.savedStateHandle["build_route_station_id"] = id
                 }
-                navController.navigate("map")
-                // Consume the route event after navigation
                 viewModel.onRouteHandoffConsumed()
             }
             DashboardViewModel.PendingRouteMode.CARD -> {
-                // Navigate to the new route that shows the station list
-                navController.navigate("map/show_stations") // Use string route
-                // Consume the card event after navigation
+                navController.navigate("map/show_stations")
                 viewModel.onCardHandoffConsumed()
             }
-            DashboardViewModel.PendingRouteMode.NONE -> { /* nothing */ }
+            DashboardViewModel.PendingRouteMode.NONE -> { /* guard выше */ }
         }
     }
 
