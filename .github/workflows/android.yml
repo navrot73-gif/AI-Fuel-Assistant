@@ -48,7 +48,7 @@ jobs:
           ./gradlew assembleDebug --stacktrace --info 2>&1 | tee gradle-build.log
 
       - name: Upload debug APK
-        if: success()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: app-debug-apk
