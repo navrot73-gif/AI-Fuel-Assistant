@@ -61,9 +61,6 @@ class DashboardViewModel @Inject constructor(
     private val _bestStation = MutableStateFlow<GasStation?>(null)
     val bestStation: StateFlow<GasStation?> = _bestStation.asStateFlow()
 
-    private val _analysis = MutableStateFlow<String?>(null)
-    val analysis: StateFlow<String?> = _analysis.asStateFlow()
-
     private val _userQuestion = MutableStateFlow("")
     val userQuestion: StateFlow<String> = _userQuestion.asStateFlow()
 
@@ -327,47 +324,6 @@ class DashboardViewModel @Inject constructor(
         }
 
         return result
-    }
-
-    fun askAi() {
-        if (_isAnalyzing.value) return
-
-        viewModelScope.launch {
-            _isAnalyzing.value = true
-            _error.value = null
-
-            try {
-                val vehicleId = _selectedVehicleId.value
-                val records = if (vehicleId != null && vehicleId > 0) {
-                    fuelRecordRepository.getByVehicleId(vehicleId).first()
-                } else {
-                    fuelRecordRepository.getAll().first()
-                }
-                val vehicle = _vehicles.value.firstOrNull { it.id == vehicleId }
-
-                // Get nearby stations for location-aware AI
-                val (lat, lon) = _userLocation.value ?: (0.0 to 0.0)
-                val nearbyStations = if (lat != 0.0 && lon != 0.0) {
-                    withContext(Dispatchers.IO) {
-                        gasStationRepository.getNearbyStations(lat, lon, 50.0).take(5)
-                    }
-                } else emptyList()
-
-                val prompt = FuelAnalysisPromptBuilder.build(
-                    vehicle = vehicle,
-                    records = records,
-                    lat = if (lat != 0.0) lat else null,
-                    lon = if (lon != 0.0) lon else null,
-                    nearbyStations = nearbyStations
-                )
-
-                _analysis.value = aiRouter.ask(prompt)
-            } catch (e: Throwable) {
-                _error.value = e.message ?: "Не удалось получить AI-анализ"
-            } finally {
-                _isAnalyzing.value = false
-            }
-        }
     }
 
     fun setUserQuestion(text: String) {
