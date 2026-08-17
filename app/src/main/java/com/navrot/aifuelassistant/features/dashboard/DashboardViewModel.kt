@@ -402,19 +402,36 @@ class DashboardViewModel @Inject constructor(
             addChatMessage(ChatMessage(role = "user", text = question, ts = System.currentTimeMillis()))
             addChatMessage(ChatMessage(role = "ai", text = answer, ts = System.currentTimeMillis()))
 
-            // Determine mode from question keywords
-            val lowerQuestion = question.lowercase()
-            val routeKeywords = listOf("маршрут", "поехать", "доехать", "дорога до", "отведи")
-            val cardKeywords = listOf("ближайш", "дешев", "лучш", "порекоменд", "какая заправка", "где заправ")
-            when {
-                routeKeywords.any { lowerQuestion.contains(it) } -> _pendingRouteMode.value = PendingRouteMode.ROUTE
-                cardKeywords.any { lowerQuestion.contains(it) } -> _pendingRouteMode.value = PendingRouteMode.CARD
-                else -> _pendingRouteMode.value = PendingRouteMode.NONE
-            }
+            // Detect intent from question and set pending navigation
+            detectIntent(question)
 
             _isAnalyzing.value = false
         }
     }
+
+    private fun detectIntent(question: String) {
+        val lowerQuestion = question.lowercase()
+        val hasRouteKeyword = listOf("маршрут", "построй", "доведи", "ближайшая", "дешевле").any { lowerQuestion.contains(it) }
+        val hasFuelKeyword = listOf("топливо", "цена", "наличие", "заправка").any { lowerQuestion.contains(it) }
+        val hasSpecificFuelType = Regex("где.*92|где.*95|где.*98|где.*дт").containsMatchIn(lowerQuestion)
+
+        if (hasRouteKeyword || hasSpecificFuelType) {
+            // Try to select a station (closest/cheapest/AI-pick) and set route mode
+            val selectedStation = _bestStation.value // Using AI pick as default
+                ?: _stations.value.minByOrNull { GeoUtils.calculateDistance(userLocation.value?.first ?: 0.0, userLocation.value?.second ?: 0.0, it.latitude, it.longitude) } // Closest
+                ?: _stations.value.minByOrNull { it.fuelTypes.filter { ft -> ft.available }.minByOrNull { ft -> ft.price }?.price ?: Double.MAX_VALUE } // Cheapest
+
+            selectedStation?.let { station ->
+                _pendingRouteStationId.value = station.id
+                _pendingRouteMode.value = PendingRouteMode.ROUTE
+            }
+        } else if (hasFuelKeyword && !hasRouteKeyword) {
+            // Just show station list
+            _pendingRouteMode.value = PendingRouteMode.CARD // Using CARD mode to signal showing the list
+            // We don't set a specific station ID here, so the map will just open the list
+        }
+    }
+
 
     fun onRouteHandoffConsumed() {
         _pendingRouteStationId.value = null

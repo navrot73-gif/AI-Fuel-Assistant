@@ -98,29 +98,25 @@ fun DashboardScreen(
         onPermissionDenied = { /* Location not available, AI will work without it */ }
     )
 
-    // Auto-navigate to map after AI answer based on mode
-    LaunchedEffect(pendingRouteMode, pendingRouteStationId, pendingOpenStationId, userAnswer) {
+    // NEW LaunchedEffect for handling navigation based on pendingRouteMode
+    LaunchedEffect(pendingRouteStationId, pendingRouteMode) {
+        val mapEntry = navController.getBackStackEntry("map")
         when (pendingRouteMode) {
             DashboardViewModel.PendingRouteMode.ROUTE -> {
-                pendingRouteStationId?.let { stationId ->
-                    navController.navigate("map/build_route_station_id/$stationId")
-                    userAnswer?.let { answer ->
-                        navController.previousBackStackEntry?.savedStateHandle?.set("ai_answer_text", answer)
-                    }
-                    viewModel.onRouteHandoffConsumed()
+                pendingRouteStationId?.let { id ->
+                    mapEntry.savedStateHandle["build_route_station_id"] = id
                 }
+                navController.navigate("map")
+                // Consume the route event after navigation
+                viewModel.onRouteHandoffConsumed()
             }
             DashboardViewModel.PendingRouteMode.CARD -> {
-                pendingOpenStationId?.let { stationId ->
-                    navController.navigate("map")
-                    navController.previousBackStackEntry?.savedStateHandle?.set("open_station_id", stationId)
-                    userAnswer?.let { answer ->
-                        navController.previousBackStackEntry?.savedStateHandle?.set("ai_answer_text", answer)
-                    }
-                    viewModel.onCardHandoffConsumed()
-                }
+                // Navigate to the new route that shows the station list
+                navController.navigate(MapShowStationsRoute)
+                // Consume the card event after navigation
+                viewModel.onCardHandoffConsumed()
             }
-            else -> { /* stay on AI screen */ }
+            DashboardViewModel.PendingRouteMode.NONE -> { /* nothing */ }
         }
     }
 
@@ -190,6 +186,13 @@ fun DashboardScreen(
             rubPerKm = rubPerKm,
             efficiency = efficiency,
             onNavigateToGarage = { navController.navigate("garage") },
+            onAddFuelRecord = {
+                if (vehicles.size == 1) {
+                    navController.navigate("fuel_record_add/${vehicles[0].id}")
+                } else {
+                    navController.navigate("garage")
+                }
+            },
             modifier = Modifier.padding(horizontal = 16.dp)
         )
 
@@ -347,7 +350,7 @@ private fun VehicleChipsRow(
     LazyRow(
         modifier = modifier
             .fillMaxWidth()
-            .height(40.dp),
+            .height(40.dp), // Original height was 40dp, new chip height will be 36dp inside
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(horizontal = 16.dp)
     ) {
@@ -358,7 +361,7 @@ private fun VehicleChipsRow(
                 onClick = { onSelect(v.id) },
                 label = {
                     Text(
-                        v.name,
+                        "${v.name} ${v.year}", // Changed label to include year
                         fontSize = 13.sp,
                         fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
                         maxLines = 1,
@@ -366,19 +369,19 @@ private fun VehicleChipsRow(
                     )
                 },
                 colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = Color(0xFFE8A750),
-                    selectedLabelColor = Color(0xFF1A1205),
-                    containerColor = FueldeckColors.Surface,
-                    labelColor = FueldeckColors.InkDim
+                    selectedContainerColor = Color(0xFFE8A750), // Selected background color
+                    selectedLabelColor = Color(0xFF1A1205), // Selected text color (dark)
+                    containerColor = FueldeckColors.Surface, // Unselected background color
+                    labelColor = FueldeckColors.Ink // Unselected text color
                 ),
                 border = FilterChipDefaults.filterChipBorder(
                     enabled = true,
                     selected = isSelected,
-                    borderColor = FueldeckColors.Line,
+                    borderColor = if (isSelected) Color(0xFFE8A750) else FueldeckColors.Line, // Border color
                     selectedBorderColor = Color(0xFFE8A750)
                 ),
-                shape = RoundedCornerShape(20.dp),
-                modifier = Modifier.height(40.dp)
+                shape = RoundedCornerShape(18.dp), // Changed corner radius
+                modifier = Modifier.height(36.dp) // Changed height
             )
         }
     }
@@ -390,18 +393,19 @@ private fun MetricsSection(
     consumption: Float,
     rubPerKm: Float,
     efficiency: Int,
-    onNavigateToGarage: () -> Unit,
+    onNavigateToGarage: () -> Unit, // Keep for potential use if needed, but we'll add onAddFuelRecord
+    onAddFuelRecord: () -> Unit, // New parameter for CTA card
     modifier: Modifier = Modifier
 ) {
     if (isEmpty) {
         Card(
-            onClick = onNavigateToGarage,
+            onClick = onAddFuelRecord, // Use the new callback
             colors = CardDefaults.cardColors(containerColor = FueldeckColors.Surface),
             shape = RoundedCornerShape(16.dp),
             border = androidx.compose.foundation.BorderStroke(1.dp, FueldeckColors.Line),
             modifier = modifier
                 .fillMaxWidth()
-                .height(80.dp)
+                .height(80.dp) // Keep original height for CTA card
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -449,7 +453,7 @@ private fun MetricCard(
         colors = CardDefaults.cardColors(containerColor = FueldeckColors.Surface),
         shape = RoundedCornerShape(16.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, FueldeckColors.Line),
-        modifier = modifier.height(80.dp)
+        modifier = modifier.height(72.dp) // Changed height
     ) {
         Column(
             modifier = Modifier
@@ -460,7 +464,7 @@ private fun MetricCard(
         ) {
             Text(
                 text = value,
-                fontSize = 20.sp,
+                fontSize = 16.sp, // Changed font size
                 fontWeight = FontWeight.Bold,
                 color = FueldeckColors.Ink,
                 maxLines = 1
@@ -468,8 +472,8 @@ private fun MetricCard(
             Spacer(Modifier.height(2.dp))
             Text(
                 text = subtitle,
-                fontSize = 11.sp,
-                color = FueldeckColors.InkDim,
+                fontSize = 10.sp, // Changed font size
+                color = FueldeckColors.InkDim, // Grey color
                 textAlign = TextAlign.Center,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis

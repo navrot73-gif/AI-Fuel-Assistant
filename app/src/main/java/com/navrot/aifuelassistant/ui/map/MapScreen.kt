@@ -61,6 +61,7 @@ fun MapScreen(
     pendingRouteStationId: Int? = null,
     pendingOpenStationId: Int? = null,
     aiAnswerText: String? = null,
+    showStationList: Boolean = false,
     onConsumePendingRoute: () -> Unit = {},
     onConsumePendingOpenStation: () -> Unit = {},
     viewModel: MapViewModel = hiltViewModel()
@@ -87,7 +88,7 @@ fun MapScreen(
     var locationStatus by remember { mutableStateOf("Определение местоположения...") }
     var showSearch by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
-    var showStationList by remember { mutableStateOf(false) }
+    var showStationList by remember { mutableStateOf(showStationList) }
     var selectedStation by remember { mutableStateOf<GasStation?>(null) }
     var routeStation by remember { mutableStateOf<GasStation?>(null) }
     var recenterTick by remember { mutableIntStateOf(0) }
