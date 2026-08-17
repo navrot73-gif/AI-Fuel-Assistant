@@ -109,6 +109,7 @@ fun MapScreen(
         viewModel.buildRouteTo(st)
         routeStation = st
         selectedStation = null
+        showStationList = false
     }
 
     LaunchedEffect(searchQuery) {

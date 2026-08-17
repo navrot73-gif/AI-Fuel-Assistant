@@ -152,7 +152,6 @@ fun StationListItem(
                         text = "$tilde${String.format("%.0f", fuel.price)} ₽",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        fontFamily = FontFamily.Monospace,
                         color = FueldeckColors.Mint
                     )
                     if (fuel.isMedianFromNetwork && fuel.sourceCount > 0) {
