@@ -268,26 +268,26 @@ fun OsmMapView(
                     if (osmPoints.size >= 2) {
                         val density = context.resources.displayMetrics.density
 
-                        // Glow Polyline (под ней, width 16dp, alpha 30%)
+                        // Glow Polyline (под ней, width 12dp, color #40C4FF with alpha 0.18 -> #2E40C4FF)
                         val glowPolyline = Polyline().apply {
                             setPoints(osmPoints)
                             outlinePaint.color = android.graphics.Color.TRANSPARENT
                             outlinePaint.strokeWidth = 0f
-                            paint.color = android.graphics.Color.parseColor("#4D40C4FF")
-                            paint.strokeWidth = 16f * density
+                            paint.color = android.graphics.Color.parseColor("#2E40C4FF")
+                            paint.strokeWidth = 12f * density
                             paint.strokeCap = android.graphics.Paint.Cap.ROUND
                             paint.strokeJoin = android.graphics.Paint.Join.ROUND
                             paint.isAntiAlias = true
                         }
                         mapView.overlays.add(glowPolyline)
 
-                        // Main Polyline (width 8dp, color #40C4FF)
+                        // Main Polyline (width 6dp, color #40C4FF, cap ROUND, join ROUND)
                         val mainPolyline = Polyline().apply {
                             setPoints(osmPoints)
                             outlinePaint.color = android.graphics.Color.TRANSPARENT
                             outlinePaint.strokeWidth = 0f
                             paint.color = android.graphics.Color.parseColor("#40C4FF")
-                            paint.strokeWidth = 8f * density
+                            paint.strokeWidth = 6f * density
                             paint.strokeCap = android.graphics.Paint.Cap.ROUND
                             paint.strokeJoin = android.graphics.Paint.Join.ROUND
                             paint.isAntiAlias = true
@@ -308,14 +308,34 @@ fun OsmMapView(
                             mapView.post {
                                 try {
                                     val bounds = BoundingBox.fromGeoPoints(osmPoints)
-                                    val latSpan = bounds.latNorth - bounds.latSouth
-                                    val extended = BoundingBox(
-                                        bounds.latNorth + maxOf(latSpan * 0.15, 0.001),
-                                        bounds.lonEast,
-                                        bounds.latSouth - maxOf(latSpan * 0.45, 0.003),
-                                        bounds.lonWest
-                                    )
-                                    mapView.zoomToBoundingBox(extended, false, 100)
+                                    val leftPx = 48f * density
+                                    val topPx = 96f * density
+                                    val rightPx = 104f * density
+                                    val bottomPx = 150f * density
+
+                                    val mapWidth = mapView.width.toFloat()
+                                    val mapHeight = mapView.height.toFloat()
+
+                                    val freeWidth = mapWidth - leftPx - rightPx
+                                    val freeHeight = mapHeight - topPx - bottomPx
+
+                                    if (freeWidth > 0f && freeHeight > 0f && mapWidth > 0f && mapHeight > 0f) {
+                                        val latSpan = bounds.latNorth - bounds.latSouth
+                                        val lonSpan = bounds.lonEast - bounds.lonWest
+
+                                        val safeLatSpan = maxOf(latSpan, 0.001)
+                                        val safeLonSpan = maxOf(lonSpan, 0.001)
+
+                                        val extended = BoundingBox(
+                                            bounds.latNorth + safeLatSpan * (topPx / freeHeight),
+                                            bounds.lonEast + safeLonSpan * (rightPx / freeWidth),
+                                            bounds.latSouth - safeLatSpan * (bottomPx / freeHeight),
+                                            bounds.lonWest - safeLonSpan * (leftPx / freeWidth)
+                                        )
+                                        mapView.zoomToBoundingBox(extended, false)
+                                    } else {
+                                        mapView.zoomToBoundingBox(bounds, false)
+                                    }
                                     if (mapView.zoomLevelDouble > 16.0) {
                                         mapView.controller.setZoom(16.0)
                                     }
