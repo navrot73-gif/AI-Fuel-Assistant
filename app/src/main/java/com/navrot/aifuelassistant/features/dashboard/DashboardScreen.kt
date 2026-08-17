@@ -112,7 +112,7 @@ fun DashboardScreen(
             }
             DashboardViewModel.PendingRouteMode.CARD -> {
                 // Navigate to the new route that shows the station list
-                navController.navigate(MapShowStationsRoute)
+                navController.navigate("map/show_stations") // Use string route
                 // Consume the card event after navigation
                 viewModel.onCardHandoffConsumed()
             }
