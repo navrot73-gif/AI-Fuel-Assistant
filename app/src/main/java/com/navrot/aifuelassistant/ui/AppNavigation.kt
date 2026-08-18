@@ -199,11 +199,29 @@ fun AppNavigation() {
 
             composable<MapBuildRouteRoute> { entry ->
                 val args = entry.toRoute<MapBuildRouteRoute>()
-                MapScreen(pendingRouteStationId = args.stationId)
+                val aiAnswerText by entry.savedStateHandle
+                    .getStateFlow<String?>("ai_answer_text", null)
+                    .collectAsStateWithLifecycle()
+                MapScreen(
+                    pendingRouteStationId = args.stationId,
+                    aiAnswerText = aiAnswerText,
+                    onConsumePendingRoute = {
+                        entry.savedStateHandle.remove<String>("ai_answer_text")
+                    }
+                )
             }
 
-            composable<MapShowStationsRoute> {
-                MapScreen(showStationList = true)
+            composable<MapShowStationsRoute> { entry ->
+                val aiAnswerText by entry.savedStateHandle
+                    .getStateFlow<String?>("ai_answer_text", null)
+                    .collectAsStateWithLifecycle()
+                MapScreen(
+                    showStationList = true,
+                    aiAnswerText = aiAnswerText,
+                    onConsumePendingOpenStation = {
+                        entry.savedStateHandle.remove<String>("ai_answer_text")
+                    }
+                )
             }
 
             composable<DashboardRoute> { DashboardScreen() }
