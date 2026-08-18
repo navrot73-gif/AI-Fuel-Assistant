@@ -110,12 +110,7 @@ private fun String?.isGarageRoute(): Boolean {
     return this == "garage" || this == "garage_list" || this.startsWith("garage/")
 }
 
-// Helper to check if route is map or any map-related route
-private fun String?.isMapRoute(): Boolean {
-    if (this == null) return false
-    return this == "map" || this.startsWith("map/") || this.startsWith("map?") ||
-           this.contains("MapBuildRouteRoute") || this.contains("MapShowStationsRoute") ||
-           this.contains("MapRoute")
+
 }
 
 @Composable
@@ -145,6 +140,8 @@ fun AppNavigation() {
                     TABS.forEach { tab ->
                         val selected = if (tab.route == GarageRoute.route) {
                             currentRoute.isGarageRoute()
+                        } else if (tab.route == MapRoute.route) {
+                            currentRoute.isMapRoute()
                         } else {
                             currentRoute == tab.route
                         }

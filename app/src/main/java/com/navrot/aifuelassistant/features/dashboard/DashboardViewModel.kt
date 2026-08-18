@@ -384,8 +384,7 @@ class DashboardViewModel @Inject constructor(
 
         viewModelScope.launch {
             _isAnalyzing.value = true
-            _error.value = null
-            _userAnswer.value = null
+
             try {
                 val lower = question.lowercase()
                 val isGreeting = listOf("привет", "здравств", "добрый", "hi", "hello", "как дела").any { lower.startsWith(it) }
@@ -400,9 +399,6 @@ class DashboardViewModel @Inject constructor(
                         )
                     )
                     _pendingRouteMode.value = PendingRouteMode.NONE
-                    _isAnalyzing.value = false
-                    return@launch
-                }
 
                 val context = buildUserContext()
                 val fullPrompt = if (context.text.isNotBlank()) {
@@ -411,16 +407,7 @@ class DashboardViewModel @Inject constructor(
 
                 val history = _chatMessages.value.takeLast(6)
 
-                val answer = aiRouter.ask(fullPrompt, history = history)
-                val cleanAnswer = answer.replace("**", "").replace("*", "")
-                _userAnswer.value = cleanAnswer
 
-                addChatMessage(ChatMessage(role = "user", text = question, ts = System.currentTimeMillis()))
-                addChatMessage(ChatMessage(role = "ai", text = cleanAnswer, ts = System.currentTimeMillis()))
-
-                detectIntent(question)
-            } catch (e: Exception) {
-                _error.value = e.message ?: "Ошибка при запросе к AI"
             } finally {
                 _isAnalyzing.value = false
             }
@@ -433,44 +420,21 @@ class DashboardViewModel @Inject constructor(
         val hasFuelKeyword = listOf("топливо", "цена", "наличие", "заправка").any { lowerQuestion.contains(it) }
         val hasSpecificFuelType = Regex("где.*92|где.*95|где.*98|где.*дт").containsMatchIn(lowerQuestion)
 
-        var currentStations = _stations.value
-        if (currentStations.isEmpty()) {
-            val location = userLocation.value?.let { Location("").apply { latitude = it.first; longitude = it.second } }
-                ?: getLastLocation()
-            if (location != null) {
-                try {
-                    val loaded = gasStationRepository.getNearbyStations(location.latitude, location.longitude, 50.0)
-                    if (loaded.isNotEmpty()) {
-                        _stations.value = loaded
-                        updateBestStation()
-                        currentStations = loaded
-                    }
-                } catch (_: Exception) {}
-            }
-            if (currentStations.isEmpty()) {
-                try {
-                    val all = gasStationRepository.getAllStations()
-                    if (all.isNotEmpty()) {
-                        _stations.value = all
-                        updateBestStation()
-                        currentStations = all
-                    }
-                } catch (_: Exception) {}
-            }
-        }
-        if (hasRouteKeyword || hasSpecificFuelType) {
-            val userLat = _userLocation.value?.first
-            val userLon = _userLocation.value?.second
-            val selectedStation = _bestStation.value
-                ?: currentStations.minByOrNull { GeoUtils.calculateDistance(userLat ?: 0.0, userLon ?: 0.0, it.latitude, it.longitude) }
-                ?: currentStations.minByOrNull { it.fuelTypes.filter { ft -> ft.available }.minByOrNull { ft -> ft.price }?.price ?: Double.MAX_VALUE }
 
-            selectedStation?.let { station ->
-                _pendingRouteStationId.value = station.id
-                _pendingRouteMode.value = PendingRouteMode.ROUTE
+
+            if (hasRouteKeyword || hasSpecificFuelType) {
+                val selectedStation = _bestStation.value
+                    ?: _stations.value.minByOrNull { GeoUtils.calculateDistance(userLocation.value?.first ?: 0.0, userLocation.value?.second ?: 0.0, it.latitude, it.longitude) }
+                    ?: _stations.value.minByOrNull { it.fuelTypes.filter { ft -> ft.available }.minByOrNull { ft -> ft.price }?.price ?: Double.MAX_VALUE }
+
+                selectedStation?.let { station ->
+                    _pendingRouteStationId.value = station.id
+                    _pendingRouteMode.value = PendingRouteMode.ROUTE
+                }
+            } else if (hasFuelKeyword) {
+                _pendingRouteMode.value = PendingRouteMode.CARD
             }
-        } else if (hasFuelKeyword && !hasRouteKeyword) {
-            _pendingRouteMode.value = PendingRouteMode.CARD
+
         }
     }
 
