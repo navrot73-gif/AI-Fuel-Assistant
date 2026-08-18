@@ -90,4 +90,26 @@ class DashboardViewModelTest {
         // (40 liters / 200 km) * 100 = 20 l/100km
         assertEquals(20f, metrics.consumption, 0.5f)
     }
+
+    @Test
+    fun `askUserQuestion greeting returns immediate response without AI router`() = runTest {
+        whenever(mockRecordRepo.getAll()).thenReturn(flowOf(emptyList()))
+        whenever(mockRecordRepo.getByVehicleId(any())).thenReturn(flowOf(emptyList()))
+        whenever(mockVehicleRepo.getAllVehicles()).thenReturn(flowOf(emptyList()))
+        whenever(mockStationRepo.getAllStations()).thenReturn(emptyList())
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.setUserQuestion("Привет! Какая погода?")
+        vm.askUserQuestion()
+
+        val messages = vm.chatMessages.value
+        assertEquals(2, messages.size)
+        assertEquals("user", messages[0].role)
+        assertEquals("Привет! Какая погода?", messages[0].text)
+        assertEquals("ai", messages[1].role)
+        assertTrue(messages[1].text.startsWith("Привет! Я AI-помощник по топливу."))
+        verifyNoInteractions(mockAiRouter)
+    }
 }
