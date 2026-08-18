@@ -103,6 +103,7 @@ class DashboardViewModelTest {
 
         vm.setUserQuestion("Привет! Какая погода?")
         vm.askUserQuestion()
+        advanceUntilIdle()
 
         val messages = vm.chatMessages.value
         assertEquals(2, messages.size)

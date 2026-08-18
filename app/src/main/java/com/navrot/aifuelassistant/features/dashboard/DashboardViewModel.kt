@@ -382,54 +382,49 @@ class DashboardViewModel @Inject constructor(
         val question = _userQuestion.value.trim()
         if (question.isEmpty() || _isAnalyzing.value) return
 
-        _isAnalyzing.value = true
-        try {
-            val lower = question.lowercase()
-            val isGreeting = listOf("привет", "здравств", "добрый", "hi", "hello", "как дела").any { lower.startsWith(it) }
-            if (isGreeting) {
-                val now = System.currentTimeMillis()
-                addChatMessage(ChatMessage(role = "user", text = question, ts = now))
-                addChatMessage(
-                    ChatMessage(
-                        role = "ai",
-                        text = "Привет! Я AI-помощник по топливу. Могу найти ближайшую АЗС, построить маршрут, подсказать цены и расход. Что сделать?",
-                        ts = now
+        viewModelScope.launch {
+            _isAnalyzing.value = true
+            try {
+                val lower = question.lowercase()
+                val isGreeting = listOf("привет", "здравств", "добрый", "hi", "hello", "как дела").any { lower.startsWith(it) }
+                if (isGreeting) {
+                    val now = System.currentTimeMillis()
+                    addChatMessage(ChatMessage(role = "user", text = question, ts = now))
+                    addChatMessage(
+                        ChatMessage(
+                            role = "ai",
+                            text = "Привет! Я AI-помощник по топливу. Могу найти ближайшую АЗС, построить маршрут, подсказать цены и расход. Что сделать?",
+                            ts = now
+                        )
                     )
-                )
-                _pendingRouteMode.value = PendingRouteMode.NONE
-                _isAnalyzing.value = false
-                return
-            }
-
-            viewModelScope.launch {
-                try {
-                    _error.value = null
-                    _userAnswer.value = null
-
-                    val context = buildUserContext()
-                    val fullPrompt = if (context.text.isNotBlank()) {
-                        "${context.text}\n\nВопрос пользователя: $question"
-                    } else question
-
-                    val history = _chatMessages.value.takeLast(6)
-
-                    val answer = aiRouter.ask(fullPrompt, history = history)
-                    val cleanAnswer = answer.replace("**", "").replace("*", "")
-                    _userAnswer.value = cleanAnswer
-
-                    addChatMessage(ChatMessage(role = "user", text = question, ts = System.currentTimeMillis()))
-                    addChatMessage(ChatMessage(role = "ai", text = cleanAnswer, ts = System.currentTimeMillis()))
-
-                    detectIntent(question)
-                } catch (e: Exception) {
-                    _error.value = e.message ?: "Ошибка при запросе к AI"
-                } finally {
+                    _pendingRouteMode.value = PendingRouteMode.NONE
                     _isAnalyzing.value = false
+                    return@launch
                 }
+
+                _error.value = null
+                _userAnswer.value = null
+
+                val context = buildUserContext()
+                val fullPrompt = if (context.text.isNotBlank()) {
+                    "${context.text}\n\nВопрос пользователя: $question"
+                } else question
+
+                val history = _chatMessages.value.takeLast(6)
+
+                val answer = aiRouter.ask(fullPrompt, history = history)
+                val cleanAnswer = answer.replace("**", "").replace("*", "")
+                _userAnswer.value = cleanAnswer
+
+                addChatMessage(ChatMessage(role = "user", text = question, ts = System.currentTimeMillis()))
+                addChatMessage(ChatMessage(role = "ai", text = cleanAnswer, ts = System.currentTimeMillis()))
+
+                detectIntent(question)
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Ошибка при запросе к AI"
+            } finally {
+                _isAnalyzing.value = false
             }
-        } catch (e: Exception) {
-            _isAnalyzing.value = false
-            _error.value = e.message ?: "Ошибка при запросе к AI"
         }
     }
 
