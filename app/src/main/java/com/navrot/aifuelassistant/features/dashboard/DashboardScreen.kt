@@ -59,6 +59,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
+import com.navrot.aifuelassistant.ui.AddFuelRecordRoute
+import com.navrot.aifuelassistant.ui.MapBuildRouteRoute
+import com.navrot.aifuelassistant.ui.MapShowStationsRoute
 import com.navrot.aifuelassistant.ui.map.components.LocationPermissionHandler
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
@@ -106,20 +109,16 @@ fun DashboardScreen(
 
         when (pendingRouteMode) {
             DashboardViewModel.PendingRouteMode.ROUTE -> {
-                // СНАЧАЛА navigate, ПОТОМ получаем backStackEntry —
-                // после navigate "map" гарантированно в стеке
-                navController.navigate("map")
-                val mapEntry = navController.getBackStackEntry("map")
                 pendingRouteStationId?.let { id ->
-                    mapEntry.savedStateHandle["build_route_station_id"] = id
+                    navController.navigate(MapBuildRouteRoute(id))
                 }
                 viewModel.onRouteHandoffConsumed()
             }
             DashboardViewModel.PendingRouteMode.CARD -> {
-                navController.navigate("map/show_stations")
+                navController.navigate(MapShowStationsRoute)
                 viewModel.onCardHandoffConsumed()
             }
-            DashboardViewModel.PendingRouteMode.NONE -> { /* guard выше */ }
+            DashboardViewModel.PendingRouteMode.NONE -> {}
         }
     }
 
@@ -191,7 +190,7 @@ fun DashboardScreen(
             onNavigateToGarage = { navController.navigate("garage") },
             onAddFuelRecord = {
                 if (vehicles.size == 1) {
-                    navController.navigate("fuel_record_add/${vehicles[0].id}")
+                    navController.navigate(AddFuelRecordRoute(vehicles[0].id, vehicles[0].name))
                 } else {
                     navController.navigate("garage")
                 }
@@ -200,10 +199,10 @@ fun DashboardScreen(
         )
 
         // Show route button if there's a pending route station
-        if (pendingRouteStationId != null) {
+        pendingRouteStationId?.let { stationId ->
             Button(
                 onClick = {
-                    navController.navigate("map/build_route_station_id/$pendingRouteStationId")
+                    navController.navigate(MapBuildRouteRoute(stationId))
                     viewModel.onRouteHandoffConsumed()
                 },
                 colors = ButtonDefaults.buttonColors(
@@ -290,6 +289,7 @@ fun DashboardScreen(
                     if (!isAnalyzing && userQuestion.isNotBlank()) {
                         keyboardController?.hide()
                         viewModel.askUserQuestion()
+                        viewModel.setUserQuestion("")
                     }
                 }),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -308,6 +308,7 @@ fun DashboardScreen(
                 onClick = {
                     keyboardController?.hide()
                     viewModel.askUserQuestion()
+                    viewModel.setUserQuestion("")
                 },
                 enabled = !isAnalyzing && userQuestion.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(
