@@ -59,6 +59,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
+import com.navrot.aifuelassistant.ui.AddFuelRecordRoute
+import com.navrot.aifuelassistant.ui.GarageRoute
+import com.navrot.aifuelassistant.ui.MapBuildRouteRoute
+import com.navrot.aifuelassistant.ui.MapShowStationsRoute
 import com.navrot.aifuelassistant.ui.map.components.LocationPermissionHandler
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
@@ -102,25 +106,16 @@ fun DashboardScreen(
     LaunchedEffect(pendingRouteMode, pendingRouteStationId, pendingOpenStationId, userAnswer) {
         when (pendingRouteMode) {
             DashboardViewModel.PendingRouteMode.ROUTE -> {
-                pendingRouteStationId?.let { stationId ->
-                    navController.navigate("map/build_route_station_id/$stationId")
-                    userAnswer?.let { answer ->
-                        navController.previousBackStackEntry?.savedStateHandle?.set("ai_answer_text", answer)
-                    }
-                    viewModel.onRouteHandoffConsumed()
+                pendingRouteStationId?.let { id ->
+                    navController.navigate(MapBuildRouteRoute(id))
                 }
+                viewModel.onRouteHandoffConsumed()
             }
             DashboardViewModel.PendingRouteMode.CARD -> {
-                pendingOpenStationId?.let { stationId ->
-                    navController.navigate("map")
-                    navController.previousBackStackEntry?.savedStateHandle?.set("open_station_id", stationId)
-                    userAnswer?.let { answer ->
-                        navController.previousBackStackEntry?.savedStateHandle?.set("ai_answer_text", answer)
-                    }
-                    viewModel.onCardHandoffConsumed()
-                }
+                navController.navigate(MapShowStationsRoute)
+                viewModel.onCardHandoffConsumed()
             }
-            else -> { /* stay on AI screen */ }
+            DashboardViewModel.PendingRouteMode.NONE -> {}
         }
     }
 
@@ -189,15 +184,21 @@ fun DashboardScreen(
             consumption = consumption,
             rubPerKm = rubPerKm,
             efficiency = efficiency,
-            onNavigateToGarage = { navController.navigate("garage") },
+            onAddFuelRecord = {
+                if (vehicles.isNotEmpty()) {
+                    navController.navigate(AddFuelRecordRoute(vehicles[0].id, vehicles[0].name))
+                } else {
+                    navController.navigate(GarageRoute)
+                }
+            },
             modifier = Modifier.padding(horizontal = 16.dp)
         )
 
         // Show route button if there's a pending route station
-        if (pendingRouteStationId != null) {
+        pendingRouteStationId?.let { stationId ->
             Button(
                 onClick = {
-                    navController.navigate("map/build_route_station_id/$pendingRouteStationId")
+                    navController.navigate(MapBuildRouteRoute(stationId))
                     viewModel.onRouteHandoffConsumed()
                 },
                 colors = ButtonDefaults.buttonColors(
@@ -390,12 +391,12 @@ private fun MetricsSection(
     consumption: Float,
     rubPerKm: Float,
     efficiency: Int,
-    onNavigateToGarage: () -> Unit,
+    onAddFuelRecord: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (isEmpty) {
         Card(
-            onClick = onNavigateToGarage,
+            onClick = onAddFuelRecord,
             colors = CardDefaults.cardColors(containerColor = FueldeckColors.Surface),
             shape = RoundedCornerShape(16.dp),
             border = androidx.compose.foundation.BorderStroke(1.dp, FueldeckColors.Line),

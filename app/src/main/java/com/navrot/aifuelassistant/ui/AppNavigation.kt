@@ -48,6 +48,10 @@ object MapRoute {
 }
 
 @Serializable
+@SerialName("map/show_stations")
+object MapShowStationsRoute
+
+@Serializable
 @SerialName("map/build_route_station_id")
 data class MapBuildRouteRoute(val stationId: Int)
 
@@ -189,6 +193,10 @@ fun AppNavigation() {
                         backStackEntry.savedStateHandle.remove<String>("ai_answer_text")
                     }
                 )
+            }
+
+            composable<MapShowStationsRoute> {
+                MapScreen()
             }
 
             composable<MapBuildRouteRoute> { backStackEntry ->
