@@ -384,6 +384,8 @@ class DashboardViewModel @Inject constructor(
 
         viewModelScope.launch {
             _isAnalyzing.value = true
+            _error.value = null
+            _userAnswer.value = null
             try {
                 val lower = question.lowercase()
                 val isGreeting = listOf("привет", "здравств", "добрый", "hi", "hello", "как дела").any { lower.startsWith(it) }
@@ -401,9 +403,6 @@ class DashboardViewModel @Inject constructor(
                     _isAnalyzing.value = false
                     return@launch
                 }
-
-                _error.value = null
-                _userAnswer.value = null
 
                 val context = buildUserContext()
                 val fullPrompt = if (context.text.isNotBlank()) {
@@ -459,7 +458,6 @@ class DashboardViewModel @Inject constructor(
                 } catch (_: Exception) {}
             }
         }
-
         if (hasRouteKeyword || hasSpecificFuelType) {
             val userLat = _userLocation.value?.first
             val userLon = _userLocation.value?.second
