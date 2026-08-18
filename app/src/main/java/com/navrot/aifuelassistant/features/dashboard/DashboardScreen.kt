@@ -102,8 +102,20 @@ fun DashboardScreen(
         onPermissionDenied = { /* Location not available, AI will work without it */ }
     )
 
-    // Auto-navigate to map after AI answer based on mode
-    LaunchedEffect(pendingRouteMode, pendingRouteStationId, pendingOpenStationId, userAnswer) {
+    // Auto-scroll to bottom when new messages arrive
+    LaunchedEffect(chatMessages.size) {
+        if (chatMessages.isNotEmpty()) {
+            delay(100)
+            if (chatListState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
+                chatListState.animateScrollToItem(chatMessages.size - 1)
+            }
+        }
+    }
+
+    LaunchedEffect(pendingRouteStationId, pendingRouteMode) {
+        if (pendingRouteMode == DashboardViewModel.PendingRouteMode.NONE) {
+            return@LaunchedEffect
+        }
         when (pendingRouteMode) {
             DashboardViewModel.PendingRouteMode.ROUTE -> {
                 pendingRouteStationId?.let { id ->
@@ -116,16 +128,6 @@ fun DashboardScreen(
                 viewModel.onCardHandoffConsumed()
             }
             DashboardViewModel.PendingRouteMode.NONE -> {}
-        }
-    }
-
-    // Auto-scroll to bottom when new messages arrive
-    LaunchedEffect(chatMessages.size) {
-        if (chatMessages.isNotEmpty()) {
-            delay(100)
-            if (chatListState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
-                chatListState.animateScrollToItem(chatMessages.size - 1)
-            }
         }
     }
 
@@ -198,7 +200,7 @@ fun DashboardScreen(
         pendingRouteStationId?.let { stationId ->
             Button(
                 onClick = {
-                    navController.navigate(MapBuildRouteRoute(stationId))
+                    navController.navigate(MapBuildRouteRoute(pendingRouteStationId!!))
                     viewModel.onRouteHandoffConsumed()
                 },
                 colors = ButtonDefaults.buttonColors(
@@ -285,6 +287,7 @@ fun DashboardScreen(
                     if (!isAnalyzing && userQuestion.isNotBlank()) {
                         keyboardController?.hide()
                         viewModel.askUserQuestion()
+                        viewModel.setUserQuestion("")
                     }
                 }),
                 colors = OutlinedTextFieldDefaults.colors(
@@ -303,6 +306,7 @@ fun DashboardScreen(
                 onClick = {
                     keyboardController?.hide()
                     viewModel.askUserQuestion()
+                    viewModel.setUserQuestion("")
                 },
                 enabled = !isAnalyzing && userQuestion.isNotBlank(),
                 colors = ButtonDefaults.buttonColors(
