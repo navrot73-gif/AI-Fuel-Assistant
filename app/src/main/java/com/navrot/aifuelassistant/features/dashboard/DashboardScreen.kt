@@ -184,6 +184,7 @@ fun DashboardScreen(
         // ===== 3. МЕТРИКИ =====
         MetricsSection(
             isEmpty = isEmpty,
+            fillCount = metrics.fillCount,
             consumption = consumption,
             rubPerKm = rubPerKm,
             efficiency = efficiency,
@@ -277,11 +278,10 @@ fun DashboardScreen(
                 placeholder = {
                     Text(
                         "Ваш вопрос…",
-                        color = FueldeckColors.InkFaint,
+                        color = FueldeckColors.InkDim,
                         fontSize = 14.sp
                     )
                 },
-                enabled = !isAnalyzing,
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                 keyboardActions = KeyboardActions(onSend = {
@@ -293,11 +293,11 @@ fun DashboardScreen(
                 }),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFFE8A750),
-                    unfocusedBorderColor = FueldeckColors.Line,
-                    disabledBorderColor = FueldeckColors.Line,
+                    unfocusedBorderColor = Color(0xFF3A4650),
                     focusedContainerColor = FueldeckColors.Surface,
                     unfocusedContainerColor = FueldeckColors.Surface,
-                    disabledContainerColor = FueldeckColors.Surface,
+                    focusedTextColor = FueldeckColors.Ink,
+                    unfocusedTextColor = FueldeckColors.Ink,
                 ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.weight(1f)
@@ -305,17 +305,17 @@ fun DashboardScreen(
 
             Button(
                 onClick = {
+                    if (userQuestion.isBlank() || isAnalyzing) return@Button
                     keyboardController?.hide()
                     viewModel.askUserQuestion()
                     viewModel.setUserQuestion("")
                 },
-                enabled = !isAnalyzing && userQuestion.isNotBlank(),
+                enabled = true,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFFE8A750),
                     contentColor = Color(0xFF1A1205),
-                    disabledContainerColor = Color(0xFFE8A750).copy(alpha = 0.4f),
-                    disabledContentColor = Color(0xFF1A1205).copy(alpha = 0.4f),
                 ),
+                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.height(56.dp)
             ) {
@@ -334,8 +334,14 @@ fun DashboardScreen(
                 } else {
                     Icon(
                         Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Отправить",
-                        modifier = Modifier.size(20.dp)
+                        contentDescription = "Спросить",
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "Спросить",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp
                     )
                 }
             }
@@ -393,6 +399,7 @@ private fun VehicleChipsRow(
 @Composable
 private fun MetricsSection(
     isEmpty: Boolean,
+    fillCount: Int,
     consumption: Float,
     rubPerKm: Float,
     efficiency: Int,
@@ -422,22 +429,26 @@ private fun MetricsSection(
             }
         }
     } else {
+        val consumptionText = if (fillCount < 2) "—" else String.format("%.1f", consumption)
+        val rubPerKmText = if (fillCount < 2) "—" else String.format("%.2f", rubPerKm)
+        val efficiencyText = if (fillCount < 2) "—" else "$efficiency%"
+
         Row(
             modifier = modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             MetricCard(
-                value = String.format("%.1f", consumption),
+                value = consumptionText,
                 subtitle = "Расход л/100км",
                 modifier = Modifier.weight(1f)
             )
             MetricCard(
-                value = String.format("%.2f", rubPerKm),
+                value = rubPerKmText,
                 subtitle = "Стоимость ₽/км",
                 modifier = Modifier.weight(1f)
             )
             MetricCard(
-                value = "$efficiency%",
+                value = efficiencyText,
                 subtitle = "Эффективность",
                 modifier = Modifier.weight(1f)
             )

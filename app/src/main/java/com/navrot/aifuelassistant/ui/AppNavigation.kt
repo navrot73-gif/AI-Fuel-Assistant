@@ -110,12 +110,20 @@ private fun String?.isGarageRoute(): Boolean {
     return this == "garage" || this == "garage_list" || this.startsWith("garage/")
 }
 
+// Helper to check if route is map or any map-related route
+private fun String?.isMapRoute(): Boolean {
+    if (this == null) return false
+    return this == "map" || this.startsWith("map/") || this.startsWith("map?") ||
+           this.contains("MapBuildRouteRoute") || this.contains("MapShowStationsRoute") ||
+           this.contains("MapRoute")
+}
+
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    val showBottomBar = currentRoute in TAB_ROUTES || currentRoute.isGarageRoute()
+    val showBottomBar = currentRoute in TAB_ROUTES || currentRoute.isGarageRoute() || currentRoute.isMapRoute()
 
     fun go(route: String) {
         navController.navigate(route) {
