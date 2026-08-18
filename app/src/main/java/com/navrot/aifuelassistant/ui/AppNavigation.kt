@@ -224,7 +224,7 @@ fun AppNavigation() {
                 )
             }
 
-            composable<DashboardRoute> { DashboardScreen() }
+            composable<DashboardRoute> { DashboardScreen(navController = navController) }
 
             // Garage nested navigation
             navigation(startDestination = "garage_list", route = "garage") {
