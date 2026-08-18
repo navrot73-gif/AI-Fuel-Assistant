@@ -382,69 +382,85 @@ class DashboardViewModel @Inject constructor(
         val question = _userQuestion.value.trim()
         if (question.isEmpty() || _isAnalyzing.value) return
 
-        val lower = question.lowercase()
-        val isGreeting = listOf("привет", "здравств", "добрый", "hi", "hello", "как дела").any { lower.startsWith(it) }
-        if (isGreeting) {
-            val now = System.currentTimeMillis()
-            addChatMessage(ChatMessage(role = "user", text = question, ts = now))
-            addChatMessage(
-                ChatMessage(
-                    role = "ai",
-                    text = "Привет! Я AI-помощник по топливу. Могу найти ближайшую АЗС, построить маршрут, подсказать цены и расход. Что сделать?",
-                    ts = now
-                )
-            )
-            _pendingRouteMode.value = PendingRouteMode.NONE
-            return
-        }
-
         viewModelScope.launch {
             _isAnalyzing.value = true
-            _error.value = null
-            _userAnswer.value = null
+            try {
+                val lower = question.lowercase()
+                val isGreeting = listOf("привет", "здравств", "добрый", "hi", "hello", "как дела").any { lower.startsWith(it) }
+                if (isGreeting) {
+                    val now = System.currentTimeMillis()
+                    addChatMessage(ChatMessage(role = "user", text = question, ts = now))
+                    addChatMessage(
+                        ChatMessage(
+                            role = "ai",
+                            text = "Привет! Я AI-помощник по топливу. Могу найти ближайшую АЗС, построить маршрут, подсказать цены и расход. Что сделать?",
+                            ts = now
+                        )
+                    )
+                    _pendingRouteMode.value = PendingRouteMode.NONE
+                    return@launch
+                }
 
-            val context = buildUserContext()
-            val fullPrompt = if (context.text.isNotBlank()) {
-                "${context.text}\n\nВопрос пользователя: $question"
-            } else question
+                _error.value = null
+                _userAnswer.value = null
 
-            // Create history for AI request (last 6 messages, role "ai" -> "assistant" conversion happens in provider)
-            val history = _chatMessages.value.takeLast(6)
+                val context = buildUserContext()
+                val fullPrompt = if (context.text.isNotBlank()) {
+                    "${context.text}\n\nВопрос пользователя: $question"
+                } else question
 
-            val answer = aiRouter.ask(fullPrompt, history = history)
-            _userAnswer.value = answer
+                val history = _chatMessages.value.takeLast(6)
 
-            // Add both messages to chat history
-            addChatMessage(ChatMessage(role = "user", text = question, ts = System.currentTimeMillis()))
-            addChatMessage(ChatMessage(role = "ai", text = answer, ts = System.currentTimeMillis()))
+                val rawAnswer = aiRouter.ask(fullPrompt, history = history)
+                val answer = rawAnswer.replace("**", "").replace("*", "")
+                _userAnswer.value = answer
 
-            // Detect intent from question and set pending navigation
-            detectIntent(question)
+                addChatMessage(ChatMessage(role = "user", text = question, ts = System.currentTimeMillis()))
+                addChatMessage(ChatMessage(role = "ai", text = answer, ts = System.currentTimeMillis()))
 
-            _isAnalyzing.value = false
+                detectIntent(question)
+            } catch (e: Exception) {
+                _error.value = e.message ?: "Ошибка при обработке запроса"
+            } finally {
+                _isAnalyzing.value = false
+            }
         }
     }
 
-    private fun detectIntent(question: String) {
+    private suspend fun detectIntent(question: String) {
         val lowerQuestion = question.lowercase()
         val hasRouteKeyword = listOf("маршрут", "построй", "доведи", "ближайшая", "дешевле").any { lowerQuestion.contains(it) }
         val hasFuelKeyword = listOf("топливо", "цена", "наличие", "заправка").any { lowerQuestion.contains(it) }
         val hasSpecificFuelType = Regex("где.*92|где.*95|где.*98|где.*дт").containsMatchIn(lowerQuestion)
 
-        if (hasRouteKeyword || hasSpecificFuelType) {
-            // Try to select a station (closest/cheapest/AI-pick) and set route mode
-            val selectedStation = _bestStation.value // Using AI pick as default
-                ?: _stations.value.minByOrNull { GeoUtils.calculateDistance(userLocation.value?.first ?: 0.0, userLocation.value?.second ?: 0.0, it.latitude, it.longitude) } // Closest
-                ?: _stations.value.minByOrNull { it.fuelTypes.filter { ft -> ft.available }.minByOrNull { ft -> ft.price }?.price ?: Double.MAX_VALUE } // Cheapest
-
-            selectedStation?.let { station ->
-                _pendingRouteStationId.value = station.id
-                _pendingRouteMode.value = PendingRouteMode.ROUTE
+        if (hasRouteKeyword || hasSpecificFuelType || hasFuelKeyword) {
+            if (_stations.value.isEmpty()) {
+                val loc = _userLocation.value ?: getLastLocation()?.let { it.latitude to it.longitude }
+                val stationsList = if (loc != null) {
+                    try {
+                        gasStationRepository.getNearbyStations(loc.first, loc.second, 50.0)
+                    } catch (_: Exception) {
+                        try { gasStationRepository.getAllStations() } catch (_: Exception) { emptyList() }
+                    }
+                } else {
+                    try { gasStationRepository.getAllStations() } catch (_: Exception) { emptyList() }
+                }
+                _stations.value = stationsList
+                updateBestStation()
             }
-        } else if (hasFuelKeyword && !hasRouteKeyword) {
-            // Just show station list
-            _pendingRouteMode.value = PendingRouteMode.CARD // Using CARD mode to signal showing the list
-            // We don't set a specific station ID here, so the map will just open the list
+
+            if (hasRouteKeyword || hasSpecificFuelType) {
+                val selectedStation = _bestStation.value
+                    ?: _stations.value.minByOrNull { GeoUtils.calculateDistance(userLocation.value?.first ?: 0.0, userLocation.value?.second ?: 0.0, it.latitude, it.longitude) }
+                    ?: _stations.value.minByOrNull { it.fuelTypes.filter { ft -> ft.available }.minByOrNull { ft -> ft.price }?.price ?: Double.MAX_VALUE }
+
+                selectedStation?.let { station ->
+                    _pendingRouteStationId.value = station.id
+                    _pendingRouteMode.value = PendingRouteMode.ROUTE
+                }
+            } else if (hasFuelKeyword) {
+                _pendingRouteMode.value = PendingRouteMode.CARD
+            }
         }
     }
 
