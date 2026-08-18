@@ -197,32 +197,12 @@ fun AppNavigation() {
                 )
             }
 
-            composable<MapBuildRouteRoute> { backStackEntry ->
-                val route = backStackEntry.toRoute<MapBuildRouteRoute>()
-                val pendingRouteId = route.stationId
-                val aiAnswerText by backStackEntry.savedStateHandle
-                    .getStateFlow<String?>("ai_answer_text", null)
-                    .collectAsStateWithLifecycle()
-                MapScreen(
-                    pendingRouteStationId = pendingRouteId,
-                    aiAnswerText = aiAnswerText,
-                    onConsumePendingRoute = { /* consumed automatically when navigation happens */ }
-                )
+            composable<MapBuildRouteRoute> { entry ->
+                val args = entry.toRoute<MapBuildRouteRoute>()
+                MapScreen(pendingRouteStationId = args.stationId)
             }
 
-            composable<MapShowStationsRoute> { backStackEntry ->
-                val aiAnswerText by backStackEntry.savedStateHandle
-                    .getStateFlow<String?>("ai_answer_text", null)
-                    .collectAsStateWithLifecycle()
-                MapScreen(
-                    showStationList = true,
-                    aiAnswerText = aiAnswerText,
-                    onConsumePendingOpenStation = {
-                        // No specific pending station ID to consume here, just the list flag which is implicit
-                        backStackEntry.savedStateHandle.remove<String>("ai_answer_text")
-                    }
-                )
-            }
+            composable<MapShowStationsRoute> { MapScreen(showStationList = true) }
 
             composable<DashboardRoute> { DashboardScreen() }
 
@@ -280,10 +260,10 @@ fun AppNavigation() {
                 )
             }
 
-            composable<AddFuelRecordRoute> { backStackEntry ->
-                val route = backStackEntry.toRoute<AddFuelRecordRoute>()
+            composable<AddFuelRecordRoute> { entry ->
+                val args = entry.toRoute<AddFuelRecordRoute>()
                 AddFuelRecordScreen(
-                    vehicleId = route.vehicleId,
+                    vehicleId = args.vehicleId,
                     defaultFuelType = "АИ-95",
                     onBack = { navController.popBackStack() }
                 )

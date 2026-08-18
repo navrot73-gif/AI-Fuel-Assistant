@@ -382,6 +382,15 @@ class DashboardViewModel @Inject constructor(
         val question = _userQuestion.value.trim()
         if (question.isEmpty() || _isAnalyzing.value) return
 
+        val lower = question.lowercase()
+        val isGreeting = listOf("привет", "здравств", "добрый", "hi", "hello", "как дела").any { lower.startsWith(it) }
+        if (isGreeting) {
+            addChatMessage(ChatMessage(role = "user", text = question, ts = System.currentTimeMillis()))
+            addChatMessage(ChatMessage(role = "ai", text = "Привет! Я AI-помощник по топливу. Могу найти ближайшую АЗС, построить маршрут, подсказать цены и расход. Что сделать?", ts = System.currentTimeMillis()))
+            _pendingRouteMode.value = PendingRouteMode.NONE
+            return
+        }
+
         viewModelScope.launch {
             _isAnalyzing.value = true
             _error.value = null
