@@ -74,21 +74,15 @@ fun DashboardScreen(
 ) {
     val viewModel: DashboardViewModel = hiltViewModel()
     val metrics by viewModel.metrics.collectAsStateWithLifecycle()
+    val weeklyConsumption by viewModel.weeklyConsumption.collectAsStateWithLifecycle()
     val isAnalyzing by viewModel.isAnalyzing.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val vehicles by viewModel.vehicles.collectAsStateWithLifecycle()
     val selectedVehicleId by viewModel.selectedVehicleId.collectAsStateWithLifecycle()
     val userQuestion by viewModel.userQuestion.collectAsStateWithLifecycle()
-    val userAnswer by viewModel.userAnswer.collectAsStateWithLifecycle()
     val pendingRouteStationId by viewModel.pendingRouteStationId.collectAsStateWithLifecycle()
     val pendingRouteMode by viewModel.pendingRouteMode.collectAsStateWithLifecycle()
-    val pendingOpenStationId by viewModel.pendingOpenStationId.collectAsStateWithLifecycle()
     val chatMessages by viewModel.chatMessages.collectAsStateWithLifecycle(initialValue = emptyList())
-
-    val consumption = metrics.consumption
-    val efficiency = metrics.efficiency
-    val rubPerKm = metrics.rubPerKm
-    val isEmpty = metrics.fillCount == 0
 
     val chatListState = rememberLazyListState()
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -101,17 +95,13 @@ fun DashboardScreen(
         onPermissionDenied = { /* Location not available, AI will work without it */ }
     )
 
-    // NEW LaunchedEffect for handling navigation based on pendingRouteMode
+    // Auto-navigate based on intent
     LaunchedEffect(pendingRouteStationId, pendingRouteMode) {
-        if (pendingRouteMode == DashboardViewModel.PendingRouteMode.NONE) {
-            return@LaunchedEffect
-        }
-
+        if (pendingRouteMode == DashboardViewModel.PendingRouteMode.NONE) return@LaunchedEffect
+        
         when (pendingRouteMode) {
             DashboardViewModel.PendingRouteMode.ROUTE -> {
-                pendingRouteStationId?.let { id ->
-                    navController.navigate(MapBuildRouteRoute(id))
-                }
+                pendingRouteStationId?.let { id -> navController.navigate(MapBuildRouteRoute(id)) }
                 viewModel.onRouteHandoffConsumed()
             }
             DashboardViewModel.PendingRouteMode.CARD -> {
@@ -139,7 +129,7 @@ fun DashboardScreen(
             .padding(vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        // ===== 1. ШАПКА =====
+        // ===== ШАПКА =====
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -174,50 +164,63 @@ fun DashboardScreen(
             }
         }
 
-        // ===== 2. ЧИПЫ АВТО =====
+        // ===== ЧИПЫ АВТО =====
         VehicleChipsRow(
             vehicles = vehicles,
             selectedId = selectedVehicleId,
-            onSelect = { viewModel.selectVehicle(it) }
+            onSelect = viewModel::selectVehicle
         )
 
-        // ===== 3. МЕТРИКИ =====
-        MetricsSection(
-            isEmpty = isEmpty,
-            consumption = consumption,
-            rubPerKm = rubPerKm,
-            efficiency = efficiency,
-            onAddFuelRecord = {
-                if (vehicles.size == 1) {
-                    navController.navigate(AddFuelRecordRoute(vehicles[0].id, vehicles[0].name))
-                } else {
-                    navController.navigate("garage")
-                }
-            },
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-
-        // Show route button if there's a pending route station
-        pendingRouteStationId?.let { stationId ->
-            Button(
-                onClick = {
-                    navController.navigate(MapBuildRouteRoute(stationId))
-                    viewModel.onRouteHandoffConsumed()
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFE8A750),
-                    contentColor = Color(0xFF1A1205),
-                ),
-                shape = FueldeckShapes.Lg,
+        // ===== МЕТРИКИ =====
+        if (metrics.fillCount == 0) {
+            Card(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp),
+                colors = CardDefaults.cardColors(containerColor = FueldeckColors.Surface)
             ) {
-                Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("🗺️ Показать маршрут на карте", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Text(
+                    "Добавьте заправки для анализа",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    textAlign = TextAlign.Center,
+                    color = FueldeckColors.InkDim
+                )
+            }
+        } else {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                MetricCard(
+                    value = "%.1f".format(metrics.consumption),
+                    subtitle = "л/100км",
+                    modifier = Modifier.weight(1f)
+                )
+                MetricCard(
+                    value = "%.2f".format(metrics.rubPerKm),
+                    subtitle = "₽/км",
+                    modifier = Modifier.weight(1f)
+                )
+                MetricCard(
+                    value = "${metrics.efficiency}",
+                    subtitle = "%",
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
+
+        // ===== НЕДЕЛЬНЫЙ БАР-ЧАРТ =====
+        // WeeklyConsumptionBarChart(
+//            data = weeklyConsumption,
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .height(120.dp)
+//                .padding(horizontal = 16.dp)
+//        )
 
         error?.let {
             Text(
@@ -228,7 +231,7 @@ fun DashboardScreen(
             )
         }
 
-        // ===== 4. ЧАТ =====
+        // ===== ЧАТ =====
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -263,7 +266,7 @@ fun DashboardScreen(
             }
         }
 
-        // ===== 5. ВВОД СНИЗУ =====
+        // ===== ВВОД СНИЗУ =====
         Row(
             modifier = Modifier
                 .fillMaxWidth()
