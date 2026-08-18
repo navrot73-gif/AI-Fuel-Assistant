@@ -128,6 +128,17 @@ fun MapScreen(
 
     LaunchedEffect(pendingRouteStationId, stations) {
         val id = pendingRouteStationId ?: return@LaunchedEffect
+        // Check if userLocation is available immediately
+        if (userLocation == null) {
+            // Wait for up to 2 seconds for userLocation to become available, polling every 200ms
+            var attempts = 0
+            val maxAttempts = 10 // 2000ms / 200ms
+            while (userLocation == null && attempts < maxAttempts) {
+                delay(200)
+                attempts++
+            }
+        }
+        // Proceed with finding the station and building the route
         stations.firstOrNull { it.id == id }?.let { station ->
             showStationList = false
             selectedStation = null

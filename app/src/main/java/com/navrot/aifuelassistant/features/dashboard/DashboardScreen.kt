@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -106,6 +107,7 @@ fun DashboardScreen(
         if (pendingRouteMode == DashboardViewModel.PendingRouteMode.NONE) {
             return@LaunchedEffect
         }
+        delay(300) // дать MapScreen смонтироваться
 
         when (pendingRouteMode) {
             DashboardViewModel.PendingRouteMode.ROUTE -> {
@@ -163,6 +165,16 @@ fun DashboardScreen(
                 )
             }
             if (chatMessages.isNotEmpty()) {
+                IconButton(onClick = {
+                    if (vehicles.size == 1) {
+                        navController.navigate(AddFuelRecordRoute(vehicles[0].id, vehicles[0].name))
+                    } else {
+                        navController.navigate("garage")
+                    }
+                }) {
+                    Icon(Icons.Default.Add, contentDescription = "Добавить заправку",
+                         tint = Color(0xFFE8A750))
+                }
                 IconButton(onClick = { viewModel.clearChatHistory() }) {
                     Icon(
                         Icons.Default.Delete,
