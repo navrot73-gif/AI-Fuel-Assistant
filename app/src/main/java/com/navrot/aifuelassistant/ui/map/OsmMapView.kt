@@ -88,8 +88,8 @@ private val LABELS_LIGHTEN_MATRIX = ColorMatrix(
 /** Creates a Google Maps–style red finish pin (drop shape #EA4335 with dark center dot). */
 private fun createRedPinIcon(context: android.content.Context): BitmapDrawable {
     val density = context.resources.displayMetrics.density
-    val width = (32 * density).toInt()
-    val height = (40 * density).toInt()
+    val width = (22 * density).toInt()
+    val height = (30 * density).toInt()
     val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
 
@@ -114,7 +114,7 @@ private fun createRedPinIcon(context: android.content.Context): BitmapDrawable {
     }
     canvas.drawPath(path, pinPaint)
 
-    val dotRadius = (4 * density).toInt()
+    val dotRadius = (3 * density).toInt()
     canvas.drawCircle(width / 2f, height * 0.28f, dotRadius.toFloat(), dotPaint)
 
     return BitmapDrawable(context.resources, bitmap)
@@ -264,7 +264,19 @@ fun OsmMapView(
             } else {
                 val r = route
                 try {
-                    val osmPoints = r.points.map { GeoPoint(it.latitude, it.longitude) }
+                    val rawOsmPoints = r.points.map { GeoPoint(it.latitude, it.longitude) }
+                    val filteredPoints = mutableListOf<GeoPoint>()
+                    for (pt in rawOsmPoints) {
+                        if (filteredPoints.isEmpty() || filteredPoints.last().distanceToAsDouble(pt) >= 1.0) {
+                            filteredPoints.add(pt)
+                        }
+                    }
+                    userLocation?.let { loc ->
+                        if (filteredPoints.isNotEmpty()) {
+                            filteredPoints[0] = loc.toGeoPoint()
+                        }
+                    }
+                    val osmPoints = filteredPoints
                     if (osmPoints.size >= 2) {
                         val density = context.resources.displayMetrics.density
 

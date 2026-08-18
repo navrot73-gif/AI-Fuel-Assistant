@@ -183,7 +183,7 @@ fun DashboardScreen(
 
         // ===== 3. МЕТРИКИ =====
         MetricsSection(
-            isEmpty = isEmpty,
+            fillCount = metrics.fillCount,
             consumption = consumption,
             rubPerKm = rubPerKm,
             efficiency = efficiency,
@@ -277,7 +277,7 @@ fun DashboardScreen(
                 placeholder = {
                     Text(
                         "Ваш вопрос…",
-                        color = FueldeckColors.InkFaint,
+                        color = FueldeckColors.InkDim,
                         fontSize = 14.sp
                     )
                 },
@@ -293,11 +293,11 @@ fun DashboardScreen(
                 }),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color(0xFFE8A750),
-                    unfocusedBorderColor = FueldeckColors.Line,
-                    disabledBorderColor = FueldeckColors.Line,
+                    unfocusedBorderColor = Color(0xFF3A4650),
                     focusedContainerColor = FueldeckColors.Surface,
                     unfocusedContainerColor = FueldeckColors.Surface,
-                    disabledContainerColor = FueldeckColors.Surface,
+                    focusedTextColor = FueldeckColors.Ink,
+                    unfocusedTextColor = FueldeckColors.Ink,
                 ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.weight(1f)
@@ -305,16 +305,21 @@ fun DashboardScreen(
 
             Button(
                 onClick = {
+                    if (userQuestion.isBlank() || isAnalyzing) return@Button
                     keyboardController?.hide()
                     viewModel.askUserQuestion()
                     viewModel.setUserQuestion("")
                 },
-                enabled = !isAnalyzing && userQuestion.isNotBlank(),
+                enabled = true,
+                elevation = ButtonDefaults.buttonElevation(
+                    defaultElevation = 4.dp,
+                    pressedElevation = 2.dp,
+                    hoveredElevation = 6.dp,
+                    focusedElevation = 4.dp
+                ),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFFE8A750),
                     contentColor = Color(0xFF1A1205),
-                    disabledContainerColor = Color(0xFFE8A750).copy(alpha = 0.4f),
-                    disabledContentColor = Color(0xFF1A1205).copy(alpha = 0.4f),
                 ),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.height(56.dp)
@@ -334,8 +339,14 @@ fun DashboardScreen(
                 } else {
                     Icon(
                         Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Отправить",
+                        contentDescription = "Спросить",
                         modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        "Спросить",
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 14.sp
                     )
                 }
             }
@@ -392,22 +403,22 @@ private fun VehicleChipsRow(
 
 @Composable
 private fun MetricsSection(
-    isEmpty: Boolean,
+    fillCount: Int,
     consumption: Float,
     rubPerKm: Float,
     efficiency: Int,
     onAddFuelRecord: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (isEmpty) {
+    if (fillCount == 0) {
         Card(
-            onClick = onAddFuelRecord, // Use the new callback
+            onClick = onAddFuelRecord,
             colors = CardDefaults.cardColors(containerColor = FueldeckColors.Surface),
             shape = RoundedCornerShape(16.dp),
             border = androidx.compose.foundation.BorderStroke(1.dp, FueldeckColors.Line),
             modifier = modifier
                 .fillMaxWidth()
-                .height(80.dp) // Keep original height for CTA card
+                .height(80.dp)
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -422,22 +433,26 @@ private fun MetricsSection(
             }
         }
     } else {
+        val consumptionStr = if (fillCount < 2) "—" else String.format("%.1f", consumption)
+        val rubPerKmStr = if (fillCount < 2) "—" else String.format("%.2f", rubPerKm)
+        val efficiencyStr = if (fillCount < 2) "—" else "$efficiency%"
+
         Row(
             modifier = modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             MetricCard(
-                value = String.format("%.1f", consumption),
+                value = consumptionStr,
                 subtitle = "Расход л/100км",
                 modifier = Modifier.weight(1f)
             )
             MetricCard(
-                value = String.format("%.2f", rubPerKm),
+                value = rubPerKmStr,
                 subtitle = "Стоимость ₽/км",
                 modifier = Modifier.weight(1f)
             )
             MetricCard(
-                value = "$efficiency%",
+                value = efficiencyStr,
                 subtitle = "Эффективность",
                 modifier = Modifier.weight(1f)
             )
