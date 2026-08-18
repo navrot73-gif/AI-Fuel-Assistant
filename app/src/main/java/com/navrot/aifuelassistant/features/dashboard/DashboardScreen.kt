@@ -183,6 +183,7 @@ fun DashboardScreen(
 
         // ===== 3. МЕТРИКИ =====
         MetricsSection(
+            isEmpty = isEmpty,
             fillCount = metrics.fillCount,
             consumption = consumption,
             rubPerKm = rubPerKm,
@@ -334,7 +335,7 @@ fun DashboardScreen(
                     Icon(
                         Icons.AutoMirrored.Filled.Send,
                         contentDescription = "Спросить",
-
+                        modifier = Modifier.size(18.dp)
                     )
                     Spacer(Modifier.width(6.dp))
                     Text(
@@ -397,6 +398,7 @@ private fun VehicleChipsRow(
 
 @Composable
 private fun MetricsSection(
+    isEmpty: Boolean,
     fillCount: Int,
     consumption: Float,
     rubPerKm: Float,
@@ -404,15 +406,15 @@ private fun MetricsSection(
     onAddFuelRecord: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    if (fillCount == 0) {
+    if (isEmpty) {
         Card(
-            onClick = onAddFuelRecord,
+            onClick = onAddFuelRecord, // Use the new callback
             colors = CardDefaults.cardColors(containerColor = FueldeckColors.Surface),
             shape = RoundedCornerShape(16.dp),
             border = androidx.compose.foundation.BorderStroke(1.dp, FueldeckColors.Line),
             modifier = modifier
                 .fillMaxWidth()
-                .height(80.dp)
+                .height(80.dp) // Keep original height for CTA card
         ) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -426,24 +428,27 @@ private fun MetricsSection(
                 )
             }
         }
-    } else
-  {
+    } else {
+        val consumptionText = if (fillCount < 2) "—" else String.format("%.1f", consumption)
+        val rubPerKmText = if (fillCount < 2) "—" else String.format("%.2f", rubPerKm)
+        val efficiencyText = if (fillCount < 2) "—" else "$efficiency%"
 
         Row(
             modifier = modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             MetricCard(
+                value = consumptionText,
                 subtitle = "Расход л/100км",
                 modifier = Modifier.weight(1f)
             )
             MetricCard(
-
+                value = rubPerKmText,
                 subtitle = "Стоимость ₽/км",
                 modifier = Modifier.weight(1f)
             )
             MetricCard(
-
+                value = efficiencyText,
                 subtitle = "Эффективность",
                 modifier = Modifier.weight(1f)
             )

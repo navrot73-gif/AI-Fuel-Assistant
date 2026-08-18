@@ -115,7 +115,7 @@ private fun createRedPinIcon(context: android.content.Context): BitmapDrawable {
     canvas.drawPath(path, pinPaint)
 
     val dotRadius = (3 * density).toInt()
-
+    canvas.drawCircle(width / 2f, height * 0.32f, dotRadius.toFloat(), dotPaint)
 
     return BitmapDrawable(context.resources, bitmap)
 }
@@ -264,6 +264,26 @@ fun OsmMapView(
             } else {
                 val r = route
                 try {
+                    val rawOsmPoints = r.points.map { GeoPoint(it.latitude, it.longitude) }.toMutableList()
+                    if (rawOsmPoints.isNotEmpty() && userLocation != null) {
+                        rawOsmPoints[0] = GeoPoint(userLocation.latitude, userLocation.longitude)
+                    }
+
+                    // Remove consecutive duplicate points (distance < 1m)
+                    val osmPoints = mutableListOf<GeoPoint>()
+                    for (pt in rawOsmPoints) {
+                        if (osmPoints.isEmpty()) {
+                            osmPoints.add(pt)
+                        } else {
+                            val last = osmPoints.last()
+                            val distM = com.navrot.aifuelassistant.geo.GeoUtils.calculateDistance(
+                                last.latitude, last.longitude, pt.latitude, pt.longitude
+                            ) * 1000.0
+                            if (distM >= 1.0) {
+                                osmPoints.add(pt)
+                            }
+                        }
+                    }
 
                     if (osmPoints.size >= 2) {
                         val density = context.resources.displayMetrics.density
