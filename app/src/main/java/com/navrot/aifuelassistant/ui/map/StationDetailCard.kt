@@ -43,6 +43,7 @@ import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
 import com.navrot.aifuelassistant.ui.components.NetworkImage
 import com.navrot.aifuelassistant.ui.map.components.StationActionsBlock
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
+import com.navrot.aifuelassistant.util.Format
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -182,7 +183,7 @@ fun StationDetailCard(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "${if (fuel.isMedianFromNetwork) "~" else ""}${String.format("%.2f", fuel.price)}",
+                            text = "${if (fuel.isMedianFromNetwork) "~" else ""}${Format.price2(fuel.price)}",
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,

@@ -12,14 +12,6 @@ data class GeocodingResult(
     val displayName: String
 )
 
-/** Построенный маршрут между двумя точками. */
-data class RouteResult(
-    val distanceMeters: Double,
-    val durationSeconds: Double,
-    /** Полилиния маршрута для отрисовки на OSMDroid (список точек). */
-    val points: List<GeoPoint>
-)
-
 sealed class GeoException(message: String) : Exception(message) {
     class NetworkError(message: String) : GeoException(message)
     class NoResults(message: String) : GeoException(message)

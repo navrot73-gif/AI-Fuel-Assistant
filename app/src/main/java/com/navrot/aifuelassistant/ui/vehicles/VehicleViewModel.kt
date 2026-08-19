@@ -7,6 +7,7 @@ import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.ui.components.VehicleCardUiState
+import com.navrot.aifuelassistant.util.Format
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -131,15 +132,15 @@ private fun VehicleEntity.toUiState(records: List<FuelRecordEntity>): VehicleCar
         tankLiters = tankCapacity.toInt(),
         fillPercent = fillPercent,
         rangeKm = rangeKm,
-        mileageText = String.format("%.1f", currentMileage / 1000.0),
-        consumptionText = if (avgConsumption > 0) String.format("%.1f", avgConsumption) else "—",
+        mileageText = Format.km(currentMileage / 1000.0),
+        consumptionText = if (avgConsumption > 0) Format.number(avgConsumption, 1) else "—",
         fillCount = records.size,
         bars = bars,
         toKmLeft = toKmLeft,
         toPercent = toPercent,
         lastFillDate = if (lastFill != null) dateFormat.format(Date(lastFill.date)) else "—",
-        lastFillLiters = if (lastFill != null) String.format("%.1f", lastFill.fuelAmount) else "—",
+        lastFillLiters = if (lastFill != null) Format.number(lastFill.fuelAmount, 1) else "—",
         lastFillBrand = lastFill?.stationName?.ifBlank { "—" } ?: "—",
-        lastFillPrice = if (lastFill != null) String.format("%.0f", lastFill.totalCost) else "—",
+        lastFillPrice = if (lastFill != null) Format.price(lastFill.totalCost) else "—",
     )
 }

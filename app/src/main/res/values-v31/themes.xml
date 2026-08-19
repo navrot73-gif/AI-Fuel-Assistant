@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- SplashScreen API 31+ (Android 12+). На старых API эти атрибуты
+         не существуют и вызывают Resources$NotFoundException, поэтому
+         они лежат в values-v31/, а в values/themes.xml — только windowBackground. -->
+    <style name="Theme.AIFuelAssistant" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowSplashScreenBackground">#17222B</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+    </style>
+</resources>

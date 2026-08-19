@@ -4,6 +4,8 @@ on:
   workflow_dispatch: {}
   push:
     branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   trufflehog:
@@ -15,25 +17,39 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
-      - name: Install truffleHog
-        run: |
-          python -m pip install --upgrade pip
-          pip install truffleHog
-
-      - name: Run truffleHog
+      - name: Install trufflehog
+        # Use the official Go-based binary (trufflesecurity/trufflehog), not the
+        # deprecated Python `truffleHog` package which has different behaviour.
         shell: bash
         run: |
-          # Run scan over full git history and save JSON report
-          REPO_PATH="$GITHUB_WORKSPACE"
-          trufflehog git "file://$REPO_PATH" --json --max_depth=200 > trufflehog-report.json || true
+          set -euo pipefail
+          curl -sSfL https://raw.githubusercontent.com/trufflesecurity/trufflehog/main/scripts/install.sh \
+            | sh -s -- -b /usr/local/bin
+          trufflehog --version
+
+      - name: Run trufflehog scan
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Scan full git history; emit JSON for the artifact, plain text for log.
+          trufflehog git "file://$GITHUB_WORKSPACE" \
+            --json \
+            --no-update \
+            > trufflehog-report.json
+
+          # If the JSON report contains at least one verified secret, fail the job.
+          if [ -s trufflehog-report.json ] && grep -q '"Verified":true\|"verified":true' trufflehog-report.json; then
+            echo "::error::TruffleHog detected verified secrets. See artifact trufflehog-report.json"
+            cat trufflehog-report.json
+            exit 1
+          fi
+
+          echo "No verified secrets found."
 
       - name: Upload report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: trufflehog-report
           path: trufflehog-report.json
+          if-no-files-found: ignore

@@ -1,8 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
+    <!-- Базовая тема для всех API (24+). Атрибуты windowSplashScreen* доступны
+         только с API 31 (Android 12), поэтому они вынесены в values-v31/themes.xml,
+         иначе на Android 7-10 приложение упадёт с Resources$NotFoundException. -->
     <style name="Theme.AIFuelAssistant" parent="android:Theme.Material.Light.NoActionBar">
-        <item name="android:windowSplashScreenBackground">#17222B</item>
-        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
+        <item name="android:windowBackground">#17222B</item>
     </style>
 </resources>

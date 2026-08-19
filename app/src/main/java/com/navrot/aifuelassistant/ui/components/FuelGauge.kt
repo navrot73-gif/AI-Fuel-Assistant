@@ -31,6 +31,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
+import com.navrot.aifuelassistant.util.Format
 
 /** Кольцевой прибор расхода (л/100 км) — перенос .gwrap из HTML на Canvas. */
 @Composable
@@ -59,7 +60,7 @@ fun ConsumptionGauge(
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = String.format("%.1f", value),
+                text = Format.number(value, 1),
                 color = FueldeckColors.Ink,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold,

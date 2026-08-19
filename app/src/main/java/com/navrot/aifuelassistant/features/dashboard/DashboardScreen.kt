@@ -66,6 +66,7 @@ import com.navrot.aifuelassistant.ui.MapShowStationsRoute
 import com.navrot.aifuelassistant.ui.map.components.LocationPermissionHandler
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
+import com.navrot.aifuelassistant.util.Format
 import kotlinx.coroutines.delay
 
 @Composable
@@ -445,8 +446,8 @@ private fun MetricsSection(
             }
         }
     } else {
-        val consumptionStr = if (fillCount < 2) "—" else String.format("%.1f", consumption)
-        val rubPerKmStr = if (fillCount < 2) "—" else String.format("%.2f", rubPerKm)
+        val consumptionStr = if (fillCount < 2) "—" else Format.number(consumption, 1)
+        val rubPerKmStr = if (fillCount < 2) "—" else Format.number(rubPerKm, 2)
         val efficiencyStr = if (fillCount < 2) "—" else "$efficiency%"
 
         Row(

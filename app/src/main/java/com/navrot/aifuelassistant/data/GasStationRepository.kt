@@ -15,7 +15,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
@@ -54,7 +53,22 @@ class GasStationRepository constructor(
     private val httpClient: OkHttpClient,
     private val userPrices: UserPriceRepository,
     private val getBestStationsUseCase: GetBestStationsUseCase,
-    private val benzonavtProvider: BenzonavtProvider
+    private val benzonavtProvider: BenzonavtProvider,
+    /**
+     * Внешний [CoroutineScope] для фонового обновления цен.
+     *
+     * Ранее репозиторий создавал свой `CoroutineScope(Dispatchers.IO).launch`
+     прямо в теле методов — это приводило к:
+     *  - утечке scope'ов (каждый вызов `ensureLoaded/refresh/refreshPrices`
+     *    создавал новый scope без SupervisorJob и без CoroutineExceptionHandler);
+     *  - невозможности отменить фоновую работу при уничтожении синглтона;
+     *  - неуправляемым исключениям, которые могли упасть в uncaught handler.
+     *
+     * Теперь scope приходит из DI ([com.navrot.aifuelassistant.di.ApplicationScope])
+     * с SupervisorJob + CoroutineExceptionHandler. Все фоновые запуски
+     * переиспользуют один и тот же scope.
+     */
+    private val appScope: CoroutineScope
 ) : GasStationRepositoryInterface {
 
     companion object {
@@ -91,7 +105,7 @@ class GasStationRepository constructor(
 
         // ЗАТЕМ фоновая coroutine: fetchCityPrices + graceful swap
         priceRefreshJob?.cancel()
-        priceRefreshJob = kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+        priceRefreshJob = appScope.launch {
             try {
                 val city = benzonavtProvider.currentCity()
                 val benzonavt = benzonavtProvider.fetchCityPrices(city)
@@ -122,7 +136,7 @@ class GasStationRepository constructor(
 
         // ЗАТЕМ фоновый Benzonavt swap
         priceRefreshJob?.cancel()
-        priceRefreshJob = kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+        priceRefreshJob = appScope.launch {
             try {
                 val city = benzonavtProvider.currentCity()
                 val benzonavt = benzonavtProvider.fetchCityPrices(city)
@@ -156,7 +170,7 @@ class GasStationRepository constructor(
 
         // ЗАТЕМ фоновый Benzonavt swap с timeout 5 сек
         priceRefreshJob?.cancel()
-        priceRefreshJob = kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+        priceRefreshJob = appScope.launch {
             try {
                 val city = benzonavtProvider.currentCity()
                 val benzonavt = kotlinx.coroutines.withTimeoutOrNull(5_000) {

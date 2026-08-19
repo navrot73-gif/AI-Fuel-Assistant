@@ -21,7 +21,6 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.setMain
 import kotlinx.coroutines.test.resetMain
-import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -61,9 +60,6 @@ class MapViewModelSearchTest {
     private lateinit var geocodingProvider: FakeGeocodingProvider
 
     @Mock
-    private lateinit var okHttpClient: OkHttpClient
-
-    @Mock
     private lateinit var fuelApi: FuelApi
 
     @Mock
@@ -94,7 +90,6 @@ class MapViewModelSearchTest {
 
         viewModel = MapViewModel(
             repository = repository,
-            okHttpClient = okHttpClient,
             fuelApi = fuelApi,
             getBestStationsUseCase = getBestStationsUseCase,
             benzonavtProvider = benzonavtProvider,

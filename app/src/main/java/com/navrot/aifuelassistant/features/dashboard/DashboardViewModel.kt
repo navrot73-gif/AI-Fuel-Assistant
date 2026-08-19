@@ -18,6 +18,7 @@ import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.geo.GeoUtils
+import com.navrot.aifuelassistant.util.Format
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -370,7 +371,7 @@ class DashboardViewModel @Inject constructor(
                     .minByOrNull { it.price }?.price
                     ?: 0.0
                 val distance = GeoUtils.calculateDistance(lat, lon, station.latitude, station.longitude)
-                "${station.brand} — ${String.format("%.0f", price)}₽ — ${String.format("%.1f", distance)}км"
+                "${station.brand} — ${Format.price(price)}₽ — ${Format.km(distance)}км"
             }
         } else "нет станций в радиусе 50км"
 

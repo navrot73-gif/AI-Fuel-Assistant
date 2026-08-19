@@ -1,1291 +1,246 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version='1.0' encoding='UTF-8'?>
 <issues format="6" by="lint 8.5.2" type="baseline" client="gradle" dependencies="false" name="AGP (8.5.2)" variant="all" version="8.5.2">
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                    gpsStatus = &quot;GPS: ${String.format(&quot;%.5f&quot;, latitude)}, ${String.format(&quot;%.5f&quot;, longitude)}&quot;"
-        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/fuel/AddFuelRecordScreen.kt"
-            line="81"
-            column="41"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                    gpsStatus = &quot;GPS: ${String.format(&quot;%.5f&quot;, latitude)}, ${String.format(&quot;%.5f&quot;, longitude)}&quot;"
-        errorLine2="                                                                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/fuel/AddFuelRecordScreen.kt"
-            line="81"
-            column="77"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                    gpsStatus = &quot;GPS (приблизительно): ${String.format(&quot;%.5f&quot;, latitude)}, ${String.format(&quot;%.5f&quot;, longitude)}&quot;"
-        errorLine2="                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/fuel/AddFuelRecordScreen.kt"
-            line="88"
-            column="58"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                    gpsStatus = &quot;GPS (приблизительно): ${String.format(&quot;%.5f&quot;, latitude)}, ${String.format(&quot;%.5f&quot;, longitude)}&quot;"
-        errorLine2="                                                                                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/fuel/AddFuelRecordScreen.kt"
-            line="88"
-            column="94"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                value = String.format(&quot;%.2f&quot;, totalCost),"
-        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/fuel/AddFuelRecordScreen.kt"
-            line="148"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                gpsStatus = &quot;GPS: ${String.format(&quot;%.5f&quot;, latitude)}, ${String.format(&quot;%.5f&quot;, longitude)}&quot;"
-        errorLine2="                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/fuel/AddFuelRecordScreen.kt"
-            line="203"
-            column="53"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                gpsStatus = &quot;GPS: ${String.format(&quot;%.5f&quot;, latitude)}, ${String.format(&quot;%.5f&quot;, longitude)}&quot;"
-        errorLine2="                                                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/fuel/AddFuelRecordScreen.kt"
-            line="203"
-            column="89"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                gpsStatus = &quot;GPS (приблизительно): ${String.format(&quot;%.5f&quot;, latitude)}, ${String.format(&quot;%.5f&quot;, longitude)}&quot;"
-        errorLine2="                                                                     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/fuel/AddFuelRecordScreen.kt"
-            line="210"
-            column="70"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                gpsStatus = &quot;GPS (приблизительно): ${String.format(&quot;%.5f&quot;, latitude)}, ${String.format(&quot;%.5f&quot;, longitude)}&quot;"
-        errorLine2="                                                                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/fuel/AddFuelRecordScreen.kt"
-            line="210"
-            column="106"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            append(&quot;${String.format(&quot;%.1f&quot;, dist)} км&quot;)"
-        errorLine2="                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/map/AiRecommendationCard.kt"
-            line="55"
-            column="23"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="        append(&quot; · $tilde${String.format(&quot;%.0f&quot;, fuel.price)} ₽&quot;)"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/map/AiRecommendationCard.kt"
-            line="60"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                Text(&quot;${if (fuel.isMedianFromNetwork) &quot;~&quot; else &quot;&quot;}${String.format(&quot;%.0f&quot;, fuel.price)} ₽&quot;, color = FueldeckColors.Amber,"
-        errorLine2="                                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/map/AiRecommendationCard.kt"
-            line="115"
-            column="69"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                Text(if (dist == Double.MAX_VALUE) &quot;—&quot; else &quot;${String.format(&quot;%.1f&quot;, dist)} км&quot;,"
-        errorLine2="                                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/map/AiRecommendationCard.kt"
-            line="117"
-            column="64"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                            if (isEmpty) &quot;—&quot; else String.format(&quot;%.2f&quot;, rubPerKm),"
-        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/features/dashboard/DashboardScreen.kt"
-            line="265"
-            column="51"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                &quot;${station.brand} — ${String.format(&quot;%.0f&quot;, price)}₽ — ${String.format(&quot;%.1f&quot;, distance)}км&quot;"
-        errorLine2="                                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/features/dashboard/DashboardViewModel.kt"
-            line="311"
-            column="39"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                &quot;${station.brand} — ${String.format(&quot;%.0f&quot;, price)}₽ — ${String.format(&quot;%.1f&quot;, distance)}км&quot;"
-        errorLine2="                                                                         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/features/dashboard/DashboardViewModel.kt"
-            line="311"
-            column="74"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                val dist = &quot;${String.format(&quot;%.1f&quot;, distKm)} км&quot;"
-        errorLine2="                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ai/FuelAnalysisPromptBuilder.kt"
-            line="53"
-            column="31"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                text = String.format(&quot;%.1f&quot;, value),"
-        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/components/FuelGauge.kt"
-            line="62"
-            column="24"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            &quot;${it.type}: $tilde${String.format(&quot;%.0f&quot;, it.price)}₽&quot;"
-        errorLine2="                                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/map/MapHelpers.kt"
-            line="77"
-            column="34"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="            distanceText = String.format(&quot;~ %.1f км&quot;, distKm),"
-        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/map/MapViewModel.kt"
-            line="308"
-            column="28"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                    distanceText = String.format(&quot;%.1f км&quot;, result.distanceMeters / 1000.0),"
-        errorLine2="                                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/map/MapViewModel.kt"
-            line="324"
-            column="36"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                            String.format(&quot;%.2f ₽&quot;, fuel.price),"
-        errorLine2="                            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/map/components/StationActionsBlock.kt"
-            line="287"
-            column="29"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                            text = &quot;АИ-${entry.key}: ${String.format(&quot;%.1f&quot;, entry.value)} ₽&quot;,"
-        errorLine2="                                                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/map/components/StationActionsBlock.kt"
-            line="356"
-            column="56"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                            text = &quot;${if (fuel.isMedianFromNetwork) &quot;~&quot; else &quot;&quot;}${String.format(&quot;%.2f&quot;, fuel.price)}&quot;,"
-        errorLine2="                                                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/map/StationDetailCard.kt"
-            line="185"
-            column="83"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                                    &quot;${fuel.type} $tilde${String.format(&quot;%.0f&quot;, fuel.price)}&quot;"
-        errorLine2="                                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/map/StationListItem.kt"
-            line="109"
-            column="59"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                        text = &quot;$tilde${String.format(&quot;%.0f&quot;, fuel.price)} ₽&quot;,"
-        errorLine2="                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/map/StationListItem.kt"
-            line="126"
-            column="41"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                        text = &quot;${String.format(&quot;%.1f&quot;, dist)} км&quot;,"
-        errorLine2="                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/map/StationListItem.kt"
-            line="147"
-            column="35"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="                Text(String.format(&quot;%.1f&quot;, v), fontFamily = FontFamily.Monospace, fontSize = 9.5.sp,"
-        errorLine2="                     ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/components/VehicleCard.kt"
-            line="273"
-            column="22"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="        mileageText = String.format(&quot;%.1f&quot;, currentMileage / 1000.0),"
-        errorLine2="                      ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/vehicles/VehicleViewModel.kt"
-            line="125"
-            column="23"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="        consumptionText = if (avgConsumption > 0) String.format(&quot;%.1f&quot;, avgConsumption) else &quot;—&quot;,"
-        errorLine2="                                                  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/vehicles/VehicleViewModel.kt"
-            line="126"
-            column="51"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="        lastFillLiters = if (lastFill != null) String.format(&quot;%.1f&quot;, lastFill.fuelAmount) else &quot;—&quot;,"
-        errorLine2="                                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/vehicles/VehicleViewModel.kt"
-            line="132"
-            column="48"/>
-    </issue>
-
-    <issue
-        id="DefaultLocale"
-        message="Implicitly using the default locale is a common source of bugs: Use `String.format(Locale, ...)` instead"
-        errorLine1="        lastFillPrice = if (lastFill != null) String.format(&quot;%.0f&quot;, lastFill.totalCost) else &quot;—&quot;,"
-        errorLine2="                                              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/vehicles/VehicleViewModel.kt"
-            line="134"
-            column="47"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="`android:windowSplashScreenBackground` requires API level 31 (current min is 24)"
-        errorLine1="        &lt;item name=&quot;android:windowSplashScreenBackground&quot;>#17222B&lt;/item>"
-        errorLine2="              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/themes.xml"
-            line="5"
-            column="15"/>
-    </issue>
-
-    <issue
-        id="NewApi"
-        message="`android:windowSplashScreenAnimatedIcon` requires API level 31 (current min is 24)"
-        errorLine1="        &lt;item name=&quot;android:windowSplashScreenAnimatedIcon&quot;>@drawable/ic_launcher_foreground&lt;/item>"
-        errorLine2="              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/themes.xml"
-            line="6"
-            column="15"/>
-    </issue>
-
-    <issue
-        id="QueryPermissionsNeeded"
-        message="Consider adding a `&lt;queries>` declaration to your manifest when calling this method; see https://g.co/dev/packagevisibility for details"
-        errorLine1="        if (yandexIntent.resolveActivity(context.packageManager) != null) {"
-        errorLine2="                         ~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/map/MapHelpers.kt"
-            line="28"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="QueryPermissionsNeeded"
-        message="Consider adding a `&lt;queries>` declaration to your manifest when calling this method; see https://g.co/dev/packagevisibility for details"
-        errorLine1="        if (googleIntent.resolveActivity(context.packageManager) != null) {"
-        errorLine2="                         ~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/java/com/navrot/aifuelassistant/ui/map/MapHelpers.kt"
-            line="42"
-            column="26"/>
-    </issue>
-
-    <issue
-        id="AndroidGradlePluginVersion"
-        message="A newer version of com.android.application than 8.5.2 is available: 9.3.1"
-        errorLine1="agp = &quot;8.5.2&quot;"
-        errorLine2="      ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="2"
-            column="7"/>
-    </issue>
-
-    <issue
-        id="AndroidGradlePluginVersion"
-        message="A newer version of com.android.application than 8.5.2 is available: 9.3.1"
-        errorLine1="agp = &quot;8.5.2&quot;"
-        errorLine2="      ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="2"
-            column="7"/>
-    </issue>
-
-    <issue
-        id="AndroidGradlePluginVersion"
-        message="A newer version of com.android.application than 8.5.2 is available: 9.3.1"
-        errorLine1="agp = &quot;8.5.2&quot;"
-        errorLine2="      ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="2"
-            column="7"/>
-    </issue>
-
-    <issue
-        id="AndroidGradlePluginVersion"
-        message="A newer version of com.android.library than 8.5.2 is available: 9.3.1"
-        errorLine1="agp = &quot;8.5.2&quot;"
-        errorLine2="      ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="2"
-            column="7"/>
-    </issue>
-
-    <issue
-        id="AndroidGradlePluginVersion"
-        message="A newer version of com.android.library than 8.5.2 is available: 9.3.1"
-        errorLine1="agp = &quot;8.5.2&quot;"
-        errorLine2="      ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="2"
-            column="7"/>
-    </issue>
-
-    <issue
-        id="AndroidGradlePluginVersion"
-        message="A newer version of com.android.library than 8.5.2 is available: 9.3.1"
-        errorLine1="agp = &quot;8.5.2&quot;"
-        errorLine2="      ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="2"
-            column="7"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.core:core-splashscreen than 1.0.1 is available: 1.2.0"
-        errorLine1="    implementation(&quot;androidx.core:core-splashscreen:1.0.1&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="94"
-            column="20"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.room:room-compiler than 2.6.1 is available: 2.8.4"
-        errorLine1="room = &quot;2.6.1&quot;"
-        errorLine2="       ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="5"
-            column="8"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.room:room-compiler than 2.6.1 is available: 2.8.4"
-        errorLine1="room = &quot;2.6.1&quot;"
-        errorLine2="       ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="5"
-            column="8"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.room:room-compiler than 2.6.1 is available: 2.8.4"
-        errorLine1="room = &quot;2.6.1&quot;"
-        errorLine2="       ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="5"
-            column="8"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.room:room-ktx than 2.6.1 is available: 2.8.4"
-        errorLine1="room = &quot;2.6.1&quot;"
-        errorLine2="       ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="5"
-            column="8"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.room:room-ktx than 2.6.1 is available: 2.8.4"
-        errorLine1="room = &quot;2.6.1&quot;"
-        errorLine2="       ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="5"
-            column="8"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.room:room-ktx than 2.6.1 is available: 2.8.4"
-        errorLine1="room = &quot;2.6.1&quot;"
-        errorLine2="       ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="5"
-            column="8"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.room:room-runtime than 2.6.1 is available: 2.8.4"
-        errorLine1="room = &quot;2.6.1&quot;"
-        errorLine2="       ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="5"
-            column="8"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.room:room-runtime than 2.6.1 is available: 2.8.4"
-        errorLine1="room = &quot;2.6.1&quot;"
-        errorLine2="       ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="5"
-            column="8"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.room:room-runtime than 2.6.1 is available: 2.8.4"
-        errorLine1="room = &quot;2.6.1&quot;"
-        errorLine2="       ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="5"
-            column="8"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.room:room-testing than 2.6.1 is available: 2.8.4"
-        errorLine1="room = &quot;2.6.1&quot;"
-        errorLine2="       ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="5"
-            column="8"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.room:room-testing than 2.6.1 is available: 2.8.4"
-        errorLine1="room = &quot;2.6.1&quot;"
-        errorLine2="       ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="5"
-            column="8"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.room:room-testing than 2.6.1 is available: 2.8.4"
-        errorLine1="room = &quot;2.6.1&quot;"
-        errorLine2="       ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="5"
-            column="8"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.core:core-ktx than 1.12.0 is available: 1.19.0"
-        errorLine1="coreKtx = &quot;1.12.0&quot;"
-        errorLine2="          ~~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="6"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.core:core-ktx than 1.12.0 is available: 1.19.0"
-        errorLine1="coreKtx = &quot;1.12.0&quot;"
-        errorLine2="          ~~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="6"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.core:core-ktx than 1.12.0 is available: 1.19.0"
-        errorLine1="coreKtx = &quot;1.12.0&quot;"
-        errorLine2="          ~~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="6"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.lifecycle:lifecycle-runtime-compose than 2.7.0 is available: 2.11.0"
-        errorLine1="lifecycle = &quot;2.7.0&quot;"
-        errorLine2="            ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="7"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.lifecycle:lifecycle-runtime-compose than 2.7.0 is available: 2.11.0"
-        errorLine1="lifecycle = &quot;2.7.0&quot;"
-        errorLine2="            ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="7"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.lifecycle:lifecycle-runtime-compose than 2.7.0 is available: 2.11.0"
-        errorLine1="lifecycle = &quot;2.7.0&quot;"
-        errorLine2="            ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="7"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.lifecycle:lifecycle-runtime-ktx than 2.7.0 is available: 2.11.0"
-        errorLine1="lifecycle = &quot;2.7.0&quot;"
-        errorLine2="            ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="7"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.lifecycle:lifecycle-runtime-ktx than 2.7.0 is available: 2.11.0"
-        errorLine1="lifecycle = &quot;2.7.0&quot;"
-        errorLine2="            ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="7"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.lifecycle:lifecycle-runtime-ktx than 2.7.0 is available: 2.11.0"
-        errorLine1="lifecycle = &quot;2.7.0&quot;"
-        errorLine2="            ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="7"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.lifecycle:lifecycle-viewmodel-compose than 2.7.0 is available: 2.11.0"
-        errorLine1="lifecycle = &quot;2.7.0&quot;"
-        errorLine2="            ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="7"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.lifecycle:lifecycle-viewmodel-compose than 2.7.0 is available: 2.11.0"
-        errorLine1="lifecycle = &quot;2.7.0&quot;"
-        errorLine2="            ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="7"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.lifecycle:lifecycle-viewmodel-compose than 2.7.0 is available: 2.11.0"
-        errorLine1="lifecycle = &quot;2.7.0&quot;"
-        errorLine2="            ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="7"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.activity:activity-compose than 1.8.2 is available: 1.13.0"
-        errorLine1="activityCompose = &quot;1.8.2&quot;"
-        errorLine2="                  ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="8"
-            column="19"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.activity:activity-compose than 1.8.2 is available: 1.13.0"
-        errorLine1="activityCompose = &quot;1.8.2&quot;"
-        errorLine2="                  ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="8"
-            column="19"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.activity:activity-compose than 1.8.2 is available: 1.13.0"
-        errorLine1="activityCompose = &quot;1.8.2&quot;"
-        errorLine2="                  ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="8"
-            column="19"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.compose:compose-bom than 2024.06.00 is available: 2026.08.00"
-        errorLine1="composeBom = &quot;2024.06.00&quot;"
-        errorLine2="             ~~~~~~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="9"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.compose:compose-bom than 2024.06.00 is available: 2026.08.00"
-        errorLine1="composeBom = &quot;2024.06.00&quot;"
-        errorLine2="             ~~~~~~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="9"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.compose:compose-bom than 2024.06.00 is available: 2026.08.00"
-        errorLine1="composeBom = &quot;2024.06.00&quot;"
-        errorLine2="             ~~~~~~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="9"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.compose.ui:ui-test-junit4 than 1.6.1 is available: 1.12.0"
-        errorLine1="composeUi = &quot;1.6.1&quot;"
-        errorLine2="            ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="10"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.compose.ui:ui-test-junit4 than 1.6.1 is available: 1.12.0"
-        errorLine1="composeUi = &quot;1.6.1&quot;"
-        errorLine2="            ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="10"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.compose.ui:ui-test-junit4 than 1.6.1 is available: 1.12.0"
-        errorLine1="composeUi = &quot;1.6.1&quot;"
-        errorLine2="            ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="10"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.compose.ui:ui-test-manifest than 1.6.1 is available: 1.12.0"
-        errorLine1="composeUi = &quot;1.6.1&quot;"
-        errorLine2="            ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="10"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.compose.ui:ui-test-manifest than 1.6.1 is available: 1.12.0"
-        errorLine1="composeUi = &quot;1.6.1&quot;"
-        errorLine2="            ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="10"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.compose.ui:ui-test-manifest than 1.6.1 is available: 1.12.0"
-        errorLine1="composeUi = &quot;1.6.1&quot;"
-        errorLine2="            ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="10"
-            column="13"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.navigation:navigation-compose than 2.8.0 is available: 2.9.8"
-        errorLine1="navigationCompose = &quot;2.8.0&quot;"
-        errorLine2="                    ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="12"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.navigation:navigation-compose than 2.8.0 is available: 2.9.8"
-        errorLine1="navigationCompose = &quot;2.8.0&quot;"
-        errorLine2="                    ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="12"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.navigation:navigation-compose than 2.8.0 is available: 2.9.8"
-        errorLine1="navigationCompose = &quot;2.8.0&quot;"
-        errorLine2="                    ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="12"
-            column="21"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.hilt:hilt-navigation-compose than 1.1.0 is available: 1.4.0"
-        errorLine1="hiltNavigationCompose = &quot;1.1.0&quot;"
-        errorLine2="                        ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="14"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.hilt:hilt-navigation-compose than 1.1.0 is available: 1.4.0"
-        errorLine1="hiltNavigationCompose = &quot;1.1.0&quot;"
-        errorLine2="                        ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="14"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.hilt:hilt-navigation-compose than 1.1.0 is available: 1.4.0"
-        errorLine1="hiltNavigationCompose = &quot;1.1.0&quot;"
-        errorLine2="                        ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="14"
-            column="25"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-android than 1.7.3 is available: 1.8.1"
-        errorLine1="coroutines = &quot;1.7.3&quot;"
-        errorLine2="             ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="15"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-android than 1.7.3 is available: 1.8.1"
-        errorLine1="coroutines = &quot;1.7.3&quot;"
-        errorLine2="             ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="15"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-android than 1.7.3 is available: 1.8.1"
-        errorLine1="coroutines = &quot;1.7.3&quot;"
-        errorLine2="             ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="15"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-test than 1.7.3 is available: 1.8.1"
-        errorLine1="coroutines = &quot;1.7.3&quot;"
-        errorLine2="             ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="15"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-test than 1.7.3 is available: 1.8.1"
-        errorLine1="coroutines = &quot;1.7.3&quot;"
-        errorLine2="             ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="15"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-test than 1.7.3 is available: 1.8.1"
-        errorLine1="coroutines = &quot;1.7.3&quot;"
-        errorLine2="             ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="15"
-            column="14"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of com.google.android.gms:play-services-location than 21.0.1 is available: 21.4.0"
-        errorLine1="playServicesLocation = &quot;21.0.1&quot;"
-        errorLine2="                       ~~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="17"
-            column="24"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of com.google.android.gms:play-services-location than 21.0.1 is available: 21.4.0"
-        errorLine1="playServicesLocation = &quot;21.0.1&quot;"
-        errorLine2="                       ~~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="17"
-            column="24"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of com.google.android.gms:play-services-location than 21.0.1 is available: 21.4.0"
-        errorLine1="playServicesLocation = &quot;21.0.1&quot;"
-        errorLine2="                       ~~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="17"
-            column="24"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of com.android.tools:desugar_jdk_libs than 2.0.4 is available: 2.1.5"
-        errorLine1="desugar = &quot;2.0.4&quot;"
-        errorLine2="          ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="19"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of com.android.tools:desugar_jdk_libs than 2.0.4 is available: 2.1.5"
-        errorLine1="desugar = &quot;2.0.4&quot;"
-        errorLine2="          ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="19"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of com.android.tools:desugar_jdk_libs than 2.0.4 is available: 2.1.5"
-        errorLine1="desugar = &quot;2.0.4&quot;"
-        errorLine2="          ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="19"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.test.ext:junit than 1.1.5 is available: 1.3.0"
-        errorLine1="junitExt = &quot;1.1.5&quot;"
-        errorLine2="           ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="22"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.test.ext:junit than 1.1.5 is available: 1.3.0"
-        errorLine1="junitExt = &quot;1.1.5&quot;"
-        errorLine2="           ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="22"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.test.ext:junit than 1.1.5 is available: 1.3.0"
-        errorLine1="junitExt = &quot;1.1.5&quot;"
-        errorLine2="           ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="22"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.test.espresso:espresso-core than 3.5.1 is available: 3.7.0"
-        errorLine1="espresso = &quot;3.5.1&quot;"
-        errorLine2="           ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="23"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.test.espresso:espresso-core than 3.5.1 is available: 3.7.0"
-        errorLine1="espresso = &quot;3.5.1&quot;"
-        errorLine2="           ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="23"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="GradleDependency"
-        message="A newer version of androidx.test.espresso:espresso-core than 3.5.1 is available: 3.7.0"
-        errorLine1="espresso = &quot;3.5.1&quot;"
-        errorLine2="           ~~~~~~~">
-        <location
-            file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml"
-            line="23"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="DataExtractionRules"
-        message="The attribute `android:allowBackup` is deprecated from Android 12 and higher and may be removed in future versions. Consider adding the attribute `android:dataExtractionRules` specifying an `@xml` resource which configures cloud backups and device transfers on Android 12 and higher."
-        errorLine1="        android:allowBackup=&quot;false&quot;"
-        errorLine2="                             ~~~~~">
-        <location
-            file="src/main/AndroidManifest.xml"
-            line="12"
-            column="30"/>
-    </issue>
-
-    <issue
-        id="KaptUsageInsteadOfKsp"
-        message="This library supports using KSP instead of kapt, which greatly improves performance. Learn more: https://developer.android.com/studio/build/migrate-to-ksp"
-        errorLine1="    kapt(libs.room.compiler)"
-        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="117"
-            column="5"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.xml.backup_rules` appears to be unused"
-        errorLine1="&lt;full-backup-content>"
-        errorLine2="^">
-        <location
-            file="src/main/res/xml/backup_rules.xml"
-            line="8"
-            column="1"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.color.purple_200` appears to be unused"
-        errorLine1="    &lt;color name=&quot;purple_200&quot;>#FFBB86FC&lt;/color>"
-        errorLine2="           ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/colors.xml"
-            line="3"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.color.purple_500` appears to be unused"
-        errorLine1="    &lt;color name=&quot;purple_500&quot;>#FF6200EE&lt;/color>"
-        errorLine2="           ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/colors.xml"
-            line="4"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.color.purple_700` appears to be unused"
-        errorLine1="    &lt;color name=&quot;purple_700&quot;>#FF3700B3&lt;/color>"
-        errorLine2="           ~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/colors.xml"
-            line="5"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.color.teal_200` appears to be unused"
-        errorLine1="    &lt;color name=&quot;teal_200&quot;>#FF03DAC5&lt;/color>"
-        errorLine2="           ~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/colors.xml"
-            line="6"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.color.teal_700` appears to be unused"
-        errorLine1="    &lt;color name=&quot;teal_700&quot;>#FF018786&lt;/color>"
-        errorLine2="           ~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/colors.xml"
-            line="7"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.color.black` appears to be unused"
-        errorLine1="    &lt;color name=&quot;black&quot;>#FF000000&lt;/color>"
-        errorLine2="           ~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/colors.xml"
-            line="8"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.color.white` appears to be unused"
-        errorLine1="    &lt;color name=&quot;white&quot;>#FFFFFFFF&lt;/color>"
-        errorLine2="           ~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/colors.xml"
-            line="9"
-            column="12"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.xml.data_extraction_rules` appears to be unused"
-        errorLine1="&lt;data-extraction-rules>"
-        errorLine2="^">
-        <location
-            file="src/main/res/xml/data_extraction_rules.xml"
-            line="6"
-            column="1"/>
-    </issue>
-
-    <issue
-        id="UnusedResources"
-        message="The resource `R.drawable.ic_launcher_background` appears to be unused"
-        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
-        errorLine2="^">
-        <location
-            file="src/main/res/drawable/ic_launcher_background.xml"
-            line="2"
-            column="1"/>
-    </issue>
-
-    <issue
-        id="MonochromeLauncherIcon"
-        message="The application adaptive icon is missing a monochrome tag"
-        errorLine1="&lt;adaptive-icon xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;>"
-        errorLine2="^">
-        <location
-            file="src/main/res/mipmap-anydpi-v26/ic_launcher.xml"
-            line="1"
-            column="1"/>
-    </issue>
-
-    <issue
-        id="UseTomlInstead"
-        message="Use version catalog instead"
-        errorLine1="    implementation(&quot;androidx.core:core-splashscreen:1.0.1&quot;)"
-        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="build.gradle.kts"
-            line="94"
-            column="20"/>
-    </issue>
-
+    <issue id="AndroidGradlePluginVersion" message="A newer version of com.android.application than 8.5.2 is available: 9.3.1" errorLine1="agp = &quot;8.5.2&quot;" errorLine2="      ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="2" column="7" />
+    </issue>
+    <issue id="AndroidGradlePluginVersion" message="A newer version of com.android.application than 8.5.2 is available: 9.3.1" errorLine1="agp = &quot;8.5.2&quot;" errorLine2="      ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="2" column="7" />
+    </issue>
+    <issue id="AndroidGradlePluginVersion" message="A newer version of com.android.application than 8.5.2 is available: 9.3.1" errorLine1="agp = &quot;8.5.2&quot;" errorLine2="      ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="2" column="7" />
+    </issue>
+    <issue id="AndroidGradlePluginVersion" message="A newer version of com.android.library than 8.5.2 is available: 9.3.1" errorLine1="agp = &quot;8.5.2&quot;" errorLine2="      ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="2" column="7" />
+    </issue>
+    <issue id="AndroidGradlePluginVersion" message="A newer version of com.android.library than 8.5.2 is available: 9.3.1" errorLine1="agp = &quot;8.5.2&quot;" errorLine2="      ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="2" column="7" />
+    </issue>
+    <issue id="AndroidGradlePluginVersion" message="A newer version of com.android.library than 8.5.2 is available: 9.3.1" errorLine1="agp = &quot;8.5.2&quot;" errorLine2="      ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="2" column="7" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.core:core-splashscreen than 1.0.1 is available: 1.2.0" errorLine1="    implementation(&quot;androidx.core:core-splashscreen:1.0.1&quot;)" errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="build.gradle.kts" line="94" column="20" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.room:room-compiler than 2.6.1 is available: 2.8.4" errorLine1="room = &quot;2.6.1&quot;" errorLine2="       ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="5" column="8" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.room:room-compiler than 2.6.1 is available: 2.8.4" errorLine1="room = &quot;2.6.1&quot;" errorLine2="       ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="5" column="8" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.room:room-compiler than 2.6.1 is available: 2.8.4" errorLine1="room = &quot;2.6.1&quot;" errorLine2="       ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="5" column="8" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.room:room-ktx than 2.6.1 is available: 2.8.4" errorLine1="room = &quot;2.6.1&quot;" errorLine2="       ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="5" column="8" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.room:room-ktx than 2.6.1 is available: 2.8.4" errorLine1="room = &quot;2.6.1&quot;" errorLine2="       ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="5" column="8" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.room:room-ktx than 2.6.1 is available: 2.8.4" errorLine1="room = &quot;2.6.1&quot;" errorLine2="       ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="5" column="8" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.room:room-runtime than 2.6.1 is available: 2.8.4" errorLine1="room = &quot;2.6.1&quot;" errorLine2="       ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="5" column="8" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.room:room-runtime than 2.6.1 is available: 2.8.4" errorLine1="room = &quot;2.6.1&quot;" errorLine2="       ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="5" column="8" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.room:room-runtime than 2.6.1 is available: 2.8.4" errorLine1="room = &quot;2.6.1&quot;" errorLine2="       ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="5" column="8" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.room:room-testing than 2.6.1 is available: 2.8.4" errorLine1="room = &quot;2.6.1&quot;" errorLine2="       ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="5" column="8" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.room:room-testing than 2.6.1 is available: 2.8.4" errorLine1="room = &quot;2.6.1&quot;" errorLine2="       ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="5" column="8" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.room:room-testing than 2.6.1 is available: 2.8.4" errorLine1="room = &quot;2.6.1&quot;" errorLine2="       ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="5" column="8" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.core:core-ktx than 1.12.0 is available: 1.19.0" errorLine1="coreKtx = &quot;1.12.0&quot;" errorLine2="          ~~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="6" column="11" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.core:core-ktx than 1.12.0 is available: 1.19.0" errorLine1="coreKtx = &quot;1.12.0&quot;" errorLine2="          ~~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="6" column="11" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.core:core-ktx than 1.12.0 is available: 1.19.0" errorLine1="coreKtx = &quot;1.12.0&quot;" errorLine2="          ~~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="6" column="11" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.lifecycle:lifecycle-runtime-compose than 2.7.0 is available: 2.11.0" errorLine1="lifecycle = &quot;2.7.0&quot;" errorLine2="            ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="7" column="13" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.lifecycle:lifecycle-runtime-compose than 2.7.0 is available: 2.11.0" errorLine1="lifecycle = &quot;2.7.0&quot;" errorLine2="            ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="7" column="13" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.lifecycle:lifecycle-runtime-compose than 2.7.0 is available: 2.11.0" errorLine1="lifecycle = &quot;2.7.0&quot;" errorLine2="            ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="7" column="13" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.lifecycle:lifecycle-runtime-ktx than 2.7.0 is available: 2.11.0" errorLine1="lifecycle = &quot;2.7.0&quot;" errorLine2="            ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="7" column="13" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.lifecycle:lifecycle-runtime-ktx than 2.7.0 is available: 2.11.0" errorLine1="lifecycle = &quot;2.7.0&quot;" errorLine2="            ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="7" column="13" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.lifecycle:lifecycle-runtime-ktx than 2.7.0 is available: 2.11.0" errorLine1="lifecycle = &quot;2.7.0&quot;" errorLine2="            ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="7" column="13" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.lifecycle:lifecycle-viewmodel-compose than 2.7.0 is available: 2.11.0" errorLine1="lifecycle = &quot;2.7.0&quot;" errorLine2="            ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="7" column="13" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.lifecycle:lifecycle-viewmodel-compose than 2.7.0 is available: 2.11.0" errorLine1="lifecycle = &quot;2.7.0&quot;" errorLine2="            ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="7" column="13" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.lifecycle:lifecycle-viewmodel-compose than 2.7.0 is available: 2.11.0" errorLine1="lifecycle = &quot;2.7.0&quot;" errorLine2="            ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="7" column="13" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.activity:activity-compose than 1.8.2 is available: 1.13.0" errorLine1="activityCompose = &quot;1.8.2&quot;" errorLine2="                  ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="8" column="19" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.activity:activity-compose than 1.8.2 is available: 1.13.0" errorLine1="activityCompose = &quot;1.8.2&quot;" errorLine2="                  ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="8" column="19" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.activity:activity-compose than 1.8.2 is available: 1.13.0" errorLine1="activityCompose = &quot;1.8.2&quot;" errorLine2="                  ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="8" column="19" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.compose:compose-bom than 2024.06.00 is available: 2026.08.00" errorLine1="composeBom = &quot;2024.06.00&quot;" errorLine2="             ~~~~~~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="9" column="14" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.compose:compose-bom than 2024.06.00 is available: 2026.08.00" errorLine1="composeBom = &quot;2024.06.00&quot;" errorLine2="             ~~~~~~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="9" column="14" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.compose:compose-bom than 2024.06.00 is available: 2026.08.00" errorLine1="composeBom = &quot;2024.06.00&quot;" errorLine2="             ~~~~~~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="9" column="14" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.compose.ui:ui-test-junit4 than 1.6.1 is available: 1.12.0" errorLine1="composeUi = &quot;1.6.1&quot;" errorLine2="            ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="10" column="13" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.compose.ui:ui-test-junit4 than 1.6.1 is available: 1.12.0" errorLine1="composeUi = &quot;1.6.1&quot;" errorLine2="            ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="10" column="13" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.compose.ui:ui-test-junit4 than 1.6.1 is available: 1.12.0" errorLine1="composeUi = &quot;1.6.1&quot;" errorLine2="            ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="10" column="13" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.compose.ui:ui-test-manifest than 1.6.1 is available: 1.12.0" errorLine1="composeUi = &quot;1.6.1&quot;" errorLine2="            ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="10" column="13" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.compose.ui:ui-test-manifest than 1.6.1 is available: 1.12.0" errorLine1="composeUi = &quot;1.6.1&quot;" errorLine2="            ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="10" column="13" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.compose.ui:ui-test-manifest than 1.6.1 is available: 1.12.0" errorLine1="composeUi = &quot;1.6.1&quot;" errorLine2="            ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="10" column="13" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.navigation:navigation-compose than 2.8.0 is available: 2.9.8" errorLine1="navigationCompose = &quot;2.8.0&quot;" errorLine2="                    ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="12" column="21" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.navigation:navigation-compose than 2.8.0 is available: 2.9.8" errorLine1="navigationCompose = &quot;2.8.0&quot;" errorLine2="                    ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="12" column="21" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.navigation:navigation-compose than 2.8.0 is available: 2.9.8" errorLine1="navigationCompose = &quot;2.8.0&quot;" errorLine2="                    ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="12" column="21" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.hilt:hilt-navigation-compose than 1.1.0 is available: 1.4.0" errorLine1="hiltNavigationCompose = &quot;1.1.0&quot;" errorLine2="                        ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="14" column="25" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.hilt:hilt-navigation-compose than 1.1.0 is available: 1.4.0" errorLine1="hiltNavigationCompose = &quot;1.1.0&quot;" errorLine2="                        ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="14" column="25" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.hilt:hilt-navigation-compose than 1.1.0 is available: 1.4.0" errorLine1="hiltNavigationCompose = &quot;1.1.0&quot;" errorLine2="                        ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="14" column="25" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-android than 1.7.3 is available: 1.8.1" errorLine1="coroutines = &quot;1.7.3&quot;" errorLine2="             ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="15" column="14" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-android than 1.7.3 is available: 1.8.1" errorLine1="coroutines = &quot;1.7.3&quot;" errorLine2="             ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="15" column="14" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-android than 1.7.3 is available: 1.8.1" errorLine1="coroutines = &quot;1.7.3&quot;" errorLine2="             ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="15" column="14" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-test than 1.7.3 is available: 1.8.1" errorLine1="coroutines = &quot;1.7.3&quot;" errorLine2="             ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="15" column="14" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-test than 1.7.3 is available: 1.8.1" errorLine1="coroutines = &quot;1.7.3&quot;" errorLine2="             ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="15" column="14" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-test than 1.7.3 is available: 1.8.1" errorLine1="coroutines = &quot;1.7.3&quot;" errorLine2="             ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="15" column="14" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of com.google.android.gms:play-services-location than 21.0.1 is available: 21.4.0" errorLine1="playServicesLocation = &quot;21.0.1&quot;" errorLine2="                       ~~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="17" column="24" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of com.google.android.gms:play-services-location than 21.0.1 is available: 21.4.0" errorLine1="playServicesLocation = &quot;21.0.1&quot;" errorLine2="                       ~~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="17" column="24" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of com.google.android.gms:play-services-location than 21.0.1 is available: 21.4.0" errorLine1="playServicesLocation = &quot;21.0.1&quot;" errorLine2="                       ~~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="17" column="24" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of com.android.tools:desugar_jdk_libs than 2.0.4 is available: 2.1.5" errorLine1="desugar = &quot;2.0.4&quot;" errorLine2="          ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="19" column="11" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of com.android.tools:desugar_jdk_libs than 2.0.4 is available: 2.1.5" errorLine1="desugar = &quot;2.0.4&quot;" errorLine2="          ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="19" column="11" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of com.android.tools:desugar_jdk_libs than 2.0.4 is available: 2.1.5" errorLine1="desugar = &quot;2.0.4&quot;" errorLine2="          ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="19" column="11" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.test.ext:junit than 1.1.5 is available: 1.3.0" errorLine1="junitExt = &quot;1.1.5&quot;" errorLine2="           ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="22" column="12" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.test.ext:junit than 1.1.5 is available: 1.3.0" errorLine1="junitExt = &quot;1.1.5&quot;" errorLine2="           ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="22" column="12" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.test.ext:junit than 1.1.5 is available: 1.3.0" errorLine1="junitExt = &quot;1.1.5&quot;" errorLine2="           ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="22" column="12" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.test.espresso:espresso-core than 3.5.1 is available: 3.7.0" errorLine1="espresso = &quot;3.5.1&quot;" errorLine2="           ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="23" column="12" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.test.espresso:espresso-core than 3.5.1 is available: 3.7.0" errorLine1="espresso = &quot;3.5.1&quot;" errorLine2="           ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="23" column="12" />
+    </issue>
+    <issue id="GradleDependency" message="A newer version of androidx.test.espresso:espresso-core than 3.5.1 is available: 3.7.0" errorLine1="espresso = &quot;3.5.1&quot;" errorLine2="           ~~~~~~~">
+        <location file="$HOME/Desktop/AI-Fuel-Assistant/gradle/libs.versions.toml" line="23" column="12" />
+    </issue>
+    <issue id="DataExtractionRules" message="The attribute `android:allowBackup` is deprecated from Android 12 and higher and may be removed in future versions. Consider adding the attribute `android:dataExtractionRules` specifying an `@xml` resource which configures cloud backups and device transfers on Android 12 and higher." errorLine1="        android:allowBackup=&quot;false&quot;" errorLine2="                             ~~~~~">
+        <location file="src/main/AndroidManifest.xml" line="12" column="30" />
+    </issue>
+    <issue id="KaptUsageInsteadOfKsp" message="This library supports using KSP instead of kapt, which greatly improves performance. Learn more: https://developer.android.com/studio/build/migrate-to-ksp" errorLine1="    kapt(libs.room.compiler)" errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="build.gradle.kts" line="117" column="5" />
+    </issue>
+    <issue id="UnusedResources" message="The resource `R.xml.backup_rules` appears to be unused" errorLine1="&lt;full-backup-content&gt;" errorLine2="^">
+        <location file="src/main/res/xml/backup_rules.xml" line="8" column="1" />
+    </issue>
+    <issue id="UnusedResources" message="The resource `R.color.purple_200` appears to be unused" errorLine1="    &lt;color name=&quot;purple_200&quot;&gt;#FFBB86FC&lt;/color&gt;" errorLine2="           ~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/colors.xml" line="3" column="12" />
+    </issue>
+    <issue id="UnusedResources" message="The resource `R.color.purple_500` appears to be unused" errorLine1="    &lt;color name=&quot;purple_500&quot;&gt;#FF6200EE&lt;/color&gt;" errorLine2="           ~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/colors.xml" line="4" column="12" />
+    </issue>
+    <issue id="UnusedResources" message="The resource `R.color.purple_700` appears to be unused" errorLine1="    &lt;color name=&quot;purple_700&quot;&gt;#FF3700B3&lt;/color&gt;" errorLine2="           ~~~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/colors.xml" line="5" column="12" />
+    </issue>
+    <issue id="UnusedResources" message="The resource `R.color.teal_200` appears to be unused" errorLine1="    &lt;color name=&quot;teal_200&quot;&gt;#FF03DAC5&lt;/color&gt;" errorLine2="           ~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/colors.xml" line="6" column="12" />
+    </issue>
+    <issue id="UnusedResources" message="The resource `R.color.teal_700` appears to be unused" errorLine1="    &lt;color name=&quot;teal_700&quot;&gt;#FF018786&lt;/color&gt;" errorLine2="           ~~~~~~~~~~~~~~~">
+        <location file="src/main/res/values/colors.xml" line="7" column="12" />
+    </issue>
+    <issue id="UnusedResources" message="The resource `R.color.black` appears to be unused" errorLine1="    &lt;color name=&quot;black&quot;&gt;#FF000000&lt;/color&gt;" errorLine2="           ~~~~~~~~~~~~">
+        <location file="src/main/res/values/colors.xml" line="8" column="12" />
+    </issue>
+    <issue id="UnusedResources" message="The resource `R.color.white` appears to be unused" errorLine1="    &lt;color name=&quot;white&quot;&gt;#FFFFFFFF&lt;/color&gt;" errorLine2="           ~~~~~~~~~~~~">
+        <location file="src/main/res/values/colors.xml" line="9" column="12" />
+    </issue>
+    <issue id="UnusedResources" message="The resource `R.xml.data_extraction_rules` appears to be unused" errorLine1="&lt;data-extraction-rules&gt;" errorLine2="^">
+        <location file="src/main/res/xml/data_extraction_rules.xml" line="6" column="1" />
+    </issue>
+    <issue id="UnusedResources" message="The resource `R.drawable.ic_launcher_background` appears to be unused" errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;" errorLine2="^">
+        <location file="src/main/res/drawable/ic_launcher_background.xml" line="2" column="1" />
+    </issue>
+    <issue id="MonochromeLauncherIcon" message="The application adaptive icon is missing a monochrome tag" errorLine1="&lt;adaptive-icon xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;&gt;" errorLine2="^">
+        <location file="src/main/res/mipmap-anydpi-v26/ic_launcher.xml" line="1" column="1" />
+    </issue>
+    <issue id="UseTomlInstead" message="Use version catalog instead" errorLine1="    implementation(&quot;androidx.core:core-splashscreen:1.0.1&quot;)" errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location file="build.gradle.kts" line="94" column="20" />
+    </issue>
 </issues>
