@@ -1,14 +1,12 @@
 [versions]
 agp = "8.5.2"
 kotlin = "2.0.21"
-hilt = "2.50"
+hilt = "2.51.1"
 room = "2.6.1"
 coreKtx = "1.12.0"
 lifecycle = "2.7.0"
 activityCompose = "1.8.2"
 composeBom = "2024.06.00"
-composeUi = "1.6.1"
-composeMaterial3 = "1.2.0"
 navigationCompose = "2.8.0"
 kotlinxSerialization = "1.6.3"
 hiltNavigationCompose = "1.1.0"
@@ -24,6 +22,7 @@ espresso = "3.5.1"
 gson = "2.11.0"
 robolectric = "4.13"
 mockwebserver = "4.12.0"
+ksp = "2.0.21-1.0.25"
 
 [libraries]
 # Core
@@ -80,8 +79,8 @@ androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "j
 androidx-test-core = { group = "androidx.test", name = "core", version = "1.5.0" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espresso" }
 room-testing = { group = "androidx.room", name = "room-testing", version.ref = "room" }
-androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4", version.ref = "composeUi" }
-androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest", version.ref = "composeUi" }
+androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
+androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 mockito-kotlin = { group = "org.mockito.kotlin", name = "mockito-kotlin", version = "5.2.1" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 robolectric = { group = "org.robolectric", name = "robolectric", version.ref = "robolectric" }
@@ -94,4 +93,7 @@ kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 kotlin-kapt = { id = "org.jetbrains.kotlin.kapt", version.ref = "kotlin" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+# KSP — замена kapt для Room и (с Hilt 2.51+) Hilt. KSP работает в 2× быстрее
+# kapt, т.к. не запускает отдельный Kotlin compiler stub generation.
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
