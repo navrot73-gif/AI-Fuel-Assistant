@@ -104,3 +104,17 @@ jobs:
           path: app/build/reports/androidTests/connected/
           if-no-files-found: warn
 
+      # Обязательный quality gate: "Run unit tests" выше специально помечен
+      # continue-on-error, чтобы диагностические артефакты (отчёты о тестах)
+      # успевали загрузиться даже при падении тестов. Но сам job обязан
+      # завершиться ошибкой, если юнит-тесты красные — иначе CI молча
+      # остаётся зелёным при сломанной бизнес-логике.
+      - name: Quality gate — unit tests must pass
+        if: always()
+        run: |
+          if [ "${{ steps.test.outcome }}" != "success" ]; then
+            echo "::error::Юнит-тесты упали (outcome=${{ steps.test.outcome }}). Смотрите артефакт unit-test-results."
+            exit 1
+          fi
+          echo "Юнит-тесты прошли успешно."
+
