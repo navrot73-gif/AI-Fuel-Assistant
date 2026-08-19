@@ -13,11 +13,8 @@ import com.navrot.aifuelassistant.geo.GeoPoint
 import com.navrot.aifuelassistant.geo.GeoUtils
 import com.navrot.aifuelassistant.geo.GeocodingProvider
 import com.navrot.aifuelassistant.geo.GeoException
-import com.navrot.aifuelassistant.geo.OpenRouteServiceProvider
-import com.navrot.aifuelassistant.geo.RoutingProvider
 import com.navrot.aifuelassistant.network.FuelApi
 import com.navrot.aifuelassistant.util.Format
-import okhttp3.OkHttpClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -37,7 +34,6 @@ import javax.inject.Inject
 @HiltViewModel
 class MapViewModel @Inject constructor(
     private val repository: GasStationRepositoryInterface,
-    private val okHttpClient: OkHttpClient,
     private val fuelApi: FuelApi,
     private val getBestStationsUseCase: GetBestStationsUseCase,
     private val benzonavtProvider: BenzonavtProvider,
@@ -50,11 +46,6 @@ class MapViewModel @Inject constructor(
         private const val DISTANCE_WEIGHT = 1.2
         private const val DEFAULT_CITY_SLUG = "chelyabinsk"
     }
-
-    private val routingProvider: RoutingProvider? =
-        BuildConfig.ORS_API_KEY
-            .takeIf { it.isNotBlank() }
-            ?.let { OpenRouteServiceProvider(apiKey = it, httpClient = okHttpClient) }
 
     // Race-guard для быстрого ввода: инкрементируется при каждом новом запросе
     private val searchRequestId = AtomicInteger(0)
