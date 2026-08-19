@@ -122,29 +122,70 @@ fun MapScreen(
         viewModel.buildRouteTo(st)
         routeStation = st
         selectedStation = null
-        showStationList = false // FIX: Hide the station list panel when route is built
+        showStationList = false
     }
 
 
-    LaunchedEffect(pendingRouteStationId, stations) {
+    LaunchedEffect(pendingRouteStationId, stations, userLocation) {
         val id = pendingRouteStationId ?: return@LaunchedEffect
-        // Check if userLocation is available immediately
-        if (userLocation == null) {
-            // Wait for up to 2 seconds for userLocation to become available, polling every 200ms
-            var attempts = 0
-            val maxAttempts = 10 // 2000ms / 200ms
-            while (userLocation == null && attempts < maxAttempts) {
-                delay(200)
-                attempts++
+        // Ждём и локацию, и станцию, и маршрут — до 6 секунд
+        var waited = 0
+        var foundStation: GasStation? = null // Variable to hold the found station
+        while (waited < 6000) {
+            val loc = userLocation
+            // Diagnostic log when stations list is not empty
+            if (stations.isNotEmpty()) {
+                 Log.d("RouteHandoff", "want id=$id, have ids=${stations.take(10).map { it.id }}, names=${stations.take(5).map { it.name }}")
             }
+
+            // Triple fallback logic for finding the station
+            val st = stations.firstOrNull { it.id == id }
+                ?: loc?.let { l ->
+                    // не нашли по id — берём БЛИЖАЙШУЮ к пользователю
+                    stations.minByOrNull {
+                        com.navrot.aifuelassistant.geo.GeoUtils
+                            .calculateDistance(l.latitude, l.longitude, it.latitude, it.longitude)
+                    }
+                }
+                ?: stations.firstOrNull()
+
+            // НОВОЕ: если станций нет — загрузи сам
+            if (loc != null && stations.isEmpty() && waited == 0) {
+                Log.d("RouteHandoff", "loading stations near $loc")
+                viewModel.loadNearbyStations(loc.latitude, loc.longitude, 50.0)
+            }
+
+            if (loc != null && st != null) {
+                viewModel.updateUserLocation(loc.latitude, loc.longitude)
+                viewModel.buildRouteTo(st)
+                routeStation = st
+                selectedStation = null
+                showStationList = false
+                foundStation = st // Assign the found station
+                Log.d("RouteHandoff", "route built to ${st.name} (id=${st.id}, wanted=$id)")
+                break
+            }
+
+            // НОВОЕ: если прошло 2 сек и станций всё ещё нет — попробуй ещё раз
+            if (waited > 2000 && stations.isEmpty() && waited % 2000 == 0) {
+                Log.d("RouteHandoff", "retry loading stations")
+                userLocation?.let {
+                    viewModel.loadNearbyStations(it.latitude, it.longitude, 50.0)
+                }
+            }
+
+            kotlinx.coroutines.delay(300)
+            waited += 300
         }
-        // Proceed with finding the station and building the route
-        stations.firstOrNull { it.id == id }?.let { station ->
+        // fallback: если st всё ещё не найден после 6 сек —
+        // всё равно закрой панель и покажи маркер
+        if (foundStation == null) {
+            Log.w("RouteHandoff", "station $id NOT FOUND after 6s, closing panel")
             showStationList = false
-            selectedStation = null
-            buildRouteAndClose(station)
-            onConsumePendingRoute()
         }
+
+        Log.d("RouteHandoff", "Consuming pending route request.")
+        onConsumePendingRoute()
     }
 
     // Handle pending open station from AI card handoff - bind route to opened station

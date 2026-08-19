@@ -453,7 +453,7 @@ private fun MetricsSection(
         Row(
             modifier = modifier
                 .fillMaxWidth()
-                .height(120.dp), // New fixed height for the entire metrics row
+                .height(150.dp), // Increased height from 120.dp
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // Gauge card (consumption)
@@ -471,12 +471,12 @@ private fun MetricsSection(
                 MetricCard(
                     value = rubPerKmStr,
                     subtitle = "Стоимость ₽/км",
-                    modifier = Modifier.height(56.dp) // Half the row height
+                    modifier = Modifier.height(71.dp) // Increased height from 56.dp
                 )
                 MetricCard(
                     value = efficiencyStr,
                     subtitle = "Эффективность",
-                    modifier = Modifier.height(56.dp) // Half the row height
+                    modifier = Modifier.height(71.dp) // Increased height from 56.dp
                 )
             }
         }
@@ -512,11 +512,12 @@ private fun MetricCard(
             Spacer(Modifier.height(2.dp))
             Text(
                 text = subtitle,
-                fontSize = if (subtitle == "Эффективность") 11.sp else 10.sp, // Specific font size for "Эффективность"
-                color = FueldeckColors.InkDim, // Grey color
+                fontSize = if (subtitle == "Эффективность") 11.sp else 10.sp,
+                color = FueldeckColors.InkDim,
                 textAlign = TextAlign.Center,
                 maxLines = 1,
-                overflow = if (subtitle == "Эффективность") TextOverflow.Ellipsis else TextOverflow.Clip // Apply ellipsis only to "Эффективность"
+                lineHeight = 12.sp, // Added line height for subtitle
+                overflow = if (subtitle == "Эффективность") TextOverflow.Ellipsis else TextOverflow.Clip
             )
         }
     }
