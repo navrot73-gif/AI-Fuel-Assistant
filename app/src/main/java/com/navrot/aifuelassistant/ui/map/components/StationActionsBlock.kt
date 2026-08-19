@@ -54,6 +54,10 @@ import androidx.core.content.FileProvider
 import com.navrot.aifuelassistant.BuildConfig
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
+import dagger.hilt.EntryPoint
+import dagger.hilt.InstallIn
+import dagger.hilt.android.EntryPointAccessors
+import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -65,7 +69,6 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.io.File
-import java.util.concurrent.TimeUnit
 import android.util.Base64
 
 @Composable
@@ -74,6 +77,15 @@ fun StationActionsBlock(
     onReportPrice: (stationId: Int, fuelType: String, price: Double) -> Unit = { _, _, _ -> },
 ) {
     val context = LocalContext.current
+    // Единый Hilt-синглтон OkHttpClient (с RetryInterceptor и общими таймаутами),
+    // а не отдельный клиент "на коленке" — доступ через EntryPoint, т.к. это
+    // не hiltViewModel(), а обычный stateless composable.
+    val okHttpClient = remember(context) {
+        EntryPointAccessors.fromApplication(
+            context.applicationContext,
+            OcrHttpClientEntryPoint::class.java
+        ).okHttpClient()
+    }
     var showPriceDialog by remember { mutableStateOf(false) }
     var showOcrLoading by remember { mutableStateOf(false) }
     var ocrError by remember { mutableStateOf<String?>(null) }
@@ -89,6 +101,7 @@ fun StationActionsBlock(
         if (success && tempPhotoFile != null) {
             scope.processOcrPhoto(
                 photoFile = tempPhotoFile!!,
+                httpClient = okHttpClient,
                 onLoading = { showOcrLoading = it },
                 onError = { ocrError = it },
                 onResults = { results ->
@@ -182,6 +195,7 @@ fun StationActionsBlock(
 // Process OCR photo - helper function
 fun CoroutineScope.processOcrPhoto(
     photoFile: File,
+    httpClient: OkHttpClient,
     onLoading: (Boolean) -> Unit,
     onError: (String?) -> Unit,
     onResults: (Map<String, Double>) -> Unit,
@@ -198,7 +212,7 @@ fun CoroutineScope.processOcrPhoto(
 
             // Call OCR API
             val results = withContext(Dispatchers.IO) {
-                callOcrApi(base64Image)
+                callOcrApi(base64Image, httpClient)
             }
 
             onLoading(false)
@@ -215,14 +229,14 @@ fun CoroutineScope.processOcrPhoto(
     }
 }
 
-// Call OCR API - helper function
-suspend fun callOcrApi(base64Image: String): Map<String, Double> {
-    val client = OkHttpClient.Builder()
-        .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
-        .writeTimeout(60, TimeUnit.SECONDS)
-        .build()
-
+/**
+ * Вызов OCR API распознавания цен со стеллы АЗС.
+ *
+ * Использует общий Hilt-синглтон [OkHttpClient] (с [com.navrot.aifuelassistant.network.RetryInterceptor]
+ * и едиными таймаутами на всё приложение), а не создаёт собственный клиент —
+ * см. AppModule.provideOkHttpClient().
+ */
+suspend fun callOcrApi(base64Image: String, client: OkHttpClient): Map<String, Double> {
     val jsonBody = JSONObject().put("image", base64Image).toString()
     val requestBody = jsonBody.toRequestBody("application/json; charset=utf-8".toMediaType())
 
@@ -250,6 +264,16 @@ suspend fun callOcrApi(base64Image: String): Map<String, Double> {
         results[key] = value
     }
     return results
+}
+
+/**
+ * Точка доступа к Hilt-синглтону [OkHttpClient] для не-ViewModel Compose-кода
+ * (обычные stateless composable не могут получить зависимости через hiltViewModel()).
+ */
+@EntryPoint
+@InstallIn(SingletonComponent::class)
+private interface OcrHttpClientEntryPoint {
+    fun okHttpClient(): OkHttpClient
 }
 
 @Composable
