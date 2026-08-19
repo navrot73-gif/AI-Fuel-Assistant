@@ -19,7 +19,9 @@ class GigaChatAiProvider(
     private val clientSecret: String? = null,
     private val authorizationKey: String? = null,
     private val model: String = "GigaChat",
-    private val httpClient: OkHttpClient = OkHttpClient()
+    private val httpClient: OkHttpClient = OkHttpClient(),
+    private val chatUrl: String = "https://gigachat.devices.sberbank.ru/api/v1/chat/completions",
+    private val oauthUrl: String = "https://ngw.devices.sberbank.ru:9443/api/v2/oauth"
 ) : AiProvider {
 
     override val name: String = "GigaChat"
@@ -36,46 +38,52 @@ class GigaChatAiProvider(
     override suspend fun ask(prompt: String): String = withContext(Dispatchers.IO) {
         require(prompt.isNotBlank()) { "Prompt must not be blank" }
 
-        val token = getAccessToken()
-        val requestJson = JSONObject()
-            .put("model", model)
-            .put(
-                "messages",
-                JSONArray().apply {
-                    put(JSONObject().apply {
-                        put("role", "system")
-                        put("content", AiProvider.SYSTEM_PROMPT)
-                    })
-                    put(JSONObject().apply {
-                        put("role", "user")
-                        put("content", prompt)
-                    })
+        try {
+            val token = getAccessToken()
+            val requestJson = JSONObject()
+                .put("model", model)
+                .put(
+                    "messages",
+                    JSONArray().apply {
+                        put(JSONObject().apply {
+                            put("role", "system")
+                            put("content", AiProvider.SYSTEM_PROMPT)
+                        })
+                        put(JSONObject().apply {
+                            put("role", "user")
+                            put("content", prompt)
+                        })
+                    }
+                )
+
+            val request = Request.Builder()
+                .url(chatUrl)
+                .addHeader("Authorization", "Bearer $token")
+                .addHeader("Accept", "application/json")
+                .addHeader("Content-Type", "application/json")
+                .post(requestJson.toString().toRequestBody("application/json".toMediaType()))
+                .build()
+
+            httpClient.newCall(request).execute().use { response ->
+                val body = response.body?.string()
+                if (!response.isSuccessful) {
+                    throw httpError(response.code, body.orEmpty(), "GigaChat request")
                 }
-            )
 
-        val request = Request.Builder()
-            .url("https://gigachat.devices.sberbank.ru/api/v1/chat/completions")
-            .addHeader("Authorization", "Bearer $token")
-            .addHeader("Accept", "application/json")
-            .addHeader("Content-Type", "application/json")
-            .post(requestJson.toString().toRequestBody("application/json".toMediaType()))
-            .build()
+                if (body.isNullOrBlank()) {
+                    throw AiException.EmptyResponse("GigaChat response body is empty")
+                }
 
-        httpClient.newCall(request).execute().use { response ->
-            val body = response.body?.string()
-            if (!response.isSuccessful) {
-                throw AiException.ApiError("GigaChat request failed: HTTP ${response.code} - ${body.orEmpty()}")
+                JSONObject(body)
+                    .getJSONArray("choices")
+                    .getJSONObject(0)
+                    .getJSONObject("message")
+                    .getString("content")
             }
-
-            if (body.isNullOrBlank()) {
-                throw AiException.EmptyResponse("GigaChat response body is empty")
-            }
-
-            JSONObject(body)
-                .getJSONArray("choices")
-                .getJSONObject(0)
-                .getJSONObject("message")
-                .getString("content")
+        } catch (e: AiException) {
+            throw e
+        } catch (e: Exception) {
+            throw AiException.NetworkError("GigaChat error: ${e.message}", e)
         }
     }
 
@@ -103,7 +111,7 @@ class GigaChatAiProvider(
             .build()
 
         val request = Request.Builder()
-            .url("https://ngw.devices.sberbank.ru:9443/api/v2/oauth")
+            .url(oauthUrl)
             .addHeader("RqUID", UUID.randomUUID().toString())
             .addHeader("Authorization", authHeader)
             .addHeader("Accept", "application/json")
@@ -113,7 +121,7 @@ class GigaChatAiProvider(
         httpClient.newCall(request).execute().use { response ->
             val body = response.body?.string()
             if (!response.isSuccessful) {
-                throw AiException.ApiError("GigaChat token request failed: HTTP ${response.code} - ${body.orEmpty()}")
+                throw httpError(response.code, body.orEmpty(), "GigaChat token request")
             }
 
             if (body.isNullOrBlank()) {
@@ -133,5 +141,13 @@ class GigaChatAiProvider(
 
             newToken
         }
+    }
+
+    /** Преобразует HTTP status code в соответствующий тип [AiException]. */
+    private fun httpError(code: Int, body: String, context: String): AiException = when (code) {
+        401, 403 -> AiException.AuthError("$context auth error: $code $body")
+        429 -> AiException.RateLimit("$context rate limit: $code $body")
+        in 500..599 -> AiException.ApiError("$context server error: $code $body")
+        else -> AiException.ApiError("$context failed: HTTP $code $body")
     }
 }
