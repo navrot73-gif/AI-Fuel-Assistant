@@ -15,7 +15,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.navigation.NavType
 import androidx.navigation.NavController
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.compose.NavHost
@@ -23,7 +22,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.navigation
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import androidx.navigation.toRoute
 import com.navrot.aifuelassistant.R
 import com.navrot.aifuelassistant.features.dashboard.DashboardScreen
@@ -63,13 +61,22 @@ object DashboardRoute {
     val route = "ai"
 }
 
-// Garage sealed class for nested navigation
-sealed class GarageDestination {
-    object List : GarageDestination()
-    data class Detail(val vehicleId: Long, val vehicleName: String) : GarageDestination()
+// Garage nested navigation — type-safe routes (аналогично Map/Dashboard/etc).
+// Ранее здесь использовались строковые маршруты с ручным String.replace, что
+// ломалось при спецсимволах в имени машины (/, %, ?). Теперь компилятор
+// гарантирует корректность.
+@Serializable
+@SerialName("garage_list")
+object GarageListRoute {
+    val route = "garage_list"
 }
 
-const val GARAGE_DETAIL_ROUTE = "garage/detail/{vehicleId}/{vehicleName}"
+@Serializable
+@SerialName("garage_detail")
+data class GarageDetailRoute(
+    val vehicleId: Long,
+    val vehicleName: String
+)
 
 @Serializable
 @SerialName("garage")
@@ -104,10 +111,19 @@ private val TAB_INACTIVE_COLOR = Color(0xFF8A949E)
 
 private val TAB_ROUTES = TABS.map { it.route }.toSet()
 
-// Helper to check if route is in garage sub-navigation
+// Helper to check if route is in garage sub-navigation.
+// Type-safe routes имеют вид:
+//   "garage_list"               → GarageListRoute
+//   "garage_detail/{vehicleId}/{vehicleName}" → GarageDetailRoute
+// Все они начинаются с префикса "garage", поэтому проверяем и "garage",
+// и "garage_list", и "garage_detail", и "garage/" (для подграфа navigation()).
 private fun String?.isGarageRoute(): Boolean {
     if (this == null) return false
-    return this == "garage" || this == "garage_list" || this.startsWith("garage/")
+    return this == "garage" ||
+            this == "garage_list" ||
+            this.startsWith("garage/") ||
+            this.startsWith("garage_detail") ||
+            this.startsWith("garage_list?")
 }
 
 // Helper to check if route is a map navigation route
@@ -240,33 +256,26 @@ fun AppNavigation() {
             composable<DashboardRoute> { DashboardScreen(navController = navController) }
 
             // Garage nested navigation
-            navigation(startDestination = "garage_list", route = "garage") {
-                composable(route = "garage_list") {
+            navigation(startDestination = GarageListRoute.route, route = GarageRoute.route) {
+                composable<GarageListRoute> {
                     val garageViewModel: VehicleViewModel = hiltViewModel()
                     GarageListScreen(
                         onAddClick = { navController.navigate(AddVehicleRoute) },
                         onVehicleClick = { vehicleId ->
+                            // Type-safe навигация: navigation-compose сам URL-encode'ит
+                            // аргументы. Раньше ручной .replace ломался на спецсимволах.
                             val vehicle = garageViewModel.vehiclesWithStats.value.find { it.id == vehicleId }
                             val vehicleName = vehicle?.name ?: ""
-                            val routeStr = GARAGE_DETAIL_ROUTE
-                                .replace("{vehicleId}", vehicleId.toString())
-                                .replace("{vehicleName}", vehicleName)
-                            navController.navigate(routeStr)
+                            navController.navigate(GarageDetailRoute(vehicleId, vehicleName))
                         },
                         viewModel = garageViewModel
                     )
                 }
-                
-                composable(
-                    route = GARAGE_DETAIL_ROUTE,
-                    arguments = listOf(
-                        navArgument("vehicleId") { type = NavType.LongType },
-                        navArgument("vehicleName") { type = NavType.StringType }
-                    )
-                ) { backStackEntry ->
-                    val arguments = backStackEntry.arguments
-                    val vehicleId = arguments?.getLong("vehicleId") ?: -1L
-                    val vehicleName = arguments?.getString("vehicleName") ?: ""
+
+                composable<GarageDetailRoute> { backStackEntry ->
+                    val args = backStackEntry.toRoute<GarageDetailRoute>()
+                    val vehicleId = args.vehicleId
+                    val vehicleName = args.vehicleName
                     VehicleDetailScreen(
                         vehicleId = vehicleId,
                         vehicleName = vehicleName,
