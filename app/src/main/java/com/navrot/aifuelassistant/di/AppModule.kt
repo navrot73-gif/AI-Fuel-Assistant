@@ -45,12 +45,17 @@ object AppModule {
             AppDatabase::class.java,
             "ai_fuel_assistant_db"
         )
-            .addMigrations(DatabaseMigrations.MIGRATION_2_3)
+            // Все явные миграции между версиями схемы.
+            .addMigrations(*DatabaseMigrations.ALL)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
                     Log.w("AppDatabase", "⚠️ Деструктивная миграция БД! Все данные пользователя удалены.")
                 }
             })
+            // Страховка при upgrade, если разработчик забыл написать миграцию
+            // (только для debug-сборок при разработке; в release лучше всегда иметь
+            // явные миграции, чтобы не терять данные пользователя молча).
+            .fallbackToDestructiveMigration()
             .fallbackToDestructiveMigrationOnDowngrade()
             .build()
     }
