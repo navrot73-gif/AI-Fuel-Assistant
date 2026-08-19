@@ -14,9 +14,15 @@ import org.json.JSONObject
 /**
  * Qwen (Alibaba Cloud DashScope) — OpenAI-compatible API.
  * Модели: qwen-plus (быстрый), qwen-max (умный), qwen-turbo (дешёвый).
+ *
+ * [baseUrl] и [apiKey] — параметры конструктора (с дефолтами), чтобы в тестах
+ * можно было подменить URL на MockWebServer.
  */
 class QwenAiProvider(
-    private val httpClient: OkHttpClient = OkHttpClient()
+    private val httpClient: OkHttpClient = OkHttpClient(),
+    private val baseUrl: String = BASE_URL,
+    private val model: String = MODEL,
+    private val apiKey: String = BuildConfig.QWEN_API_KEY
 ) : AiProvider {
     override val name: String = "Qwen"
 
@@ -30,6 +36,8 @@ class QwenAiProvider(
     }
 
     override suspend fun ask(prompt: String): String = withContext(Dispatchers.IO) {
+        require(prompt.isNotBlank()) { "Prompt must not be blank" }
+
         try {
             val messages = JSONArray().apply {
                 put(JSONObject().apply {
@@ -43,14 +51,14 @@ class QwenAiProvider(
             }
 
             val jsonBody = JSONObject().apply {
-                put("model", MODEL)
+                put("model", model)
                 put("messages", messages)
                 put("temperature", 0.7)
             }
 
             val request = Request.Builder()
-                .url(BASE_URL)
-                .addHeader("Authorization", "Bearer ${BuildConfig.QWEN_API_KEY}")
+                .url(baseUrl)
+                .addHeader("Authorization", "Bearer $apiKey")
                 .addHeader("Content-Type", "application/json")
                 .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
                 .build()
@@ -59,7 +67,7 @@ class QwenAiProvider(
                 val responseBody = response.body?.string()
                 if (!response.isSuccessful) {
                     Log.w(TAG, "Qwen API error: ${response.code} ${responseBody ?: response.message}")
-                    throw AiException.ApiError("Qwen API error: ${response.code}")
+                    throw httpError(response.code, responseBody ?: response.message)
                 }
 
                 if (responseBody.isNullOrBlank()) {
@@ -78,5 +86,12 @@ class QwenAiProvider(
             Log.w(TAG, "Qwen network error: ${e.message}")
             throw AiException.NetworkError("Qwen error: ${e.message}", e)
         }
+    }
+
+    private fun httpError(code: Int, body: String): AiException = when (code) {
+        401, 403 -> AiException.AuthError("Qwen auth error: $code $body")
+        429 -> AiException.RateLimit("Qwen rate limit: $code $body")
+        in 500..599 -> AiException.ApiError("Qwen server error: $code $body")
+        else -> AiException.ApiError("Qwen API error: $code $body")
     }
 }
