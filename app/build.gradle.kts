@@ -3,7 +3,9 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
-    alias(libs.plugins.kotlin.kapt)
+    // KSP заменяет kapt для Room и Hilt (с Hilt 2.51+).
+    // KSP работает в ~2× быстрее kapt, т.к. не запускает отдельный stub generation.
+    alias(libs.plugins.ksp)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt)
@@ -63,8 +65,9 @@ android {
     }
     kotlinOptions { jvmTarget = "17" }
 
-    kapt {
-        arguments { arg("room.schemaLocation", "$projectDir/schemas") }
+    // KSP: передаём аргументы для Room (schema location) через ksp block.
+    ksp {
+        arg("room.schemaLocation", "$projectDir/schemas")
     }
 
     buildFeatures {
@@ -90,10 +93,6 @@ android {
             assets.srcDirs(files("$projectDir/schemas"))
         }
     }
-}
-
-kapt {
-    correctErrorTypes = true
 }
 
 dependencies {
@@ -124,13 +123,13 @@ dependencies {
 
     // Hilt
     implementation(libs.hilt.android)
-    kapt(libs.hilt.compiler)
+    ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
     // Room
     implementation(libs.room.runtime)
     implementation(libs.room.ktx)
-    kapt(libs.room.compiler)
+    ksp(libs.room.compiler)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
