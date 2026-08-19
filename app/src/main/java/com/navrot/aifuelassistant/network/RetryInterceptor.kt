@@ -48,9 +48,22 @@ class RetryInterceptor(
         var lastException: IOException? = null
         val request = chain.request()
 
-        // Для proxy запросов ограничиваем ретраи до 1
-        val isProxyRequest = request.url.host.contains("navrot73.workers.dev")
-        val effectiveMaxRetries = if (isProxyRequest) 1 else maxRetries
+        val host = request.url.host
+        val path = request.url.encodedPath
+        // Для proxy запросов ограничиваем ретраи до 1, чтобы не нагружать единый прокси.
+        val isProxyRequest = host.contains("navrot73.workers.dev")
+        // Endpoint /route имеет жёсткий 3-сек таймаут в FuelApiImpl (callTimeout=3s).
+        // Ретраи с backoff 250ms+500ms = 750ms+ съедают почти весь бюджет → запрос
+        // падает по SocketTimeoutException → MapViewModel fallback'ит на прямую линию,
+        // которая визуально может «выходить за конечную точку» при неточной геопозиции.
+        // Поэтому /route вообще не ретраим — лучше быстро упасть и дать fallback,
+        // чем ждать и таймаутить.
+        val isRouteEndpoint = isProxyRequest && (path == "/route" || path.startsWith("/route/"))
+        val effectiveMaxRetries = when {
+            isRouteEndpoint -> 0
+            isProxyRequest -> 1
+            else -> maxRetries
+        }
 
         while (true) {
             try {

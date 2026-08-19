@@ -7,6 +7,7 @@ import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.QueueDispatcher
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -330,6 +331,40 @@ class RetryInterceptorTest {
             "DeepSeek host should NOT be detected as proxy",
             !normalRequest.url.host.contains("navrot73.workers.dev")
         )
+    }
+
+    @Test
+    fun `route endpoint path detection - encodedPath values`() {
+        // OkHttp encodedPath для разных URL:
+        val routeUrl = okhttp3.HttpUrl.Builder()
+            .scheme("https")
+            .host("ai-fuel-proxy.navrot73.workers.dev")
+            .addPathSegment("route")
+            .build()
+        assertEquals("/route", routeUrl.encodedPath)
+
+        val rootUrl = okhttp3.HttpUrl.Builder()
+            .scheme("https")
+            .host("ai-fuel-proxy.navrot73.workers.dev")
+            .build()
+        // OkHttp возвращает "/" для root URL (не пустую строку)
+        assertEquals("/", rootUrl.encodedPath)
+
+        val cityPricesUrl = okhttp3.HttpUrl.Builder()
+            .scheme("https")
+            .host("ai-fuel-proxy.navrot73.workers.dev")
+            .addPathSegment("city-prices")
+            .build()
+        assertEquals("/city-prices", cityPricesUrl.encodedPath)
+
+        // Проверяем, что /route детектится как route endpoint,
+        // а /, /city-prices, /ocr-stela — нет.
+        assertTrue("/route should be detected as route endpoint",
+            routeUrl.encodedPath == "/route" || routeUrl.encodedPath.startsWith("/route/"))
+        assertFalse("/ should NOT be detected as route endpoint",
+            rootUrl.encodedPath == "/route" || rootUrl.encodedPath.startsWith("/route/"))
+        assertFalse("/city-prices should NOT be detected as route endpoint",
+            cityPricesUrl.encodedPath == "/route" || cityPricesUrl.encodedPath.startsWith("/route/"))
     }
 
     // ==================== Edge cases ====================
