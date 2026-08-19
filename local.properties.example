@@ -28,3 +28,10 @@ YANDEX_FOLDER_ID=your_yandex_folder_id_here
 
 # OpenRouteService (бесплатный ключ) — https://openrouteservice.org/dev/#/signup
 ORS_API_KEY=your_openrouteservice_api_key_here
+
+# === Инфраструктура приложения ===
+
+# Токен Cloudflare Worker'а (ai-fuel-proxy.navrot73.workers.dev) для AI/цен/маршрутов.
+# Ранее был захардкожен в build.gradle.kts — это небезопасно (извлекается из APK).
+# Заполните локально; в CI инжектируйте через GitHub Actions secret.
+PROXY_TOKEN=your_proxy_token_here

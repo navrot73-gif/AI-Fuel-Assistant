@@ -16,6 +16,11 @@ if (localPropertiesFile.exists()) {
     localProperties.load(localPropertiesFile.inputStream())
 }
 
+// Разрешение значения секрета: local.properties → env variable → пустая строка.
+// Никогда не хардкодим токен в build-скрипте (он извлекается из APK через jadx/apktool).
+fun secret(name: String): String =
+    localProperties.getProperty(name, System.getenv(name) ?: "")
+
 android {
     namespace = "com.navrot.aifuelassistant"
     compileSdk = 34
@@ -29,26 +34,26 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
 
-        buildConfigField("String", "DEEPSEEK_API_KEY", "\"${localProperties.getProperty("DEEPSEEK_API_KEY", "")}\"")
-        buildConfigField("String", "QWEN_API_KEY", "\"${localProperties.getProperty("QWEN_API_KEY", "")}\"")
-        buildConfigField("String", "HUGGINGFACE_TOKEN", "\"${localProperties.getProperty("HUGGINGFACE_TOKEN", "")}\"")
-        buildConfigField("String", "GIGACHAT_CLIENT_ID", "\"${localProperties.getProperty("GIGACHAT_CLIENT_ID", "")}\"")
-        buildConfigField("String", "GIGACHAT_CLIENT_SECRET", "\"${localProperties.getProperty("GIGACHAT_CLIENT_SECRET", "")}\"")
-        buildConfigField("String", "GIGACHAT_AUTHORIZATION_KEY", "\"${localProperties.getProperty("GIGACHAT_AUTHORIZATION_KEY", "")}\"")
-        buildConfigField("String", "YANDEX_API_KEY", "\"${localProperties.getProperty("YANDEX_API_KEY", "")}\"")
-        buildConfigField("String", "YANDEX_FOLDER_ID", "\"${localProperties.getProperty("YANDEX_FOLDER_ID", "")}\"")
-        buildConfigField("String", "ORS_API_KEY", "\"${localProperties.getProperty("ORS_API_KEY", "")}\"")
+        buildConfigField("String", "DEEPSEEK_API_KEY", "\"${secret("DEEPSEEK_API_KEY")}\"")
+        buildConfigField("String", "QWEN_API_KEY", "\"${secret("QWEN_API_KEY")}\"")
+        buildConfigField("String", "HUGGINGFACE_TOKEN", "\"${secret("HUGGINGFACE_TOKEN")}\"")
+        buildConfigField("String", "GIGACHAT_CLIENT_ID", "\"${secret("GIGACHAT_CLIENT_ID")}\"")
+        buildConfigField("String", "GIGACHAT_CLIENT_SECRET", "\"${secret("GIGACHAT_CLIENT_SECRET")}\"")
+        buildConfigField("String", "GIGACHAT_AUTHORIZATION_KEY", "\"${secret("GIGACHAT_AUTHORIZATION_KEY")}\"")
+        buildConfigField("String", "YANDEX_API_KEY", "\"${secret("YANDEX_API_KEY")}\"")
+        buildConfigField("String", "YANDEX_FOLDER_ID", "\"${secret("YANDEX_FOLDER_ID")}\"")
+        buildConfigField("String", "ORS_API_KEY", "\"${secret("ORS_API_KEY")}\"")
+        buildConfigField("String", "PROXY_TOKEN", "\"${secret("PROXY_TOKEN")}\"")
     }
 
     buildTypes {
         debug {
-            buildConfigField("String", "PROXY_TOKEN", "\"fuel-2026-secret\"")
+            // PROXY_TOKEN теперь берётся из local.properties / env (см. defaultConfig).
         }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            buildConfigField("String", "PROXY_TOKEN", "\"fuel-2026-secret\"")
         }
     }
     compileOptions {
