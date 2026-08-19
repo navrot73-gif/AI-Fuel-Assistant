@@ -27,15 +27,44 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import okhttp3.OkHttpClient
 import com.navrot.aifuelassistant.network.RetryInterceptor
 import com.navrot.aifuelassistant.ui.map.TileWarmupService
 import java.util.concurrent.TimeUnit
+import javax.inject.Qualifier
 import javax.inject.Singleton
+
+/**
+ * Квалификатор для [CoroutineScope], привязанного к жизненному циклу приложения.
+ *
+ * Используется в репозиториях и других @Singleton-компонентах, которым нужно
+ * запускать фоновые корутины, не привязанные к конкретной ViewModel/Activity.
+ *
+ * Важно: такой scope должен быть создан с [SupervisorJob] (чтобы одна упавшая
+ * корутина не отменяла сестер) и [CoroutineExceptionHandler] (чтобы неупавшая
+ * ошибка не роняла процесс).
+ */
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class ApplicationScope
 
 @Module
 @InstallIn(SingletonComponent::class)
 object AppModule {
+
+    @Provides
+    @Singleton
+    @ApplicationScope
+    fun provideApplicationScope(): CoroutineScope {
+        val handler = CoroutineExceptionHandler { _, throwable ->
+            Log.e("ApplicationScope", "Uncaught coroutine exception", throwable)
+        }
+        return CoroutineScope(SupervisorJob() + Dispatchers.IO + handler)
+    }
 
     @Provides
     @Singleton
@@ -100,10 +129,12 @@ object AppModule {
         okHttpClient: OkHttpClient,
         userPriceRepository: UserPriceRepository,
         getBestStationsUseCase: GetBestStationsUseCase,
-        benzonavtProvider: BenzonavtProvider
+        benzonavtProvider: BenzonavtProvider,
+        @ApplicationScope appScope: CoroutineScope
     ): GasStationRepositoryInterface {
         return GasStationRepository(
-            context, okHttpClient, userPriceRepository, getBestStationsUseCase, benzonavtProvider
+            context, okHttpClient, userPriceRepository, getBestStationsUseCase,
+            benzonavtProvider, appScope
         )
     }
 
