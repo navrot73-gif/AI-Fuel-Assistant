@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -53,7 +54,12 @@ fun VehicleCard(
             .fillMaxWidth()
             .clickable { onClick() }
     ) {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Removed .weight(1f) and set explicit height to prevent stretching
+        Column(modifier = Modifier
+            .padding(16.dp)
+            .height(IntrinsicSize.Min), // Or use a fixed height like .height(120.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
             
             // Top row: car icon + name + fuel badge + active badge/radio
             Row(

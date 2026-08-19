@@ -122,7 +122,7 @@ fun MapScreen(
         viewModel.buildRouteTo(st)
         routeStation = st
         selectedStation = null
-        showStationList = false
+        showStationList = false // FIX: Hide the station list panel when route is built
     }
 
 

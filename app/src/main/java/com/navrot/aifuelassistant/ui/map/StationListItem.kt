@@ -116,7 +116,7 @@ fun StationListItem(
                                     fontSize = 10.sp,
                                     color = if (hot) FueldeckColors.Mint else FueldeckColors.InkFaint,
                                     fontWeight = FontWeight.Medium,
-                                    fontFamily = if (hot) FontFamily.Monospace else FontFamily.SansSerif,
+                                    fontFamily = FontFamily.Monospace,
                                     modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
                                 )
                                 // Show queue + reliability icons only for selected fuel type
@@ -153,7 +153,8 @@ fun StationListItem(
                         text = "$tilde${Format.price(fuel.price)} ₽",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        color = FueldeckColors.Mint
+                        color = FueldeckColors.Mint,
+                        fontFamily = FontFamily.Monospace
                     )
                     if (fuel.isMedianFromNetwork && fuel.sourceCount > 0) {
                         Text(

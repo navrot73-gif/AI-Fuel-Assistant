@@ -427,6 +427,10 @@ class GasStationRepository constructor(
         val jsonArray = JSONArray(jsonString)
         return (0 until jsonArray.length()).map { i ->
             parseStation(jsonArray.getJSONObject(i))
+        }.filter { station ->
+            val lowerName = station.name.lowercase()
+            // Filter out stations with names in the blacklist
+            !listOf("get petrol", "price", "test station").any { it in lowerName }
         }
     }
 

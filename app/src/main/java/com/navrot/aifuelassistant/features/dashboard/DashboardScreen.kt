@@ -451,24 +451,34 @@ private fun MetricsSection(
         val efficiencyStr = if (fillCount < 2) "—" else "$efficiency%"
 
         Row(
-            modifier = modifier.fillMaxWidth(),
+            modifier = modifier
+                .fillMaxWidth()
+                .height(120.dp), // New fixed height for the entire metrics row
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // Gauge card (consumption)
             MetricCard(
                 value = consumptionStr,
                 subtitle = "Расход л/100км",
                 modifier = Modifier.weight(1f)
             )
-            MetricCard(
-                value = rubPerKmStr,
-                subtitle = "Стоимость ₽/км",
-                modifier = Modifier.weight(1f)
-            )
-            MetricCard(
-                value = efficiencyStr,
-                subtitle = "Эффективность",
-                modifier = Modifier.weight(1f)
-            )
+
+            // Column with two smaller cards (rubPerKm, efficiency)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                MetricCard(
+                    value = rubPerKmStr,
+                    subtitle = "Стоимость ₽/км",
+                    modifier = Modifier.height(56.dp) // Half the row height
+                )
+                MetricCard(
+                    value = efficiencyStr,
+                    subtitle = "Эффективность",
+                    modifier = Modifier.height(56.dp) // Half the row height
+                )
+            }
         }
     }
 }
@@ -483,7 +493,7 @@ private fun MetricCard(
         colors = CardDefaults.cardColors(containerColor = FueldeckColors.Surface),
         shape = RoundedCornerShape(16.dp),
         border = androidx.compose.foundation.BorderStroke(1.dp, FueldeckColors.Line),
-        modifier = modifier.height(72.dp) // Changed height
+        modifier = modifier
     ) {
         Column(
             modifier = Modifier
@@ -494,7 +504,7 @@ private fun MetricCard(
         ) {
             Text(
                 text = value,
-                fontSize = 16.sp, // Changed font size
+                fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = FueldeckColors.Ink,
                 maxLines = 1
@@ -502,11 +512,11 @@ private fun MetricCard(
             Spacer(Modifier.height(2.dp))
             Text(
                 text = subtitle,
-                fontSize = 10.sp, // Changed font size
+                fontSize = if (subtitle == "Эффективность") 11.sp else 10.sp, // Specific font size for "Эффективность"
                 color = FueldeckColors.InkDim, // Grey color
                 textAlign = TextAlign.Center,
                 maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                overflow = if (subtitle == "Эффективность") TextOverflow.Ellipsis else TextOverflow.Clip // Apply ellipsis only to "Эффективность"
             )
         }
     }
