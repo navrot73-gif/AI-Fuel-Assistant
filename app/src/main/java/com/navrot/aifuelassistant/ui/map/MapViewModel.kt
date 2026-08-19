@@ -16,6 +16,7 @@ import com.navrot.aifuelassistant.geo.GeoException
 import com.navrot.aifuelassistant.geo.OpenRouteServiceProvider
 import com.navrot.aifuelassistant.geo.RoutingProvider
 import com.navrot.aifuelassistant.network.FuelApi
+import com.navrot.aifuelassistant.util.Format
 import okhttp3.OkHttpClient
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -414,7 +415,7 @@ class MapViewModel @Inject constructor(
                 GeoPoint(start.first, start.second),
                 GeoPoint(station.latitude, station.longitude)
             ),
-            distanceText = String.format(java.util.Locale.US, "%.1f км", distKm),
+            distanceText = "${Format.km(distKm)} км",
             durationText = "по прямой",
             destination = station.brand,
             isStraightLine = true,
@@ -444,7 +445,7 @@ class MapViewModel @Inject constructor(
 
                 _route.value = RouteUiState(
                     points = routePoints,
-                    distanceText = String.format(java.util.Locale.US, "%.1f км", response.distance_m / 1000.0),
+                    distanceText = "${Format.km(response.distance_m / 1000.0)} км",
                     durationText = durText,
                     destination = station.brand,
                     isStraightLine = false,

@@ -25,6 +25,7 @@ import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
 import com.navrot.aifuelassistant.geo.GeoUtils
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
+import com.navrot.aifuelassistant.util.Format
 import org.osmdroid.util.GeoPoint
 
 @Composable
@@ -110,7 +111,7 @@ fun StationListItem(
                                 Text(
                                     text = if (hot) {
                                         val tilde = if (fuel.isMedianFromNetwork) "~" else ""
-                                        "${fuel.type} $tilde${String.format("%.0f", fuel.price)}"
+                                        "${fuel.type} $tilde${Format.price(fuel.price)}"
                                     } else "${fuel.type} нет",
                                     fontSize = 10.sp,
                                     color = if (hot) FueldeckColors.Mint else FueldeckColors.InkFaint,
@@ -149,7 +150,7 @@ fun StationListItem(
                 primaryFuel?.let { fuel ->
                     val tilde = if (fuel.isMedianFromNetwork) "~" else ""
                     Text(
-                        text = "$tilde${String.format("%.0f", fuel.price)} ₽",
+                        text = "$tilde${Format.price(fuel.price)} ₽",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
                         color = FueldeckColors.Mint
@@ -169,7 +170,7 @@ fun StationListItem(
 
                 distance?.let { dist ->
                     Text(
-                        text = "${String.format("%.1f", dist)} км",
+                        text = "${Format.km(dist)} км",
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace,
                         color = FueldeckColors.InkDim

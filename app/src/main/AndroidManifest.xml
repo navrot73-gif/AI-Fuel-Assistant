@@ -7,6 +7,32 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
+    <!--
+        На Android 11+ (API 30+) видимость других приложений ограничена: Intent.resolveActivity()
+        возвращает null для пакетов, которые не объявлены в <queries>, даже если они установлены.
+        Это ломает кнопки «Открыть в Яндекс.Навигаторе» / «Открыть в Google Maps».
+        Подробнее: https://developer.android.com/training/package-visibility
+    -->
+    <queries>
+        <!-- Яндекс.Навигатор: custom scheme yandexnavi:// -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="yandexnavi" />
+        </intent>
+
+        <!-- Google Maps: google.navigation: scheme -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="google.navigation" />
+        </intent>
+
+        <!-- Общий http/https viewer (Google Maps web fallback и др.) -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="https" />
+        </intent>
+    </queries>
+
     <application
         android:name=".FuelApplication"
         android:allowBackup="false"

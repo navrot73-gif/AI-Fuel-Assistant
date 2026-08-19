@@ -30,6 +30,8 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.navrot.aifuelassistant.data.VehicleCatalog
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
+import com.navrot.aifuelassistant.util.Format
+import com.navrot.aifuelassistant.util.Format
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -78,14 +80,14 @@ fun AddFuelRecordScreen(
                 getLocation(context) { loc ->
                     latitude = loc.latitude
                     longitude = loc.longitude
-                    gpsStatus = "GPS: ${String.format("%.5f", latitude)}, ${String.format("%.5f", longitude)}"
+                    gpsStatus = "GPS: ${Format.coord(latitude)}, ${Format.coord(longitude)}"
                 }
             }
             permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false) -> {
                 getLocation(context) { loc ->
                     latitude = loc.latitude
                     longitude = loc.longitude
-                    gpsStatus = "GPS (приблизительно): ${String.format("%.5f", latitude)}, ${String.format("%.5f", longitude)}"
+                    gpsStatus = "GPS (приблизительно): ${Format.coord(latitude)}, ${Format.coord(longitude)}"
                 }
             }
             else -> {
@@ -145,7 +147,7 @@ fun AddFuelRecordScreen(
             )
 
             OutlinedTextField(
-                value = String.format("%.2f", totalCost),
+                value = Format.number(totalCost, 2),
                 onValueChange = {},
                 readOnly = true,
                 label = { Text("Итого (руб)") },
@@ -200,14 +202,14 @@ fun AddFuelRecordScreen(
                             getLocation(context) { loc ->
                                 latitude = loc.latitude
                                 longitude = loc.longitude
-                                gpsStatus = "GPS: ${String.format("%.5f", latitude)}, ${String.format("%.5f", longitude)}"
+                                gpsStatus = "GPS: ${Format.coord(latitude)}, ${Format.coord(longitude)}"
                             }
                         }
                         context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED -> {
                             getLocation(context) { loc ->
                                 latitude = loc.latitude
                                 longitude = loc.longitude
-                                gpsStatus = "GPS (приблизительно): ${String.format("%.5f", latitude)}, ${String.format("%.5f", longitude)}"
+                                gpsStatus = "GPS (приблизительно): ${Format.coord(latitude)}, ${Format.coord(longitude)}"
                             }
                         }
                         else -> {

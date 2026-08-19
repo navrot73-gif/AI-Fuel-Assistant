@@ -4,6 +4,7 @@ import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.geo.GeoUtils
+import com.navrot.aifuelassistant.util.Format
 
 object FuelAnalysisPromptBuilder {
 
@@ -50,7 +51,7 @@ object FuelAnalysisPromptBuilder {
                 val fuel = st.fuelTypes.firstOrNull { it.available }
                 val price = fuel?.price?.let { "~${it.toInt()}₽" } ?: "нет данных"
                 val distKm = GeoUtils.calculateDistance(lat, lon, st.latitude, st.longitude)
-                val dist = "${String.format("%.1f", distKm)} км"
+                val dist = "${Format.km(distKm)} км"
                 "- ${st.brand} (${st.name}): $price, $dist"
             }
             "\nБлижайшие АЗС:\n$list"

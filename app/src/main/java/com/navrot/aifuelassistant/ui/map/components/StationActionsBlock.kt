@@ -54,6 +54,7 @@ import androidx.core.content.FileProvider
 import com.navrot.aifuelassistant.BuildConfig
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
+import com.navrot.aifuelassistant.util.Format
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -308,7 +309,7 @@ private fun ReportPriceDialog(
                         Spacer(Modifier.width(8.dp))
                         Text(fuel.type, modifier = Modifier.weight(1f))
                         Text(
-                            String.format("%.2f ₽", fuel.price),
+                            "${Format.price2(fuel.price)} ₽",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 13.sp
                         )
@@ -377,7 +378,7 @@ private fun OcrResultDialog(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            text = "АИ-${entry.key}: ${String.format("%.1f", entry.value)} ₽",
+                            text = "АИ-${entry.key}: ${Format.number(entry.value, 1)} ₽",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Medium
                         )

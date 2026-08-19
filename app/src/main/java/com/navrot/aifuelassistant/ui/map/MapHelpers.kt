@@ -15,6 +15,7 @@ import com.google.android.gms.location.Priority
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
+import com.navrot.aifuelassistant.util.Format
 
 fun openMapsRoute(context: Context, lat: Double, lon: Double, label: String) {
     try {
@@ -74,7 +75,7 @@ fun buildStationSnippet(station: GasStation, selectedFuelTypes: Set<String>): St
         .filter { selectedFuelTypes.contains(it.type) && it.available }
         .joinToString(" | ") {
             val tilde = if (it.isMedianFromNetwork) "~" else ""
-            "${it.type}: $tilde${String.format("%.0f", it.price)}₽"
+            "${it.type}: $tilde${Format.price(it.price)}₽"
         }
     return if (fuels.isNotEmpty()) {
         "$fuels | Очередь: ${station.queueTime} мин"
