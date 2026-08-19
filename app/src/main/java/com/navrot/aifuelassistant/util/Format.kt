@@ -12,6 +12,11 @@ import java.util.Locale
  *
  * Все числовые строки, которые попадают в UI или конкатенируются в строки,
  * должны идти через эти хелперы (используем [Locale.ROOT] / [Locale.US]).
+ *
+ * Все числовые методы принимают [Number] — это позволяет передавать
+ * `Int`, `Long`, `Float`, `Double` без явного приведения. Внутри
+ * конвертация идёт через [Number.toDouble], что безопасно для всех
+ * примитивных числовых типов Kotlin.
  */
 object Format {
 
@@ -23,22 +28,22 @@ object Format {
         String.format(Locale.ROOT, fmt, *args)
 
     /** Десятичное число с [digits] знаками после точки, разделитель — точка. */
-    fun number(value: Double, digits: Int = 1): String =
-        String.format(Locale.ROOT, "%.${digits}f", value)
+    fun number(value: Number, digits: Int = 1): String =
+        String.format(Locale.ROOT, "%.${digits}f", value.toDouble())
 
     /** Цена в ₽, 0 знаков после точки. */
-    fun price(value: Double): String =
-        String.format(Locale.ROOT, "%.0f", value)
+    fun price(value: Number): String =
+        String.format(Locale.ROOT, "%.0f", value.toDouble())
 
     /** Цена в ₽, 2 знака после точки. */
-    fun price2(value: Double): String =
-        String.format(Locale.ROOT, "%.2f", value)
+    fun price2(value: Number): String =
+        String.format(Locale.ROOT, "%.2f", value.toDouble())
 
     /** Координата с 5 знаками после точки (точность ~1 м). */
-    fun coord(value: Double): String =
-        String.format(Locale.ROOT, "%.5f", value)
+    fun coord(value: Number): String =
+        String.format(Locale.ROOT, "%.5f", value.toDouble())
 
     /** Пробег в км с 1 знаком после точки. */
-    fun km(value: Double): String =
-        String.format(Locale.ROOT, "%.1f", value)
+    fun km(value: Number): String =
+        String.format(Locale.ROOT, "%.1f", value.toDouble())
 }

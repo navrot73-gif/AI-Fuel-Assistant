@@ -31,7 +31,6 @@ import com.google.android.gms.location.Priority
 import com.navrot.aifuelassistant.data.VehicleCatalog
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.util.Format
-import com.navrot.aifuelassistant.util.Format
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -80,14 +79,14 @@ fun AddFuelRecordScreen(
                 getLocation(context) { loc ->
                     latitude = loc.latitude
                     longitude = loc.longitude
-                    gpsStatus = "GPS: ${Format.coord(latitude)}, ${Format.coord(longitude)}"
+                    gpsStatus = "GPS: ${Format.coord(loc.latitude)}, ${Format.coord(loc.longitude)}"
                 }
             }
             permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false) -> {
                 getLocation(context) { loc ->
                     latitude = loc.latitude
                     longitude = loc.longitude
-                    gpsStatus = "GPS (приблизительно): ${Format.coord(latitude)}, ${Format.coord(longitude)}"
+                    gpsStatus = "GPS (приблизительно): ${Format.coord(loc.latitude)}, ${Format.coord(loc.longitude)}"
                 }
             }
             else -> {
@@ -202,14 +201,14 @@ fun AddFuelRecordScreen(
                             getLocation(context) { loc ->
                                 latitude = loc.latitude
                                 longitude = loc.longitude
-                                gpsStatus = "GPS: ${Format.coord(latitude)}, ${Format.coord(longitude)}"
+                                gpsStatus = "GPS: ${Format.coord(loc.latitude)}, ${Format.coord(loc.longitude)}"
                             }
                         }
                         context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED -> {
                             getLocation(context) { loc ->
                                 latitude = loc.latitude
                                 longitude = loc.longitude
-                                gpsStatus = "GPS (приблизительно): ${Format.coord(latitude)}, ${Format.coord(longitude)}"
+                                gpsStatus = "GPS (приблизительно): ${Format.coord(loc.latitude)}, ${Format.coord(loc.longitude)}"
                             }
                         }
                         else -> {
