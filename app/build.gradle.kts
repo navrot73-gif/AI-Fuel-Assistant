@@ -76,6 +76,15 @@ android {
     }
     packaging { resources { excludes += "/META-INF/{AL2.0,LGPL2.1}" } }
 
+    // Robolectric нужны ресурсы и assets из main-сурссета для эмуляции Context.
+    // Без этого RobolectricTestRunner не найдёт assets/stations.json.
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+            isReturnDefaultValues = true
+        }
+    }
+
     sourceSets {
         getByName("androidTest") {
             assets.srcDirs(files("$projectDir/schemas"))
@@ -148,6 +157,15 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.kotlinx.coroutines.test)
+    // Robolectric позволяет запускать Android-зависимый код (Context, SharedPreferences,
+    // assets) в unit-тестах на JVM без эмулятора. Используется в GasStationRepositoryTest.
+    testImplementation(libs.robolectric)
+    // androidx.test.core нужен для ApplicationProvider.getApplicationContext()
+    // (используется Robolectric-тестами для получения контекста с доступом к assets).
+    testImplementation(libs.androidx.test.core)
+    // MockWebServer — эмуляция HTTP-ответов для тестирования OkHttp-клиента
+    // (BenzonavtProvider, loadFromRemote в GasStationRepository).
+    testImplementation(libs.mockwebserver)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
