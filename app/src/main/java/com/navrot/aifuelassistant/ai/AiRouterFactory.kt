@@ -1,15 +1,20 @@
 package com.navrot.aifuelassistant.ai
 
+import android.util.Log
 import com.navrot.aifuelassistant.BuildConfig
 import com.navrot.aifuelassistant.ai.providers.AiProxyProvider
 import com.navrot.aifuelassistant.ai.router.AiRouter
 import okhttp3.OkHttpClient
 
 object AiRouterFactory {
+    private const val TAG = "AiRouterFactory"
+
     fun create(okHttpClient: OkHttpClient = OkHttpClient()): AiRouter {
 
         // 0. Cloudflare Worker прокси — первичный провайдер.
         // Прокси сам делает fallback (DeepSeek → Qwen → GigaChat) внутри.
+        // Всегда добавляется (даже с пустым PROXY_TOKEN — тогда Worker вернёт 401,
+        // и роутер фолбэчит на прямых провайдеров ниже).
         val proxyProvider = AiProxyProvider(httpClient = okHttpClient)
 
         // 1. DeepSeek — резервный fallback, если прокси недоступен
@@ -51,6 +56,14 @@ object AiRouterFactory {
             qwenProvider
         ).ifEmpty {
             listOf(UnavailableAiProvider("Нет настроенных провайдеров"))
+        }
+
+        // Диагностическое логирование: какие провайдеры активны.
+        // Помогает при отладке «все AI провайдеры недоступны».
+        val providerNames = providers.joinToString(", ") { it.name }
+        Log.i(TAG, "AI providers configured: $providerNames")
+        if (BuildConfig.PROXY_TOKEN.isBlank()) {
+            Log.w(TAG, "PROXY_TOKEN is empty — AiProxyProvider will get 401, falling back to direct providers")
         }
 
         return AiRouter(providers = providers)

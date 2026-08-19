@@ -23,6 +23,21 @@ if (localPropertiesFile.exists()) {
 fun secret(name: String): String =
     localProperties.getProperty(name, System.getenv(name) ?: "")
 
+// Разрешение PROXY_TOKEN с fallback на исторический дефолт.
+// Ранее токен был захардкожен как "fuel-2026-secret" в build-скрипте. В Stage 0
+// мы вынесли его в local.properties для безопасности, но это сломало backward
+// compatibility: если local.properties нет или PROXY_TOKEN пуст — AiProxyProvider
+// получает 401 от Worker, и все AI-провайдеры становятся недоступны.
+//
+// Теперь: local.properties / env → fallback на "fuel-2026-secret" (исторический
+// дефолт). Это позволяет приложению работать из коробки, но даёт возможность
+// ротировать токен через local.properties без изменения кода.
+//
+// ВАЖНО: "fuel-2026-secret" скомпрометирован в git-истории. Владельцу репозитория
+// нужно ротировать токен на Cloudflare Worker и указать новый в local.properties.
+fun proxyToken(): String =
+    localProperties.getProperty("PROXY_TOKEN", System.getenv("PROXY_TOKEN") ?: "fuel-2026-secret")
+
 android {
     namespace = "com.navrot.aifuelassistant"
     compileSdk = 34
@@ -45,7 +60,7 @@ android {
         buildConfigField("String", "YANDEX_API_KEY", "\"${secret("YANDEX_API_KEY")}\"")
         buildConfigField("String", "YANDEX_FOLDER_ID", "\"${secret("YANDEX_FOLDER_ID")}\"")
         buildConfigField("String", "ORS_API_KEY", "\"${secret("ORS_API_KEY")}\"")
-        buildConfigField("String", "PROXY_TOKEN", "\"${secret("PROXY_TOKEN")}\"")
+        buildConfigField("String", "PROXY_TOKEN", "\"${proxyToken()}\"")
     }
 
     buildTypes {
