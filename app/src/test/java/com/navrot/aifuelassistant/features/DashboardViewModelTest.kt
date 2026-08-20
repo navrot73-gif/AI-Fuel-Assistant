@@ -115,26 +115,26 @@ class DashboardViewModelTest {
     }
 
     @Test
-    fun `askUserQuestion non-greeting adds user message immediately and intent processed even on AI error`() = runTest {
+    fun `askUserQuestion on AI error keeps user message and handles intent`() = runTest {
         whenever(mockRecordRepo.getAll()).thenReturn(flowOf(emptyList()))
         whenever(mockRecordRepo.getByVehicleId(any())).thenReturn(flowOf(emptyList()))
         whenever(mockVehicleRepo.getAllVehicles()).thenReturn(flowOf(emptyList()))
         whenever(mockStationRepo.getAllStations()).thenReturn(emptyList())
-        whenever(mockAiRouter.ask(any(), anyOrNull(), anyOrNull(), any(), any())).thenThrow(RuntimeException("HTTP 401 Unauthorized"))
+        whenever(mockAiRouter.ask(any(), anyOrNull(), anyOrNull(), any(), any())).thenThrow(RuntimeException("401 Unauthorized"))
 
         val vm = createViewModel()
         advanceUntilIdle()
 
-        vm.setUserQuestion("Построй маршрут до ближайшей АЗС")
+        vm.setUserQuestion("Построй маршрут на АЗС")
         vm.askUserQuestion()
         advanceUntilIdle()
 
         val messages = vm.chatMessages.value
         assertEquals(2, messages.size)
         assertEquals("user", messages[0].role)
-        assertEquals("Построй маршрут до ближайшей АЗС", messages[0].text)
+        assertEquals("Построй маршрут на АЗС", messages[0].text)
         assertEquals("ai", messages[1].role)
-        assertTrue(messages[1].text.contains("AI временно недоступен: HTTP 401 Unauthorized."))
-        assertTrue(messages[1].text.contains("Маршрут/АЗС обработаны локально."))
+        assertTrue(messages[1].text.contains("AI временно недоступен: 401 Unauthorized. Маршрут/АЗС обработаны локально."))
+        assertEquals("401 Unauthorized", vm.error.value)
     }
 }

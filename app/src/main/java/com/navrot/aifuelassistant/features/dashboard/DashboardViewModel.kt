@@ -332,19 +332,19 @@ class DashboardViewModel @Inject constructor(
     }
 
     @SuppressLint("MissingPermission")
-    private suspend fun getLastLocation(): Location? = suspendCancellableCoroutine { cont ->
-        try {
+    private suspend fun getLastLocation(): Location? = try {
+        suspendCancellableCoroutine { cont ->
             val fusedClient = LocationServices.getFusedLocationProviderClient(
                 applicationContext
             )
-            fusedClient.lastLocation?.addOnSuccessListener { location ->
+            fusedClient.lastLocation.addOnSuccessListener { location ->
                 cont.resume(location)
-            }?.addOnFailureListener { e ->
+            }.addOnFailureListener { e ->
                 cont.resume(null)
-            } ?: cont.resume(null)
-        } catch (_: Exception) {
-            cont.resume(null)
+            }
         }
+    } catch (_: Exception) {
+        null
     }
 
     private data class UserContext(val text: String, val nearestStationId: Int?)
@@ -407,16 +407,16 @@ class DashboardViewModel @Inject constructor(
                     return@launch
                 }
 
-                _error.value = null
-                _userAnswer.value = null
-
                 // 2. addChatMessage(user-сообщение) — СРАЗУ, до любого AI-запроса
                 addChatMessage(ChatMessage(role = "user", text = question, ts = System.currentTimeMillis()))
 
                 // 3. detectIntent(question) — ДО AI-запроса! Маршрут и панель АЗС должны срабатывать даже при 401 от AI.
                 detectIntent(question)
 
-                // 4. try { aiRouter.ask } catch (e) { addChatMessage(ai-роль, "AI временно недоступен: ${e.message}. Маршрут/АЗС обработаны локально.") }
+                // 4. try { aiRouter.ask } catch (e)
+                _error.value = null
+                _userAnswer.value = null
+
                 try {
                     val context = buildUserContext()
                     val fullPrompt = if (context.text.isNotBlank()) {
