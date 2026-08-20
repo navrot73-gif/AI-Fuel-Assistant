@@ -1,5 +1,15 @@
 package com.navrot.aifuelassistant.features.dashboard
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -26,9 +36,10 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -43,11 +54,17 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -55,6 +72,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -94,6 +112,54 @@ fun DashboardScreen(
 
     val chatListState = rememberLazyListState()
     val keyboardController = LocalSoftwareKeyboardController.current
+
+    val context = LocalContext.current
+    var isListening by remember { mutableStateOf(false) }
+
+    val speechRecognizer = remember(context) {
+        createSpeechRecognizer(
+            context = context,
+            onResult = { text ->
+                viewModel.setUserQuestion(text)
+                viewModel.askUserQuestion()
+                viewModel.setUserQuestion("")
+            },
+            onListening = { listening ->
+                isListening = listening
+            }
+        )
+    }
+
+    DisposableEffect(speechRecognizer) {
+        onDispose {
+            speechRecognizer.destroy()
+        }
+    }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        if (isGranted) {
+            try {
+                speechRecognizer.startListening(createSpeechIntent())
+                isListening = true
+            } catch (e: Exception) {
+                isListening = false
+            }
+        }
+    }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "micPulse")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 600, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "micAlpha"
+    )
+    val micAlpha = if (isListening) pulseAlpha else 1f
 
     // Location permission handler for location-aware AI
     LocationPermissionHandler(
@@ -289,7 +355,7 @@ fun DashboardScreen(
                 onValueChange = { viewModel.setUserQuestion(it) },
                 placeholder = {
                     Text(
-                        "Ваш вопрос…",
+                        if (isListening) "Слушаю…" else "Ваш вопрос…",
                         color = FueldeckColors.InkDim,
                         fontSize = 14.sp
                     )
@@ -315,6 +381,44 @@ fun DashboardScreen(
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.weight(1f)
             )
+
+            IconButton(
+                onClick = {
+                    if (!isAnalyzing) {
+                        val hasPermission = ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.RECORD_AUDIO
+                        ) == PackageManager.PERMISSION_GRANTED
+
+                        if (hasPermission) {
+                            if (!isListening) {
+                                try {
+                                    speechRecognizer.startListening(createSpeechIntent())
+                                    isListening = true
+                                } catch (e: Exception) {
+                                    isListening = false
+                                }
+                            } else {
+                                try {
+                                    speechRecognizer.stopListening()
+                                } catch (e: Exception) {
+                                    // ignore
+                                }
+                                isListening = false
+                            }
+                        } else {
+                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        }
+                    }
+                }
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Mic,
+                    contentDescription = "Голосовой ввод",
+                    tint = if (isListening) FueldeckColors.Coral else FueldeckColors.InkDim,
+                    modifier = Modifier.alpha(micAlpha)
+                )
+            }
 
             Button(
                 onClick = {
