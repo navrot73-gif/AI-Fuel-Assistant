@@ -44,7 +44,7 @@ import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 @Composable
 fun BoxScope.RouteOverlay(
     selectedStation: GasStation?,
-    route: MapViewModel.RouteUiState?,
+    route: MapViewModel.RouteOptionUiState?,
     routeStation: GasStation?,
     aiRecommendation: Triple<GasStation, com.navrot.aifuelassistant.data.model.FuelPrice, Double>?,
     showStationList: Boolean,

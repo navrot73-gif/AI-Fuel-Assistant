@@ -134,7 +134,8 @@ class MapViewModel @Inject constructor(
     private val _aiRecommendation = MutableStateFlow<AiRecommendation?>(null)
     val aiRecommendation: StateFlow<AiRecommendation?> = _aiRecommendation.asStateFlow()
 
-    data class RouteUiState(
+    data class RouteOptionUiState(
+        val title: String = "Быстрый",
         val points: List<GeoPoint>,
         val distanceText: String,
         val durationText: String,
@@ -145,8 +146,20 @@ class MapViewModel @Inject constructor(
         val durationSeconds: Double = 0.0
     )
 
-    private val _route = MutableStateFlow<RouteUiState?>(null)
-    val route: StateFlow<RouteUiState?> = _route.asStateFlow()
+    private val _routeOptions = MutableStateFlow<List<RouteOptionUiState>>(emptyList())
+    val routeOptions: StateFlow<List<RouteOptionUiState>> = _routeOptions.asStateFlow()
+
+    private val _activeRouteIndex = MutableStateFlow(0)
+    val activeRouteIndex: StateFlow<Int> = _activeRouteIndex.asStateFlow()
+
+    val activeRoute: StateFlow<RouteOptionUiState?> = combine(_routeOptions, _activeRouteIndex) { options, index ->
+        options.getOrNull(index)
+    }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    val route: StateFlow<RouteOptionUiState?> = activeRoute
+
+    private val _isRouteOptionsPanelVisible = MutableStateFlow(false)
+    val isRouteOptionsPanelVisible: StateFlow<Boolean> = _isRouteOptionsPanelVisible.asStateFlow()
 
     private val _isRouting = MutableStateFlow(false)
     val isRouting: StateFlow<Boolean> = _isRouting.asStateFlow()
@@ -401,7 +414,8 @@ class MapViewModel @Inject constructor(
         val distKm = GeoUtils.calculateDistance(
             start.first, start.second, station.latitude, station.longitude
         )
-        val fallbackState = RouteUiState(
+        val fallbackState = RouteOptionUiState(
+            title = "Быстрый",
             points = listOf(
                 GeoPoint(start.first, start.second),
                 GeoPoint(station.latitude, station.longitude)
@@ -418,43 +432,68 @@ class MapViewModel @Inject constructor(
         viewModelScope.launch {
             _isRouting.value = true
             try {
-                // GET worker route: from={lon},{lat}&to={lon},{lat} with 3s timeout
+                // GET worker route with alternatives=true: from={lon},{lat}&to={lon},{lat}
                 val response = fuelApi.getRoute(
                     fromLon = start.second,
                     fromLat = start.first,
                     toLon = station.longitude,
                     toLat = station.latitude
                 )
-                val routePoints = response.points.map { pt ->
-                    GeoPoint(latitude = pt[0], longitude = pt[1])
+                val rawOptions = response.getRouteOptions()
+                if (rawOptions.isEmpty()) {
+                    throw Exception("Worker returned no route options")
                 }
-                if (routePoints.isEmpty()) {
-                    throw Exception("Worker returned empty points")
-                }
-                val min = Math.round(response.duration_s / 60.0).toInt()
-                val durText = if (min < 60) "$min мин" else "${min / 60} ч ${min % 60} мин"
 
-                _route.value = RouteUiState(
-                    points = routePoints,
-                    distanceText = "${Format.km(response.distance_m / 1000.0)} км",
-                    durationText = durText,
-                    destination = station.brand,
-                    isStraightLine = false,
-                    isDirect = false,
-                    distanceMeters = response.distance_m,
-                    durationSeconds = response.duration_s
-                )
+                val titles = listOf("Быстрый", "Без пробок", "Альтернативный")
+                val parsedOptions = rawOptions.mapIndexed { index, optionData ->
+                    val routePoints = optionData.points.map { pt ->
+                        GeoPoint(latitude = pt[0], longitude = pt[1])
+                    }
+                    val min = Math.round(optionData.durationSeconds / 60.0).toInt()
+                    val durText = if (min < 60) "$min мин" else "${min / 60} ч ${min % 60} мин"
+                    val title = titles.getOrElse(index) { "Вариант ${index + 1}" }
+
+                    RouteOptionUiState(
+                        title = title,
+                        points = routePoints,
+                        distanceText = "${Format.km(optionData.distanceMeters / 1000.0)} км",
+                        durationText = durText,
+                        destination = station.brand,
+                        isStraightLine = false,
+                        isDirect = false,
+                        distanceMeters = optionData.distanceMeters,
+                        durationSeconds = optionData.durationSeconds
+                    )
+                }
+
+                _routeOptions.value = parsedOptions
+                _activeRouteIndex.value = 0
+                _isRouteOptionsPanelVisible.value = true
             } catch (e: Exception) {
                 Log.w(TAG, "Worker routing failed: ${e.message}, fallback to straight line")
-                _route.value = fallbackState
+                _routeOptions.value = listOf(fallbackState)
+                _activeRouteIndex.value = 0
+                _isRouteOptionsPanelVisible.value = true
             } finally {
                 _isRouting.value = false
             }
         }
     }
 
+    fun selectRouteOption(index: Int) {
+        if (index in _routeOptions.value.indices) {
+            _activeRouteIndex.value = index
+        }
+    }
+
+    fun dismissRouteOptionsPanel() {
+        _isRouteOptionsPanelVisible.value = false
+    }
+
     fun clearRoute() {
-        _route.value = null
+        _routeOptions.value = emptyList()
+        _activeRouteIndex.value = 0
+        _isRouteOptionsPanelVisible.value = false
     }
 
     private fun formatDuration(seconds: Double): String {
