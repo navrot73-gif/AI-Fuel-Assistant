@@ -103,7 +103,7 @@ fun MapScreen(
 
     val bottomPadding = when {
         showStationList -> 452.dp
-        isRouteOptionsPanelVisible && routeOptions.isNotEmpty() -> 200.dp
+        isRouteOptionsPanelVisible && routeOptions.size >= 2 -> 200.dp
         aiRecommendation != null -> 150.dp
         yellowRouteVisible -> 88.dp
         else -> 16.dp
