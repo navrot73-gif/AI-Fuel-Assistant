@@ -468,12 +468,12 @@ class MapViewModel @Inject constructor(
 
                 _routeOptions.value = parsedOptions
                 _activeRouteIndex.value = 0
-                _isRouteOptionsPanelVisible.value = true
+                _isRouteOptionsPanelVisible.value = parsedOptions.size >= 2
             } catch (e: Exception) {
                 Log.w(TAG, "Worker routing failed: ${e.message}, fallback to straight line")
                 _routeOptions.value = listOf(fallbackState)
                 _activeRouteIndex.value = 0
-                _isRouteOptionsPanelVisible.value = true
+                _isRouteOptionsPanelVisible.value = false
             } finally {
                 _isRouting.value = false
             }
@@ -487,6 +487,8 @@ class MapViewModel @Inject constructor(
     }
 
     fun dismissRouteOptionsPanel() {
+        val selected = activeRoute.value
+        Log.d("RouteOptions", "Panel dismissed / 'Поехали' clicked: index=${_activeRouteIndex.value}, title=${selected?.title}, dist=${selected?.distanceText}")
         _isRouteOptionsPanelVisible.value = false
     }
 

@@ -333,12 +333,16 @@ class DashboardViewModel @Inject constructor(
 
     @SuppressLint("MissingPermission")
     private suspend fun getLastLocation(): Location? = suspendCancellableCoroutine { cont ->
-        val fusedClient = LocationServices.getFusedLocationProviderClient(
-            applicationContext
-        )
-        fusedClient.lastLocation.addOnSuccessListener { location ->
-            cont.resume(location)
-        }.addOnFailureListener { e ->
+        try {
+            val fusedClient = LocationServices.getFusedLocationProviderClient(
+                applicationContext
+            )
+            fusedClient.lastLocation?.addOnSuccessListener { location ->
+                cont.resume(location)
+            }?.addOnFailureListener { e ->
+                cont.resume(null)
+            } ?: cont.resume(null)
+        } catch (_: Exception) {
             cont.resume(null)
         }
     }
@@ -405,23 +409,36 @@ class DashboardViewModel @Inject constructor(
                 _error.value = null
                 _userAnswer.value = null
 
-                val context = buildUserContext()
-                val fullPrompt = if (context.text.isNotBlank()) {
-                    "${context.text}\n\nВопрос пользователя: $question"
-                } else question
-
-                val history = _chatMessages.value.takeLast(6)
-
-                val rawAnswer = aiRouter.ask(fullPrompt, history = history)
-                val answer = rawAnswer.replace("**", "").replace("*", "")
-                _userAnswer.value = answer
-
+                // 2. addChatMessage(user-сообщение) — СРАЗУ, до любого AI-запроса
                 addChatMessage(ChatMessage(role = "user", text = question, ts = System.currentTimeMillis()))
-                addChatMessage(ChatMessage(role = "ai", text = answer, ts = System.currentTimeMillis()))
 
+                // 3. detectIntent(question) — ДО AI-запроса! Маршрут и панель АЗС должны срабатывать даже при 401 от AI.
                 detectIntent(question)
-            } catch (e: Exception) {
-                _error.value = e.message ?: "Ошибка при обработке запроса"
+
+                // 4. try { aiRouter.ask } catch (e) { addChatMessage(ai-роль, "AI временно недоступен: ${e.message}. Маршрут/АЗС обработаны локально.") }
+                try {
+                    val context = buildUserContext()
+                    val fullPrompt = if (context.text.isNotBlank()) {
+                        "${context.text}\n\nВопрос пользователя: $question"
+                    } else question
+
+                    val history = _chatMessages.value.takeLast(6)
+
+                    val rawAnswer = aiRouter.ask(fullPrompt, history = history)
+                    val answer = rawAnswer.replace("**", "").replace("*", "")
+                    _userAnswer.value = answer
+
+                    addChatMessage(ChatMessage(role = "ai", text = answer, ts = System.currentTimeMillis()))
+                } catch (e: Exception) {
+                    _error.value = e.message ?: "Ошибка при обработке запроса"
+                    addChatMessage(
+                        ChatMessage(
+                            role = "ai",
+                            text = "AI временно недоступен: ${e.message}. Маршрут/АЗС обработаны локально.",
+                            ts = System.currentTimeMillis()
+                        )
+                    )
+                }
             } finally {
                 _isAnalyzing.value = false
             }

@@ -39,10 +39,14 @@ jobs:
 
       - name: Run lint
         id: lint
+        env:
+          PROXY_TOKEN: ${{ secrets.PROXY_TOKEN }}
         run: ./gradlew lintDebug --stacktrace
 
       - name: Build debug APK
         id: build
+        env:
+          PROXY_TOKEN: ${{ secrets.PROXY_TOKEN }}
         run: |
           set -o pipefail
           ./gradlew assembleDebug --stacktrace --info 2>&1 | tee gradle-build.log
@@ -58,10 +62,14 @@ jobs:
       - name: Run unit tests
         id: test
         continue-on-error: true
+        env:
+          PROXY_TOKEN: ${{ secrets.PROXY_TOKEN }}
         run: ./gradlew testDebugUnitTest --stacktrace
 
       - name: Run instrumentation tests
         uses: reactivecircus/android-emulator-runner@v2
+        env:
+          PROXY_TOKEN: ${{ secrets.PROXY_TOKEN }}
         with:
           api-level: 31
           target: google_apis
