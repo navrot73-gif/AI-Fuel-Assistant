@@ -390,6 +390,7 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             _isAnalyzing.value = true
             try {
+                // 1. greeting-проверка (как есть)
                 val lower = question.lowercase()
                 val isGreeting = listOf("привет", "здравств", "добрый", "hi", "hello", "как дела").any { lower.startsWith(it) }
                 if (isGreeting) {

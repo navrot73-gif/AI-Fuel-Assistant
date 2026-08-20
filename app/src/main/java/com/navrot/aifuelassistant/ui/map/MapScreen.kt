@@ -331,7 +331,11 @@ fun MapScreen(
                         routeOptions = routeOptions,
                         activeRouteIndex = activeRouteIndex,
                         onSelectOption = { viewModel.selectRouteOption(it) },
-                        onGoClick = { viewModel.dismissRouteOptionsPanel() },
+                        onGoClick = {
+                            viewModel.dismissRouteOptionsPanel()
+                            val activeOpt = routeOptions.getOrNull(activeRouteIndex)
+                            Log.d("RouteOptions", "Поехали pressed: active index=$activeRouteIndex, route=${activeOpt?.title}, dest=${activeOpt?.destination}, dist=${activeOpt?.distanceText}")
+                        },
                         modifier = Modifier.align(Alignment.BottomCenter)
                     )
                 }
