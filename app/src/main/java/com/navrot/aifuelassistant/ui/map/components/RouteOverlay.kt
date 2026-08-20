@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -42,13 +43,106 @@ import com.navrot.aifuelassistant.ui.theme.FueldeckColors
  * кнопка сброса маршрута, pill "АЗС рядом" и AI-рекомендация.
  */
 @Composable
+fun RouteSelectorPanel(
+    options: List<MapViewModel.RouteOption>,
+    activeIndex: Int,
+    onSelectOption: (Int) -> Unit,
+    onConfirmRoute: () -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp),
+        shape = RoundedCornerShape(24.dp),
+        color = Color(0xFF1E293B),
+        border = BorderStroke(1.dp, Color(0xFF334155)),
+        shadowElevation = 8.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                options.forEachIndexed { idx, option ->
+                    val isActive = idx == activeIndex
+                    Surface(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onSelectOption(idx) },
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (isActive) Color(0xFF2563EB) else Color(0xFF0F172A),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isActive) Color(0xFF3B82F6) else Color(0xFF1E293B)
+                        )
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 12.dp),
+                            horizontalAlignment = Alignment.Start,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = option.title,
+                                color = if (isActive) Color.White.copy(alpha = 0.9f) else Color(0xFF94A3B8),
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = option.durationText,
+                                color = Color.White,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                            Text(
+                                text = option.distanceText,
+                                color = if (isActive) Color.White.copy(alpha = 0.8f) else Color(0xFF64748B),
+                                fontSize = 12.sp,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                }
+            }
+
+            androidx.compose.material3.Button(
+                onClick = onConfirmRoute,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                    containerColor = FueldeckColors.Amber,
+                    contentColor = Color.Black
+                )
+            ) {
+                Text(
+                    "Поехали",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 16.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun BoxScope.RouteOverlay(
     selectedStation: GasStation?,
-    route: MapViewModel.RouteUiState?,
+    route: MapViewModel.RouteOption?,
+    routeOptions: List<MapViewModel.RouteOption> = emptyList(),
+    activeRouteIndex: Int = 0,
+    isRoutePanelConfirmed: Boolean = false,
     routeStation: GasStation?,
     aiRecommendation: Triple<GasStation, com.navrot.aifuelassistant.data.model.FuelPrice, Double>?,
     showStationList: Boolean,
     onBuildRoute: () -> Unit,
+    onSelectRouteOption: (Int) -> Unit = {},
+    onConfirmRoute: () -> Unit = {},
     onClearRoute: () -> Unit,
     onExpandList: () -> Unit,
     onSelectAiPick: () -> Unit
@@ -92,42 +186,52 @@ fun BoxScope.RouteOverlay(
             .fillMaxWidth()
     ) {
         if (!showStationList) {
-            val arrowPulse = rememberInfiniteTransition(label = "pl").animateFloat(
-                0f, 1f, infiniteRepeatable(tween(1100), RepeatMode.Reverse), label = "pl"
-            )
-            Surface(
-                modifier = Modifier.padding(16.dp),
-                shape = RoundedCornerShape(20.dp),
-                color = FueldeckColors.Surface,
-                border = BorderStroke(1.dp, FueldeckColors.Line),
-                shadowElevation = 6.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .clickable { onExpandList() }
-                        .padding(horizontal = 20.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+            val showPanel = routeOptions.isNotEmpty() && !isRoutePanelConfirmed && selectedStation == null
+            if (showPanel) {
+                RouteSelectorPanel(
+                    options = routeOptions,
+                    activeIndex = activeRouteIndex,
+                    onSelectOption = onSelectRouteOption,
+                    onConfirmRoute = onConfirmRoute
+                )
+            } else {
+                val arrowPulse = rememberInfiniteTransition(label = "pl").animateFloat(
+                    0f, 1f, infiniteRepeatable(tween(1100), RepeatMode.Reverse), label = "pl"
+                )
+                Surface(
+                    modifier = Modifier.padding(16.dp),
+                    shape = RoundedCornerShape(20.dp),
+                    color = FueldeckColors.Surface,
+                    border = BorderStroke(1.dp, FueldeckColors.Line),
+                    shadowElevation = 6.dp
                 ) {
-                    Text(
-                        "▲",
-                        color = FueldeckColors.Amber.copy(alpha = 0.5f + 0.5f * arrowPulse.value),
-                        fontWeight = FontWeight.Bold, fontSize = 13.sp
-                    )
-                    Text(
-                        "АЗС рядом",
-                        color = FueldeckColors.Ink,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
+                    Row(
+                        modifier = Modifier
+                            .clickable { onExpandList() }
+                            .padding(horizontal = 20.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            "▲",
+                            color = FueldeckColors.Amber.copy(alpha = 0.5f + 0.5f * arrowPulse.value),
+                            fontWeight = FontWeight.Bold, fontSize = 13.sp
+                        )
+                        Text(
+                            "АЗС рядом",
+                            color = FueldeckColors.Ink,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+
+                if (aiRecommendation != null && route == null) {
+                    AiRecommendationCard(
+                        recommendation = aiRecommendation,
+                        onExpandList = onSelectAiPick
                     )
                 }
-            }
-
-            if (aiRecommendation != null && route == null) {
-                AiRecommendationCard(
-                    recommendation = aiRecommendation,
-                    onExpandList = onSelectAiPick
-                )
             }
         }
     }

@@ -11,6 +11,7 @@ import com.navrot.aifuelassistant.geo.GeocodingProvider
 import com.navrot.aifuelassistant.geo.GeocodingResult
 import com.navrot.aifuelassistant.geo.GeoPoint
 import com.navrot.aifuelassistant.network.FuelApi
+import com.navrot.aifuelassistant.network.RouteItemResponse
 import com.navrot.aifuelassistant.network.RouteResponse
 import com.navrot.aifuelassistant.ui.map.TileWarmupService
 import kotlinx.coroutines.Dispatchers
@@ -294,12 +295,25 @@ class MapViewModelSearchTest {
 
         whenever(fuelApi.getRoute(61.0, 55.0, 61.1, 55.1)).thenReturn(
             RouteResponse(
-                distance_m = 6877.0,
-                duration_s = 598.0,
-                points = listOf(
-                    listOf(55.0, 61.0),
-                    listOf(55.05, 61.05),
-                    listOf(55.1, 61.1)
+                routes = listOf(
+                    RouteItemResponse(
+                        distance_m = 6877.0,
+                        duration_s = 598.0,
+                        points = listOf(
+                            listOf(55.0, 61.0),
+                            listOf(55.05, 61.05),
+                            listOf(55.1, 61.1)
+                        )
+                    ),
+                    RouteItemResponse(
+                        distance_m = 7200.0,
+                        duration_s = 650.0,
+                        points = listOf(
+                            listOf(55.0, 61.0),
+                            listOf(55.06, 61.06),
+                            listOf(55.1, 61.1)
+                        )
+                    )
                 )
             )
         )
@@ -307,13 +321,22 @@ class MapViewModelSearchTest {
         viewModel.buildRouteTo(station)
         advanceUntilIdle()
 
-        val route = viewModel.route.value
-        assertNotNull(route)
-        assertEquals(3, route!!.points.size)
-        assertEquals("6.9 км", route.distanceText)
-        assertEquals("10 мин", route.durationText)
-        assertEquals(false, route.isDirect)
-        assertEquals(false, route.isStraightLine)
+        val routes = viewModel.routeOptions.value
+        assertEquals(2, routes.size)
+        assertEquals("Быстрый", routes[0].title)
+        assertEquals("Без пробок", routes[1].title)
+
+        val activeRoute = viewModel.route.value
+        assertNotNull(activeRoute)
+        assertEquals(3, activeRoute!!.points.size)
+        assertEquals("6.9 км", activeRoute.distanceText)
+        assertEquals("10 мин", activeRoute.durationText)
+        assertEquals(false, activeRoute.isDirect)
+        assertEquals(false, activeRoute.isStraightLine)
+
+        viewModel.selectRouteOption(1)
+        assertEquals(1, viewModel.activeRouteIndex.value)
+        assertEquals("7.2 км", viewModel.route.value?.distanceText)
     }
 
     @Test

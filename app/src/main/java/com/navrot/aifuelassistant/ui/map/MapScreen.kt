@@ -73,6 +73,9 @@ fun MapScreen(
     val selectedBrands by viewModel.selectedBrands.collectAsStateWithLifecycle()
     val sortMode by viewModel.sortMode.collectAsStateWithLifecycle()
     val route by viewModel.route.collectAsStateWithLifecycle()
+    val routeOptions by viewModel.routeOptions.collectAsStateWithLifecycle()
+    val activeRouteIndex by viewModel.activeRouteIndex.collectAsStateWithLifecycle()
+    val isRoutePanelConfirmed by viewModel.isRoutePanelConfirmed.collectAsStateWithLifecycle()
     val isRouting by viewModel.isRouting.collectAsStateWithLifecycle()
     val openOnly by viewModel.openOnly.collectAsStateWithLifecycle()
     val aiRecommendation by viewModel.aiRecommendation.collectAsStateWithLifecycle()
@@ -96,9 +99,11 @@ fun MapScreen(
     var zoomOutTick by remember { mutableIntStateOf(0) }
     var hasInitialCentered by remember { mutableStateOf(false) }
     val yellowRouteVisible = selectedStation != null || (route != null && routeStation != null)
+    val showRoutePanel = routeOptions.isNotEmpty() && !isRoutePanelConfirmed && selectedStation == null && !showStationList
 
     val bottomPadding = when {
         showStationList -> 452.dp
+        showRoutePanel -> 180.dp
         aiRecommendation != null -> 150.dp
         yellowRouteVisible -> 88.dp
         else -> 16.dp
@@ -257,7 +262,8 @@ fun MapScreen(
             Box(modifier = Modifier.fillMaxSize()) {
                 OsmMapView(
                     userLocation = userLocation, stations = stations,
-                    selectedFuelTypes = selectedFuelTypes, route = route,
+                    selectedFuelTypes = selectedFuelTypes,
+                    routeOptions = routeOptions, activeRouteIndex = activeRouteIndex, route = route,
                     recenterRequest = recenterTick,
                     zoomInRequest = zoomInTick, zoomOutRequest = zoomOutTick,
                     focusPoint = geocodedLocation?.let { OsmGeoPoint(it.latitude, it.longitude) },
@@ -267,9 +273,14 @@ fun MapScreen(
                 LocationStatusIndicator(status = locationStatus, visible = userLocation == null)
 
                 RouteOverlay(
-                    selectedStation = selectedStation, route = route, routeStation = routeStation,
+                    selectedStation = selectedStation, route = route,
+                    routeOptions = routeOptions, activeRouteIndex = activeRouteIndex,
+                    isRoutePanelConfirmed = isRoutePanelConfirmed,
+                    routeStation = routeStation,
                     aiRecommendation = recommendationTriple, showStationList = showStationList,
                     onBuildRoute = { selectedStation?.let { buildRouteAndClose(it) } },
+                    onSelectRouteOption = { idx -> viewModel.selectRouteOption(idx) },
+                    onConfirmRoute = { viewModel.confirmRoute() },
                     onClearRoute = { viewModel.clearRoute(); routeStation = null },
                     onExpandList = { showStationList = true },
                     onSelectAiPick = { selectedStation = recommendationTriple?.first }

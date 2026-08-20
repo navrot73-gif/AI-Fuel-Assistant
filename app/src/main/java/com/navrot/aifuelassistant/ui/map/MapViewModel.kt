@@ -31,6 +31,8 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
+typealias RouteUiState = MapViewModel.RouteOption
+
 @HiltViewModel
 class MapViewModel @Inject constructor(
     private val repository: GasStationRepositoryInterface,
@@ -134,7 +136,8 @@ class MapViewModel @Inject constructor(
     private val _aiRecommendation = MutableStateFlow<AiRecommendation?>(null)
     val aiRecommendation: StateFlow<AiRecommendation?> = _aiRecommendation.asStateFlow()
 
-    data class RouteUiState(
+    data class RouteOption(
+        val title: String = "Быстрый",
         val points: List<GeoPoint>,
         val distanceText: String,
         val durationText: String,
@@ -142,11 +145,23 @@ class MapViewModel @Inject constructor(
         val isStraightLine: Boolean = false,
         val isDirect: Boolean = isStraightLine,
         val distanceMeters: Double = 0.0,
-        val durationSeconds: Double = 0.0
+        val durationSeconds: Double = 0.0,
+        val colorHex: String = "#4285F4"
     )
 
-    private val _route = MutableStateFlow<RouteUiState?>(null)
-    val route: StateFlow<RouteUiState?> = _route.asStateFlow()
+    private val _routeOptions = MutableStateFlow<List<RouteOption>>(emptyList())
+    val routeOptions: StateFlow<List<RouteOption>> = _routeOptions.asStateFlow()
+
+    private val _activeRouteIndex = MutableStateFlow(0)
+    val activeRouteIndex: StateFlow<Int> = _activeRouteIndex.asStateFlow()
+
+    private val _isRoutePanelConfirmed = MutableStateFlow(false)
+    val isRoutePanelConfirmed: StateFlow<Boolean> = _isRoutePanelConfirmed.asStateFlow()
+
+    /** Активный вариант маршрута. */
+    val route: StateFlow<RouteOption?> = combine(_routeOptions, _activeRouteIndex) { options, index ->
+        options.getOrNull(index) ?: options.firstOrNull()
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     private val _isRouting = MutableStateFlow(false)
     val isRouting: StateFlow<Boolean> = _isRouting.asStateFlow()
@@ -401,7 +416,8 @@ class MapViewModel @Inject constructor(
         val distKm = GeoUtils.calculateDistance(
             start.first, start.second, station.latitude, station.longitude
         )
-        val fallbackState = RouteUiState(
+        val fallbackOption = RouteOption(
+            title = "Быстрый",
             points = listOf(
                 GeoPoint(start.first, start.second),
                 GeoPoint(station.latitude, station.longitude)
@@ -412,7 +428,8 @@ class MapViewModel @Inject constructor(
             isStraightLine = true,
             isDirect = true,
             distanceMeters = distKm * 1000.0,
-            durationSeconds = 0.0
+            durationSeconds = 0.0,
+            colorHex = "#4285F4"
         )
 
         viewModelScope.launch {
@@ -425,36 +442,78 @@ class MapViewModel @Inject constructor(
                     toLon = station.longitude,
                     toLat = station.latitude
                 )
-                val routePoints = response.points.map { pt ->
-                    GeoPoint(latitude = pt[0], longitude = pt[1])
+
+                val routeOptionsList = mutableListOf<RouteOption>()
+                val routeTitles = listOf("Быстрый", "Без пробок", "Альтернативный")
+                val routeColors = listOf("#4285F4", "#34A853", "#9C27B0")
+
+                val sourceRoutes = if (response.routes.isNotEmpty()) response.routes else listOf(
+                    com.navrot.aifuelassistant.network.RouteItemResponse(
+                        distance_m = response.distance_m,
+                        duration_s = response.duration_s,
+                        points = response.points
+                    )
+                )
+
+                for ((idx, rItem) in sourceRoutes.take(3).withIndex()) {
+                    val pts = rItem.points.map { pt ->
+                        GeoPoint(latitude = pt[0], longitude = pt[1])
+                    }
+                    if (pts.isNotEmpty()) {
+                        val min = Math.round(rItem.duration_s / 60.0).toInt()
+                        val durText = if (min < 60) "$min мин" else "${min / 60} ч ${min % 60} мин"
+                        val title = routeTitles.getOrElse(idx) { "Альтернативный" }
+                        val color = routeColors.getOrElse(idx) { "#9C27B0" }
+
+                        routeOptionsList.add(
+                            RouteOption(
+                                title = title,
+                                points = pts,
+                                distanceText = "${Format.km(rItem.distance_m / 1000.0)} км",
+                                durationText = durText,
+                                destination = station.brand,
+                                isStraightLine = false,
+                                isDirect = false,
+                                distanceMeters = rItem.distance_m,
+                                durationSeconds = rItem.duration_s,
+                                colorHex = color
+                            )
+                        )
+                    }
                 }
-                if (routePoints.isEmpty()) {
+
+                if (routeOptionsList.isEmpty()) {
                     throw Exception("Worker returned empty points")
                 }
-                val min = Math.round(response.duration_s / 60.0).toInt()
-                val durText = if (min < 60) "$min мин" else "${min / 60} ч ${min % 60} мин"
 
-                _route.value = RouteUiState(
-                    points = routePoints,
-                    distanceText = "${Format.km(response.distance_m / 1000.0)} км",
-                    durationText = durText,
-                    destination = station.brand,
-                    isStraightLine = false,
-                    isDirect = false,
-                    distanceMeters = response.distance_m,
-                    durationSeconds = response.duration_s
-                )
+                _routeOptions.value = routeOptionsList
+                _activeRouteIndex.value = 0
+                _isRoutePanelConfirmed.value = false
             } catch (e: Exception) {
                 Log.w(TAG, "Worker routing failed: ${e.message}, fallback to straight line")
-                _route.value = fallbackState
+                _routeOptions.value = listOf(fallbackOption)
+                _activeRouteIndex.value = 0
+                _isRoutePanelConfirmed.value = false
             } finally {
                 _isRouting.value = false
             }
         }
     }
 
+    fun selectRouteOption(index: Int) {
+        if (index in _routeOptions.value.indices) {
+            _activeRouteIndex.value = index
+        }
+    }
+
+    fun confirmRoute() {
+        _isRoutePanelConfirmed.value = true
+    }
+
     fun clearRoute() {
-        _route.value = null
+        _routeOptions.value = emptyList()
+        _activeRouteIndex.value = 0
+        _isRoutePanelConfirmed.value = false
     }
 
     private fun formatDuration(seconds: Double): String {

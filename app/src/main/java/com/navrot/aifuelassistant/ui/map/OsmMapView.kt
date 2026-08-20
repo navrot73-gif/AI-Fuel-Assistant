@@ -120,12 +120,28 @@ private fun createRedPinIcon(context: android.content.Context): BitmapDrawable {
     return BitmapDrawable(context.resources, bitmap)
 }
 
+private fun getRouteColors(colorHex: String, index: Int): Pair<Int, Int> {
+    return when {
+        colorHex.equals("#34A853", ignoreCase = true) || index == 1 -> {
+            Color.parseColor("#1B5E20") to Color.parseColor("#81C784") // Green
+        }
+        colorHex.equals("#9C27B0", ignoreCase = true) || colorHex.equals("#A142F4", ignoreCase = true) || index == 2 -> {
+            Color.parseColor("#4A148C") to Color.parseColor("#BA68C8") // Purple
+        }
+        else -> {
+            Color.parseColor("#0D47A1") to Color.parseColor("#64B5F6") // Blue
+        }
+    }
+}
+
 @Composable
 fun OsmMapView(
     userLocation: UserLocationState?,
     stations: List<GasStation>,
     selectedFuelTypes: Set<String>,
-    route: MapViewModel.RouteUiState? = null,
+    routeOptions: List<MapViewModel.RouteOption> = emptyList(),
+    activeRouteIndex: Int = 0,
+    route: MapViewModel.RouteOption? = null,
     recenterRequest: Int = 0,
     zoomInRequest: Int = 0,
     zoomOutRequest: Int = 0,
@@ -135,7 +151,7 @@ fun OsmMapView(
     val context = LocalContext.current
     val mapViewRef = remember { arrayOfNulls<MapView>(1) }
     val locationDotRef = remember { arrayOfNulls<MyLocationDot>(1) }
-    val lastFittedRoute = remember { arrayOfNulls<MapViewModel.RouteUiState>(1) }
+    val lastFittedRoute = remember { arrayOfNulls<MapViewModel.RouteOption>(1) }
     val focusMarkerRef = remember { arrayOfNulls<Marker>(1) }
     val lastFocusPoint = remember { arrayOfNulls<GeoPoint>(1) }
 
@@ -229,7 +245,9 @@ fun OsmMapView(
         update = { mapView ->
             mapView.overlays.removeAll { it is Marker || it is Polyline }
 
-            val routeGeoPoints = route?.points?.map { GeoPoint(it.latitude, it.longitude) }
+            val effectiveOptions = if (routeOptions.isNotEmpty()) routeOptions else listOfNotNull(route)
+            val selectedOption = effectiveOptions.getOrNull(activeRouteIndex) ?: effectiveOptions.firstOrNull()
+            val routeGeoPoints = selectedOption?.points?.map { GeoPoint(it.latitude, it.longitude) }
 
             userLocation?.let { location ->
                 val dot = locationDotRef[0] ?: MyLocationDot().also { overlay ->
@@ -259,12 +277,46 @@ fun OsmMapView(
                 mapView.overlays.add(marker)
             }
 
-            if (route == null) {
+            if (effectiveOptions.isEmpty() || selectedOption == null) {
                 lastFittedRoute[0] = null
             } else {
-                val r = route
                 try {
-                    val rawOsmPoints = r.points.map { GeoPoint(it.latitude, it.longitude) }
+                    val density = context.resources.displayMetrics.density
+
+                    // 1. Сначала рисуем НЕАКТИВНЫЕ маршруты (серым цветом под активным)
+                    effectiveOptions.forEachIndexed { idx, opt ->
+                        if (idx != activeRouteIndex) {
+                            val rawPts = opt.points.map { GeoPoint(it.latitude, it.longitude) }
+                            val inactivePts = mutableListOf<GeoPoint>()
+                            for (pt in rawPts) {
+                                if (inactivePts.isEmpty() || inactivePts.last().distanceToAsDouble(pt) >= 1.0) {
+                                    inactivePts.add(pt)
+                                }
+                            }
+                            userLocation?.let { loc ->
+                                if (inactivePts.isNotEmpty()) inactivePts[0] = loc.toGeoPoint()
+                            }
+                            if (inactivePts.size >= 2) {
+                                val inactivePolyline = Polyline().apply {
+                                    setPoints(inactivePts)
+                                    outlinePaint.color = Color.parseColor("#37474F")
+                                    outlinePaint.strokeWidth = 6f * density
+                                    outlinePaint.strokeCap = Paint.Cap.ROUND
+                                    outlinePaint.strokeJoin = Paint.Join.ROUND
+                                    outlinePaint.isAntiAlias = true
+                                    paint.color = Color.parseColor("#78909C")
+                                    paint.strokeWidth = 3.5f * density
+                                    paint.strokeCap = Paint.Cap.ROUND
+                                    paint.strokeJoin = Paint.Join.ROUND
+                                    paint.isAntiAlias = true
+                                }
+                                mapView.overlays.add(inactivePolyline)
+                            }
+                        }
+                    }
+
+                    // 2. Затем рисуем АКТИВНЫЙ маршрут выбранным цветом (синий / зелёный / фиолетовый)
+                    val rawOsmPoints = selectedOption.points.map { GeoPoint(it.latitude, it.longitude) }
                     val filteredPoints = mutableListOf<GeoPoint>()
                     for (pt in rawOsmPoints) {
                         if (filteredPoints.isEmpty() || filteredPoints.last().distanceToAsDouble(pt) >= 1.0) {
@@ -278,25 +330,24 @@ fun OsmMapView(
                     }
                     val osmPoints = filteredPoints
                     if (osmPoints.size >= 2) {
-                        val density = context.resources.displayMetrics.density
+                        val (outlineColor, mainColor) = getRouteColors(selectedOption.colorHex, activeRouteIndex)
 
-                        // Main Polyline (width 5dp, color #64B5F6, outline width 9dp, color #0D47A1, cap ROUND, join ROUND)
                         val mainPolyline = Polyline().apply {
                             setPoints(osmPoints)
-                            outlinePaint.color = android.graphics.Color.parseColor("#0D47A1") // Dark blue outline
-                            outlinePaint.strokeWidth = 9f * density // 9dp outline
-                            outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
-                            outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
+                            outlinePaint.color = outlineColor
+                            outlinePaint.strokeWidth = 9f * density
+                            outlinePaint.strokeCap = Paint.Cap.ROUND
+                            outlinePaint.strokeJoin = Paint.Join.ROUND
                             outlinePaint.isAntiAlias = true
-                            paint.color = android.graphics.Color.parseColor("#64B5F6") // Light blue main
-                            paint.strokeWidth = 5f * density // 5dp main
-                            paint.strokeCap = android.graphics.Paint.Cap.ROUND
-                            paint.strokeJoin = android.graphics.Paint.Join.ROUND
+                            paint.color = mainColor
+                            paint.strokeWidth = 5f * density
+                            paint.strokeCap = Paint.Cap.ROUND
+                            paint.strokeJoin = Paint.Join.ROUND
                             paint.isAntiAlias = true
                         }
                         mapView.overlays.add(mainPolyline)
 
-                        val finishPoint = r.points.last()
+                        val finishPoint = selectedOption.points.last()
                         val finishMarker = Marker(mapView).apply {
                             position = GeoPoint(finishPoint.latitude, finishPoint.longitude)
                             icon = createRedPinIcon(context)
@@ -305,15 +356,15 @@ fun OsmMapView(
                         }
                         mapView.overlays.add(finishMarker)
 
-                        if (lastFittedRoute[0] !== r) {
-                            lastFittedRoute[0] = r
+                        if (lastFittedRoute[0] !== selectedOption) {
+                            lastFittedRoute[0] = selectedOption
                             mapView.post {
                                 try {
                                     val bounds = BoundingBox.fromGeoPoints(osmPoints)
                                     val leftPx = 48f * density
                                     val topPx = 96f * density
                                     val rightPx = 104f * density
-                                    val bottomPx = 150f * density
+                                    val bottomPx = 220f * density // Учтён размер нижней панели с карточками
 
                                     val mapWidth = mapView.width.toFloat()
                                     val mapHeight = mapView.height.toFloat()

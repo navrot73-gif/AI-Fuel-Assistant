@@ -11,13 +11,25 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * Модель ответа Worker маршрутизации OSRM.
+ * Вариант маршрута OSRM.
  */
-data class RouteResponse(
+data class RouteItemResponse(
     val distance_m: Double,
     val duration_s: Double,
     val points: List<List<Double>> // [[lat, lon], [lat, lon], ...]
 )
+
+/**
+ * Модель ответа Worker маршрутизации OSRM с поддержкой нескольких маршрутов.
+ */
+data class RouteResponse(
+    val routes: List<RouteItemResponse>
+) {
+    // Вспомогательные свойства для обратной совместимости
+    val distance_m: Double get() = routes.firstOrNull()?.distance_m ?: 0.0
+    val duration_s: Double get() = routes.firstOrNull()?.duration_s ?: 0.0
+    val points: List<List<Double>> get() = routes.firstOrNull()?.points ?: emptyList()
+}
 
 /**
  * Интерфейс API для сервисов AI Fuel Assistant.
@@ -56,6 +68,7 @@ class FuelApiImpl @Inject constructor(
         val url = BASE_URL.toHttpUrl().newBuilder()
             .addQueryParameter("from", "$fromLon,$fromLat")
             .addQueryParameter("to", "$toLon,$toLat")
+            .addQueryParameter("alternatives", "true")
             .build()
 
         val request = Request.Builder()
@@ -73,19 +86,40 @@ class FuelApiImpl @Inject constructor(
                 ?: throw Exception("Пустой ответ от Worker route")
 
             val json = JSONObject(body)
-            val distanceM = json.getDouble("distance_m")
-            val durationS = json.getDouble("duration_s")
-            val pointsArray = json.getJSONArray("points")
-            val pointsList = ArrayList<List<Double>>(pointsArray.length())
-            for (i in 0 until pointsArray.length()) {
-                val pt = pointsArray.getJSONArray(i)
-                pointsList.add(listOf(pt.getDouble(0), pt.getDouble(1)))
+            val routesList = ArrayList<RouteItemResponse>()
+
+            if (json.has("routes") && !json.isNull("routes")) {
+                val routesArray = json.getJSONArray("routes")
+                val limit = minOf(routesArray.length(), 3)
+                for (r in 0 until limit) {
+                    val routeObj = routesArray.getJSONObject(r)
+                    val distM = routeObj.optDouble("distance_m", 0.0)
+                    val durS = routeObj.optDouble("duration_s", 0.0)
+                    val ptsArray = routeObj.optJSONArray("points")
+                    val ptsList = ArrayList<List<Double>>()
+                    if (ptsArray != null) {
+                        for (i in 0 until ptsArray.length()) {
+                            val pt = ptsArray.getJSONArray(i)
+                            ptsList.add(listOf(pt.getDouble(0), pt.getDouble(1)))
+                        }
+                    }
+                    routesList.add(RouteItemResponse(distM, durS, ptsList))
+                }
             }
-            RouteResponse(
-                distance_m = distanceM,
-                duration_s = durationS,
-                points = pointsList
-            )
+
+            if (routesList.isEmpty() && json.has("points")) {
+                val distM = json.optDouble("distance_m", 0.0)
+                val durS = json.optDouble("duration_s", 0.0)
+                val ptsArray = json.getJSONArray("points")
+                val ptsList = ArrayList<List<Double>>(ptsArray.length())
+                for (i in 0 until ptsArray.length()) {
+                    val pt = ptsArray.getJSONArray(i)
+                    ptsList.add(listOf(pt.getDouble(0), pt.getDouble(1)))
+                }
+                routesList.add(RouteItemResponse(distM, durS, ptsList))
+            }
+
+            RouteResponse(routes = routesList)
         }
     }
 }
