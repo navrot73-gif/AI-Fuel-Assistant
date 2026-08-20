@@ -352,7 +352,7 @@ fun MapScreen(
                                 onClick = {
                                     viewModel.clearRoute()
                                     routeStation = null
-                                    selectedStation = null
+                                    onConsumePendingRoute()   // ← ДОБАВИТЬ! очищает pendingRouteStationId
                                 },
                                 containerColor = MaterialTheme.colorScheme.surface,
                                 shape = CircleShape

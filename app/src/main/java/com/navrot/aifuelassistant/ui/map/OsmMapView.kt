@@ -350,45 +350,16 @@ fun OsmMapView(
                         }
                         mapView.overlays.add(finishMarker)
 
-                        val fitKey = "${activeOption.destination}_${activeOption.distanceMeters}_${activeRouteIndex}"
-                        if (lastFittedRouteKey[0] != fitKey) {
-                            lastFittedRouteKey[0] = fitKey
-                            mapView.post {
-                                try {
-                                    val bounds = BoundingBox.fromGeoPoints(osmPoints)
-                                    val leftPx = 48f * density
-                                    val topPx = 96f * density
-                                    val rightPx = 104f * density
-                                    val bottomPx = 180f * density
-
-                                    val mapWidth = mapView.width.toFloat()
-                                    val mapHeight = mapView.height.toFloat()
-
-                                    val freeWidth = mapWidth - leftPx - rightPx
-                                    val freeHeight = mapHeight - topPx - bottomPx
-
-                                    if (freeWidth > 0f && freeHeight > 0f && mapWidth > 0f && mapHeight > 0f) {
-                                        val latSpan = bounds.latNorth - bounds.latSouth
-                                        val lonSpan = bounds.lonEast - bounds.lonWest
-
-                                        val safeLatSpan = maxOf(latSpan, 0.001)
-                                        val safeLonSpan = maxOf(lonSpan, 0.001)
-
-                                        val extended = BoundingBox(
-                                            bounds.latNorth + safeLatSpan * (topPx / freeHeight),
-                                            bounds.lonEast + safeLonSpan * (rightPx / freeWidth),
-                                            bounds.latSouth - safeLatSpan * (bottomPx / freeHeight),
-                                            bounds.lonWest - safeLonSpan * (leftPx / freeWidth)
-                                        )
-                                        mapView.zoomToBoundingBox(extended, false)
-                                    } else {
-                                        mapView.zoomToBoundingBox(bounds, false)
-                                    }
-                                    if (mapView.zoomLevelDouble > 16.0) {
-                                        mapView.controller.setZoom(16.0)
-                                    }
-                                } catch (_: Exception) { }
-                            }
+                        val currentFitKey = "${activeOption.points.size}_${activeOption.points.first()}_${activeOption.points.last()}_$activeRouteIndex"
+                        if (lastFittedRouteKey[0] != currentFitKey) {
+                            // Устанавливаем ключ fit, чтобы избежать повторных вызовов
+                            lastFittedRouteKey[0] = currentFitKey
+                            
+                            // Вызываем fit напрямую, т.к. карта уже измерена и элементы добавлены
+                            try {
+                                val bounds = BoundingBox.fromGeoPoints(osmPoints)
+                                mapView.zoomToBoundingBox(bounds, true, 80)  // 80px padding со всех сторон
+                            } catch (_: Exception) { }
                         }
                     }
                 } catch (t: Throwable) {

@@ -1,5 +1,5 @@
 package com.navrot.aifuelassistant.features.dashboard
-
+import com.navrot.aifuelassistant.ui.FuelRecordListRoute
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -225,17 +225,17 @@ fun DashboardScreen(
                     letterSpacing = 0.4.sp,
                 )
             }
-            if (chatMessages.isNotEmpty()) {
-                IconButton(onClick = {
-                    if (vehicles.size == 1) {
-                        navController.navigate(AddFuelRecordRoute(vehicles[0].id, vehicles[0].name))
-                    } else {
-                        navController.navigate("garage")
-                    }
-                }) {
-                    Icon(Icons.Default.Add, contentDescription = "Добавить заправку",
-                         tint = Color(0xFFE8A750))
+            IconButton(onClick = {
+                if (vehicles.size == 1) {
+                    navController.navigate(AddFuelRecordRoute(vehicles[0].id, vehicles[0].name))
+                } else {
+                    navController.navigate("garage")
                 }
+            }) {
+                Icon(Icons.Default.Add, contentDescription = "Добавить заправку",
+                     tint = Color(0xFFE8A750))
+            }
+            if (chatMessages.isNotEmpty()) {
                 IconButton(onClick = { viewModel.clearChatHistory() }) {
                     Icon(
                         Icons.Default.Delete,
@@ -269,6 +269,39 @@ fun DashboardScreen(
             },
             modifier = Modifier.padding(horizontal = 16.dp)
         )
+
+        // ===== 3.5. НОВЫЕ КНОПКИ =====
+        if (metrics.fillCount < 2 && vehicles.isNotEmpty()) {
+            val v = vehicles.firstOrNull { it.id == selectedVehicleId }
+                ?: vehicles.firstOrNull()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        v?.let { vehicle ->
+                            navController.navigate(AddFuelRecordRoute(vehicle.id, vehicle.name))
+                        }
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = FueldeckColors.Amber)
+                ) {
+                    Text("＋ Добавить заправку", fontSize = 13.sp)
+                }
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        v?.let { vehicle ->
+                            navController.navigate(FuelRecordListRoute(vehicle.id, vehicle.name))
+                        }
+                    },
+                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = FueldeckColors.Amber)
+                ) {
+                    Text("📋 История заправок", fontSize = 13.sp)
+                }
+            }
+        }
 
         // Show route button if there's a pending route station
         pendingRouteStationId?.let { stationId ->
