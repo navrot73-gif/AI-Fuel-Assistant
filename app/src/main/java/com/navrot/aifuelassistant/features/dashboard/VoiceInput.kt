@@ -14,6 +14,8 @@ fun createSpeechIntent(): Intent {
     }
 }
 
+fun createSpeechRecognizerIntent(): Intent = createSpeechIntent()
+
 fun createSpeechRecognizer(
     context: Context,
     onResult: (String) -> Unit,

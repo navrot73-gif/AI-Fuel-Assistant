@@ -293,9 +293,6 @@ fun OsmMapView(
                                     filteredPoints.add(pt)
                                 }
                             }
-                            userLocation?.let { loc ->
-                                if (filteredPoints.isNotEmpty()) filteredPoints[0] = loc.toGeoPoint()
-                            }
                             if (filteredPoints.size >= 2) {
                                 val polyline = Polyline().apply {
                                     setPoints(filteredPoints)
@@ -323,9 +320,6 @@ fun OsmMapView(
                         if (filteredPoints.isEmpty() || filteredPoints.last().distanceToAsDouble(pt) >= 1.0) {
                             filteredPoints.add(pt)
                         }
-                    }
-                    userLocation?.let { loc ->
-                        if (filteredPoints.isNotEmpty()) filteredPoints[0] = loc.toGeoPoint()
                     }
                     val osmPoints = filteredPoints
                     if (osmPoints.size >= 2) {
