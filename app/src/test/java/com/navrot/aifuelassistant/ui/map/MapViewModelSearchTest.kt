@@ -11,6 +11,7 @@ import com.navrot.aifuelassistant.geo.GeocodingProvider
 import com.navrot.aifuelassistant.geo.GeocodingResult
 import com.navrot.aifuelassistant.geo.GeoPoint
 import com.navrot.aifuelassistant.network.FuelApi
+import com.navrot.aifuelassistant.network.RouteOptionData
 import com.navrot.aifuelassistant.network.RouteResponse
 import com.navrot.aifuelassistant.ui.map.TileWarmupService
 import kotlinx.coroutines.Dispatchers
@@ -332,5 +333,46 @@ class MapViewModelSearchTest {
         assertEquals("по прямой", route.durationText)
         assertEquals(true, route.isDirect)
         assertEquals(true, route.isStraightLine)
+    }
+
+    @Test
+    fun `buildRouteTo multi route parses up to 3 options and active route selection works`() = runTest {
+        viewModel.updateUserLocation(55.0, 61.0)
+        val station = makeStation(1, "АЗС 1", "Лукойл", 55.1, 61.1)
+
+        val optionsData = listOf(
+            RouteOptionData(5000.0, 300.0, listOf(listOf(55.0, 61.0), listOf(55.1, 61.1))),
+            RouteOptionData(5500.0, 360.0, listOf(listOf(55.0, 61.0), listOf(55.05, 61.05), listOf(55.1, 61.1))),
+            RouteOptionData(6000.0, 420.0, listOf(listOf(55.0, 61.0), listOf(55.08, 61.08), listOf(55.1, 61.1)))
+        )
+
+        whenever(fuelApi.getRoute(61.0, 55.0, 61.1, 55.1)).thenReturn(
+            RouteResponse(
+                distance_m = 5000.0,
+                duration_s = 300.0,
+                points = optionsData[0].points,
+                routes = optionsData
+            )
+        )
+
+        viewModel.buildRouteTo(station)
+        advanceUntilIdle()
+
+        val routes = viewModel.routeOptions.value
+        assertEquals(3, routes.size)
+        assertEquals("Быстрый", routes[0].title)
+        assertEquals("5 мин", routes[0].durationText)
+        assertEquals("Без пробок", routes[1].title)
+        assertEquals("6 мин", routes[1].durationText)
+        assertEquals("Альтернативный", routes[2].title)
+        assertEquals("7 мин", routes[2].durationText)
+
+        assertEquals(0, viewModel.activeRouteIndex.value)
+        assertEquals(routes[0], viewModel.activeRoute.value)
+
+        // Select second route option ("Без пробок")
+        viewModel.selectRouteOption(1)
+        assertEquals(1, viewModel.activeRouteIndex.value)
+        assertEquals(routes[1], viewModel.activeRoute.value)
     }
 }

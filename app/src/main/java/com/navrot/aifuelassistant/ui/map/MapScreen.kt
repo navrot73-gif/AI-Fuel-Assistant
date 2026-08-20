@@ -44,6 +44,7 @@ import com.navrot.aifuelassistant.ui.map.components.MapErrorDialog
 import com.navrot.aifuelassistant.ui.map.components.MapFloatingActions
 import com.navrot.aifuelassistant.ui.map.components.MapSearchBar
 import com.navrot.aifuelassistant.ui.map.components.MapTopBar
+import com.navrot.aifuelassistant.ui.map.components.RouteOptionsPanel
 import com.navrot.aifuelassistant.ui.map.components.RouteOverlay
 import com.navrot.aifuelassistant.ui.map.components.StationDetailOverlay
 import com.navrot.aifuelassistant.ui.map.components.StationListBottomSheet
@@ -73,6 +74,9 @@ fun MapScreen(
     val selectedBrands by viewModel.selectedBrands.collectAsStateWithLifecycle()
     val sortMode by viewModel.sortMode.collectAsStateWithLifecycle()
     val route by viewModel.route.collectAsStateWithLifecycle()
+    val routeOptions by viewModel.routeOptions.collectAsStateWithLifecycle()
+    val activeRouteIndex by viewModel.activeRouteIndex.collectAsStateWithLifecycle()
+    val isRouteOptionsPanelVisible by viewModel.isRouteOptionsPanelVisible.collectAsStateWithLifecycle()
     val isRouting by viewModel.isRouting.collectAsStateWithLifecycle()
     val openOnly by viewModel.openOnly.collectAsStateWithLifecycle()
     val aiRecommendation by viewModel.aiRecommendation.collectAsStateWithLifecycle()
@@ -99,6 +103,7 @@ fun MapScreen(
 
     val bottomPadding = when {
         showStationList -> 452.dp
+        isRouteOptionsPanelVisible && routeOptions.isNotEmpty() -> 200.dp
         aiRecommendation != null -> 150.dp
         yellowRouteVisible -> 88.dp
         else -> 16.dp
@@ -258,6 +263,7 @@ fun MapScreen(
                 OsmMapView(
                     userLocation = userLocation, stations = stations,
                     selectedFuelTypes = selectedFuelTypes, route = route,
+                    routeOptions = routeOptions, activeRouteIndex = activeRouteIndex,
                     recenterRequest = recenterTick,
                     zoomInRequest = zoomInTick, zoomOutRequest = zoomOutTick,
                     focusPoint = geocodedLocation?.let { OsmGeoPoint(it.latitude, it.longitude) },
@@ -319,6 +325,16 @@ fun MapScreen(
                         }
                     }
                 )
+
+                if (isRouteOptionsPanelVisible && routeOptions.isNotEmpty() && selectedStation == null && !showStationList) {
+                    RouteOptionsPanel(
+                        routeOptions = routeOptions,
+                        activeRouteIndex = activeRouteIndex,
+                        onSelectOption = { viewModel.selectRouteOption(it) },
+                        onGoClick = { viewModel.dismissRouteOptionsPanel() },
+                        modifier = Modifier.align(Alignment.BottomCenter)
+                    )
+                }
 
                 if (selectedStation == null && !showStationList) {
                     Column(
