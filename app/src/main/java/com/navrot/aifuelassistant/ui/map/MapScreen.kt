@@ -103,7 +103,7 @@ fun MapScreen(
 
     val bottomPadding = when {
         showStationList -> 452.dp
-        isRouteOptionsPanelVisible && routeOptions.isNotEmpty() -> 200.dp
+        isRouteOptionsPanelVisible && routeOptions.size >= 2 -> 200.dp
         aiRecommendation != null -> 150.dp
         yellowRouteVisible -> 88.dp
         else -> 16.dp
@@ -326,12 +326,16 @@ fun MapScreen(
                     }
                 )
 
-                if (isRouteOptionsPanelVisible && routeOptions.isNotEmpty() && selectedStation == null && !showStationList) {
+                if (isRouteOptionsPanelVisible && routeOptions.size >= 2 && selectedStation == null && !showStationList) {
                     RouteOptionsPanel(
                         routeOptions = routeOptions,
                         activeRouteIndex = activeRouteIndex,
                         onSelectOption = { viewModel.selectRouteOption(it) },
-                        onGoClick = { viewModel.dismissRouteOptionsPanel() },
+                        onGoClick = {
+                            viewModel.dismissRouteOptionsPanel()
+                            val activeOpt = routeOptions.getOrNull(activeRouteIndex)
+                            Log.d("RouteOptions", "Поехали pressed: active index=$activeRouteIndex, route=${activeOpt?.title}, dest=${activeOpt?.destination}, dist=${activeOpt?.distanceText}")
+                        },
                         modifier = Modifier.align(Alignment.BottomCenter)
                     )
                 }

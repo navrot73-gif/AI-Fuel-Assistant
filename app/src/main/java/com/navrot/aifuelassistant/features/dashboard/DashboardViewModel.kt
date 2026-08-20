@@ -332,15 +332,19 @@ class DashboardViewModel @Inject constructor(
     }
 
     @SuppressLint("MissingPermission")
-    private suspend fun getLastLocation(): Location? = suspendCancellableCoroutine { cont ->
-        val fusedClient = LocationServices.getFusedLocationProviderClient(
-            applicationContext
-        )
-        fusedClient.lastLocation.addOnSuccessListener { location ->
-            cont.resume(location)
-        }.addOnFailureListener { e ->
-            cont.resume(null)
+    private suspend fun getLastLocation(): Location? = try {
+        suspendCancellableCoroutine { cont ->
+            val fusedClient = LocationServices.getFusedLocationProviderClient(
+                applicationContext
+            )
+            fusedClient.lastLocation.addOnSuccessListener { location ->
+                cont.resume(location)
+            }.addOnFailureListener { e ->
+                cont.resume(null)
+            }
         }
+    } catch (_: Exception) {
+        null
     }
 
     private data class UserContext(val text: String, val nearestStationId: Int?)
@@ -386,6 +390,7 @@ class DashboardViewModel @Inject constructor(
         viewModelScope.launch {
             _isAnalyzing.value = true
             try {
+                // 1. greeting-проверка (как есть)
                 val lower = question.lowercase()
                 val isGreeting = listOf("привет", "здравств", "добрый", "hi", "hello", "как дела").any { lower.startsWith(it) }
                 if (isGreeting) {
@@ -402,26 +407,39 @@ class DashboardViewModel @Inject constructor(
                     return@launch
                 }
 
+                // 2. addChatMessage(user-сообщение) — СРАЗУ, до любого AI-запроса
+                addChatMessage(ChatMessage(role = "user", text = question, ts = System.currentTimeMillis()))
+
+                // 3. detectIntent(question) — ДО AI-запроса! Маршрут и панель АЗС должны срабатывать даже при 401 от AI.
+                detectIntent(question)
+
+                // 4. try { aiRouter.ask } catch (e)
                 _error.value = null
                 _userAnswer.value = null
 
-                val context = buildUserContext()
-                val fullPrompt = if (context.text.isNotBlank()) {
-                    "${context.text}\n\nВопрос пользователя: $question"
-                } else question
+                try {
+                    val context = buildUserContext()
+                    val fullPrompt = if (context.text.isNotBlank()) {
+                        "${context.text}\n\nВопрос пользователя: $question"
+                    } else question
 
-                val history = _chatMessages.value.takeLast(6)
+                    val history = _chatMessages.value.takeLast(6)
 
-                val rawAnswer = aiRouter.ask(fullPrompt, history = history)
-                val answer = rawAnswer.replace("**", "").replace("*", "")
-                _userAnswer.value = answer
+                    val rawAnswer = aiRouter.ask(fullPrompt, history = history)
+                    val answer = rawAnswer.replace("**", "").replace("*", "")
+                    _userAnswer.value = answer
 
-                addChatMessage(ChatMessage(role = "user", text = question, ts = System.currentTimeMillis()))
-                addChatMessage(ChatMessage(role = "ai", text = answer, ts = System.currentTimeMillis()))
-
-                detectIntent(question)
-            } catch (e: Exception) {
-                _error.value = e.message ?: "Ошибка при обработке запроса"
+                    addChatMessage(ChatMessage(role = "ai", text = answer, ts = System.currentTimeMillis()))
+                } catch (e: Exception) {
+                    _error.value = e.message ?: "Ошибка при обработке запроса"
+                    addChatMessage(
+                        ChatMessage(
+                            role = "ai",
+                            text = "AI временно недоступен: ${e.message}. Маршрут/АЗС обработаны локально.",
+                            ts = System.currentTimeMillis()
+                        )
+                    )
+                }
             } finally {
                 _isAnalyzing.value = false
             }
