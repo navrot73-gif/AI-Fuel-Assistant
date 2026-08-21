@@ -16,9 +16,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsCar
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,7 +40,8 @@ fun VehicleCard(
     state: VehicleCardUiState,
     isActive: Boolean = false,
     modifier: Modifier = Modifier,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    onEditClick: (() -> Unit)? = null
 ) {
     val cardBorderColor = if (isActive) FueldeckColors.Mint else FueldeckColors.Line
     val cardBorderWidth = if (isActive) 1.dp else 1.dp
@@ -61,13 +64,14 @@ fun VehicleCard(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             
-            // Top row: car icon + name + fuel badge + active badge/radio
+            // Top row: car icon + name + fuel badge + active badge/radio + edit icon
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Top,
             ) {
                 Row(
+                    modifier = Modifier.weight(1f, fill = false),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.Top,
                 ) {
@@ -161,20 +165,35 @@ fun VehicleCard(
                     }
                 }
                 
-                // Fuel grade badge on right (amber)
-                Surface(
-                    shape = FueldeckShapes.Pill,
-                    color = FueldeckColors.AmberSoft,
-                    border = BorderStroke(1.dp, FueldeckColors.Amber.copy(alpha = 0.25f)),
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    Text(
-                        text = state.fuelGrade,
-                        fontSize = 12.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold,
-                        color = FueldeckColors.Amber,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                    )
+                    // Fuel grade badge on right (amber)
+                    Surface(
+                        shape = FueldeckShapes.Pill,
+                        color = FueldeckColors.AmberSoft,
+                        border = BorderStroke(1.dp, FueldeckColors.Amber.copy(alpha = 0.25f)),
+                    ) {
+                        Text(
+                            text = state.fuelGrade,
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Bold,
+                            color = FueldeckColors.Amber,
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        )
+                    }
+
+                    if (onEditClick != null) {
+                        IconButton(onClick = onEditClick) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Редактировать",
+                                tint = FueldeckColors.Amber
+                            )
+                        }
+                    }
                 }
             }
             

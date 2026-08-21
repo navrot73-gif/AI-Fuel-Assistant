@@ -40,6 +40,7 @@ fun GarageListScreen(
     onAddClick: () -> Unit,
     onVehicleClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    onEditClick: ((Long) -> Unit)? = null,
     viewModel: VehicleViewModel = hiltViewModel()
 ) {
     val vehicles by viewModel.vehiclesWithStats.collectAsStateWithLifecycle()
@@ -115,14 +116,16 @@ fun GarageListScreen(
                     VehicleCard(
                         state = vehicle,
                         isActive = isActive,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                if (!isActive) {
-                                    viewModel.setActiveVehicle(vehicle.id)
-                                }
-                                onVehicleClick(vehicle.id)
-                            },
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = {
+                            if (!isActive) {
+                                viewModel.setActiveVehicle(vehicle.id)
+                            }
+                            onVehicleClick(vehicle.id)
+                        },
+                        onEditClick = onEditClick?.let { callback ->
+                            { callback(vehicle.id) }
+                        }
                     )
                 }
             }
