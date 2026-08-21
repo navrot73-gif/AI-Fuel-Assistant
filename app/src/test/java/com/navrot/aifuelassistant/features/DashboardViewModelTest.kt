@@ -139,4 +139,38 @@ class DashboardViewModelTest {
         assertTrue(messages[1].text.contains("AI временно недоступен: 401 Unauthorized. Маршрут/АЗС обработаны локально."))
         assertEquals("401 Unauthorized", vm.error.value)
     }
+
+    @Test
+    fun `askUserQuestion passes last 6 messages history to aiRouter`() = runTest {
+        whenever(mockRecordRepo.getAll()).thenReturn(flowOf(emptyList()))
+        whenever(mockRecordRepo.getByVehicleId(any())).thenReturn(flowOf(emptyList()))
+        whenever(mockVehicleRepo.getAllVehicles()).thenReturn(flowOf(emptyList()))
+        whenever(mockStationRepo.getAllStations()).thenReturn(emptyList())
+        whenever(mockAiRouter.ask(any(), anyOrNull(), anyOrNull(), any(), any())).thenReturn("Ответ AI")
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        // Add 8 previous messages
+        for (i in 1..8) {
+            vm.addChatMessage(
+                com.navrot.aifuelassistant.features.dashboard.ChatMessage(
+                    if (i % 2 == 1) "user" else "ai",
+                    "Message $i"
+                )
+            )
+        }
+
+        vm.setUserQuestion("Где дешевле заправиться?")
+        vm.askUserQuestion()
+        advanceUntilIdle()
+
+        val captor = argumentCaptor<List<com.navrot.aifuelassistant.features.dashboard.ChatMessage>>()
+        verify(mockAiRouter).ask(any(), anyOrNull(), anyOrNull(), any(), captor.capture())
+
+        val passedHistory = captor.firstValue
+        assertEquals(6, passedHistory.size)
+        assertEquals("Message 4", passedHistory[0].text)
+        assertEquals("Где дешевле заправиться?", passedHistory.last().text)
+    }
 }

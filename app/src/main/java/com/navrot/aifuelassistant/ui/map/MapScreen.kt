@@ -82,6 +82,7 @@ fun MapScreen(
     val openOnly by viewModel.openOnly.collectAsStateWithLifecycle()
     val aiRecommendation by viewModel.aiRecommendation.collectAsStateWithLifecycle()
     val userCancelledRoute by viewModel.userCancelledRoute.collectAsStateWithLifecycle()
+    val autoBuildConsumed by viewModel.autoBuildConsumed.collectAsStateWithLifecycle()
     val currentCity by viewModel.currentCity.collectAsStateWithLifecycle()
     val geocodedLocation by viewModel.geocodedLocation.collectAsStateWithLifecycle()
     val bestStationRanked by viewModel.bestStationRanked.collectAsStateWithLifecycle()
@@ -135,8 +136,8 @@ fun MapScreen(
     }
 
 
-    LaunchedEffect(pendingRouteStationId, stations, userLocation, userCancelledRoute) {
-        if (userCancelledRoute) return@LaunchedEffect
+    LaunchedEffect(pendingRouteStationId, stations, userLocation, userCancelledRoute, autoBuildConsumed) {
+        if (userCancelledRoute || autoBuildConsumed) return@LaunchedEffect
         val id = pendingRouteStationId ?: return@LaunchedEffect
         // Ждём и локацию, и станцию, и маршрут — до 6 секунд
         var waited = 0
@@ -166,6 +167,7 @@ fun MapScreen(
             }
 
             if (loc != null && st != null) {
+                viewModel.markAutoBuildConsumed()
                 viewModel.updateUserLocation(loc.latitude, loc.longitude)
                 viewModel.buildRouteTo(st)
                 onConsumePendingRoute()

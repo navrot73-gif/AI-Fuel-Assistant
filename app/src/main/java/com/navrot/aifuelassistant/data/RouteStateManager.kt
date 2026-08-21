@@ -14,6 +14,9 @@ class RouteStateManager @Inject constructor() {
     private val _pendingRouteStationId = MutableStateFlow<Int?>(null)
     val pendingRouteStationId: StateFlow<Int?> = _pendingRouteStationId.asStateFlow()
 
+    private val _autoBuildConsumed = MutableStateFlow(false)
+    val autoBuildConsumed: StateFlow<Boolean> = _autoBuildConsumed.asStateFlow()
+
     fun setUserCancelledRoute(cancelled: Boolean) {
         _userCancelledRoute.value = cancelled
     }
@@ -26,7 +29,12 @@ class RouteStateManager @Inject constructor() {
         _pendingRouteStationId.value = null
     }
 
+    fun setAutoBuildConsumed(consumed: Boolean) {
+        _autoBuildConsumed.value = consumed
+    }
+
     fun resetForNewIntent() {
         _userCancelledRoute.value = false
+        _autoBuildConsumed.value = false
     }
 }
