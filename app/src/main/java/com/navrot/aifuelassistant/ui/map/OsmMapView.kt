@@ -228,11 +228,12 @@ fun OsmMapView(
             config.osmdroidBasePath = File(ctx.cacheDir, "osmdroid")
             config.osmdroidTileCache = File(ctx.cacheDir, "osmdroid/tiles")
             config.tileFileSystemCacheMaxBytes = 512 * 1024 * 1024L
-            config.tileFileSystemThreads = 12  // Tile cache: 12 threads
-            config.tileDownloadThreads = 12    // Tile download: 12 threads
+            config.tileFileSystemThreads = 8
+            config.tileDownloadThreads = 8
             config.userAgentValue = ctx.packageName
 
             MapView(ctx).apply {
+                setTilesScaledToDpi(true)
                 setBackgroundColor(android.graphics.Color.parseColor(MAP_BACKGROUND))
                 setTileSource(cartoDarkNoLabelsTileSource())
                 setMultiTouchControls(true)
@@ -322,12 +323,12 @@ fun OsmMapView(
                             if (filteredPoints.size >= 2) {
                                 val polyline = Polyline().apply {
                                     setPoints(filteredPoints)
-                                    outlinePaint.color = android.graphics.Color.parseColor("#33FFFFFF")
+                                    outlinePaint.color = android.graphics.Color.parseColor("#331B5E20")
                                     outlinePaint.strokeWidth = 6f * density
                                     outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
                                     outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
                                     outlinePaint.isAntiAlias = true
-                                    paint.color = android.graphics.Color.parseColor("#8078909C")
+                                    paint.color = android.graphics.Color.parseColor("#E64CAF50")
                                     paint.strokeWidth = 4f * density
                                     paint.strokeCap = android.graphics.Paint.Cap.ROUND
                                     paint.strokeJoin = android.graphics.Paint.Join.ROUND
@@ -350,8 +351,8 @@ fun OsmMapView(
                     }
                     val osmPoints = filteredPoints
                     if (osmPoints.size >= 2) {
-                        val accentColorStr = ROUTE_ACCENT_COLORS.getOrElse(activeRouteIndex) { "#2196F3" }
-                        val outlineColorStr = ROUTE_OUTLINE_COLORS.getOrElse(activeRouteIndex) { "#0D47A1" }
+                        val accentColorStr = "#2196F3"
+                        val outlineColorStr = "#0D47A1"
 
                         val mainPolyline = Polyline().apply {
                             setPoints(osmPoints)
@@ -389,6 +390,7 @@ fun OsmMapView(
                                     bounds.lonWest - dLon * 0.3
                                 )
                                 mapView.zoomToBoundingBox(expanded, true)
+                                mapView.invalidate()
                             } catch (_: Exception) { }
                         }
                         mapView.post { fitRoute() }

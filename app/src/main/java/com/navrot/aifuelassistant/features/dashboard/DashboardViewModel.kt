@@ -13,6 +13,7 @@ import com.navrot.aifuelassistant.ai.FuelAnalysisPromptBuilder
 import com.navrot.aifuelassistant.ai.router.AiRouter
 import com.navrot.aifuelassistant.data.FuelRecordRepository
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
+import com.navrot.aifuelassistant.data.RouteStateManager
 import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
@@ -44,6 +45,7 @@ class DashboardViewModel @Inject constructor(
     private val vehicleRepository: VehicleRepository,
     private val gasStationRepository: GasStationRepositoryInterface,
     private val aiRouter: AiRouter,
+    private val routeStateManager: RouteStateManager,
     @ApplicationContext private val applicationContext: Context,
 ) : ViewModel() {
 
@@ -447,6 +449,7 @@ class DashboardViewModel @Inject constructor(
     }
 
     private suspend fun detectIntent(question: String) {
+        routeStateManager.resetForNewIntent()
         val lowerQuestion = question.lowercase()
         val brands = listOf("газпром", "роснефть", "татнефть", "смарт", "шелл", "лукойл")
         val mentionedBrand = brands.find { lowerQuestion.contains(it) }
@@ -497,6 +500,7 @@ class DashboardViewModel @Inject constructor(
 
                 selectedStation?.let { station ->
                     _pendingRouteStationId.value = station.id
+                    routeStateManager.setPendingRouteStationId(station.id)
                     _pendingRouteMode.value = PendingRouteMode.ROUTE
                 }
             } else if (hasFuelKeyword) {
