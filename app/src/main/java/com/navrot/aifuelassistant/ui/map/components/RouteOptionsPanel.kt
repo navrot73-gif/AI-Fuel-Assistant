@@ -112,6 +112,7 @@ fun RouteOptionsPanel(
 
             Button(
                 onClick = onGoClick,
+                enabled = true,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp),

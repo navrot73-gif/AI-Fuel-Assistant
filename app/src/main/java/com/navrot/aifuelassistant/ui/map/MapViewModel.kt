@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.navrot.aifuelassistant.BuildConfig
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
+import com.navrot.aifuelassistant.data.RouteStateManager
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.providers.BenzonavtProvider
@@ -38,7 +39,8 @@ class MapViewModel @Inject constructor(
     private val getBestStationsUseCase: GetBestStationsUseCase,
     private val benzonavtProvider: BenzonavtProvider,
     private val tileWarmupService: TileWarmupService,
-    private val geocodingProvider: GeocodingProvider
+    private val geocodingProvider: GeocodingProvider,
+    private val routeStateManager: RouteStateManager
 ) : ViewModel() {
 
     companion object {
@@ -131,11 +133,14 @@ class MapViewModel @Inject constructor(
         val distanceKm: Double
     )
 
-    private val _userCancelledRoute = MutableStateFlow(false)
-    val userCancelledRoute: StateFlow<Boolean> = _userCancelledRoute.asStateFlow()
+    val userCancelledRoute: StateFlow<Boolean> = routeStateManager.userCancelledRoute
 
     fun resetUserCancelledRoute() {
-        _userCancelledRoute.value = false
+        routeStateManager.setUserCancelledRoute(false)
+    }
+
+    fun consumePendingRouteStationId() {
+        routeStateManager.consumePendingRouteStationId()
     }
 
     private val _aiRecommendation = MutableStateFlow<AiRecommendation?>(null)
@@ -412,7 +417,9 @@ class MapViewModel @Inject constructor(
     }
 
     fun buildRouteTo(station: GasStation) {
-        _userCancelledRoute.value = false
+        routeStateManager.setUserCancelledRoute(true)
+        routeStateManager.consumePendingRouteStationId()
+        _aiRecommendation.value = null
         val start = _userLocation.value
         if (start == null) {
             _error.value = "Определение местоположения... Подождите и попробуйте снова"
@@ -445,7 +452,8 @@ class MapViewModel @Inject constructor(
                     fromLon = start.second,
                     fromLat = start.first,
                     toLon = station.longitude,
-                    toLat = station.latitude
+                    toLat = station.latitude,
+                    alternatives = true
                 )
                 val rawOptions = response.getRouteOptions()
                 if (rawOptions.isEmpty()) {
@@ -499,11 +507,12 @@ class MapViewModel @Inject constructor(
     }
 
     fun clearRoute() {
-        _userCancelledRoute.value = true
+        routeStateManager.setUserCancelledRoute(true)
+        routeStateManager.consumePendingRouteStationId()
+        _aiRecommendation.value = null
         _routeOptions.value = emptyList()
         _activeRouteIndex.value = 0
         _isRouteOptionsPanelVisible.value = false
-        _aiRecommendation.value = null
         _isRouting.value = false
     }
 
@@ -531,6 +540,10 @@ class MapViewModel @Inject constructor(
      * расстояние с весом 1.2 руб/км для визуальной рекомендации.
      */
     private fun updateAiRecommendation(lat: Double? = null, lon: Double? = null) {
+        if (routeStateManager.userCancelledRoute.value) {
+            _aiRecommendation.value = null
+            return
+        }
         val stationList = _stations.value
         val fuelFilter = _selectedFuelTypes.value
 

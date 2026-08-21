@@ -1,6 +1,7 @@
 package com.navrot.aifuelassistant.ui.map
 
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
+import com.navrot.aifuelassistant.data.RouteStateManager
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.FuelDataSource
@@ -72,6 +73,8 @@ class MapViewModelSearchTest {
     @Mock
     private lateinit var tileWarmupService: TileWarmupService
 
+    private lateinit var routeStateManager: RouteStateManager
+
     private lateinit var viewModel: MapViewModel
 
     private val testDispatcher = UnconfinedTestDispatcher()
@@ -85,6 +88,7 @@ class MapViewModelSearchTest {
         Dispatchers.setMain(testDispatcher)
 
         geocodingProvider = FakeGeocodingProvider()
+        routeStateManager = RouteStateManager()
         runBlocking {
             whenever(benzonavtProvider.fetchCityPrices(org.mockito.kotlin.any())).thenReturn(emptyMap())
         }
@@ -95,7 +99,8 @@ class MapViewModelSearchTest {
             getBestStationsUseCase = getBestStationsUseCase,
             benzonavtProvider = benzonavtProvider,
             tileWarmupService = tileWarmupService,
-            geocodingProvider = geocodingProvider
+            geocodingProvider = geocodingProvider,
+            routeStateManager = routeStateManager
         )
     }
 
@@ -374,5 +379,33 @@ class MapViewModelSearchTest {
         viewModel.selectRouteOption(1)
         assertEquals(1, viewModel.activeRouteIndex.value)
         assertEquals(routes[1], viewModel.activeRoute.value)
+    }
+
+    @Test
+    fun `clearRoute then buildRouteTo maintains route and userCancelledRoute is true`() = runTest {
+        viewModel.updateUserLocation(55.0, 61.0)
+        val stationX = makeStation(10, "АЗС X", "Газпром", 55.2, 61.2)
+
+        whenever(fuelApi.getRoute(61.0, 55.0, 61.2, 55.2)).thenReturn(
+            RouteResponse(
+                distance_m = 10000.0,
+                duration_s = 600.0,
+                points = listOf(listOf(55.0, 61.0), listOf(55.2, 61.2))
+            )
+        )
+
+        viewModel.clearRoute()
+        assertTrue(viewModel.userCancelledRoute.value)
+        assertNull(viewModel.aiRecommendation.value)
+        assertNull(viewModel.route.value)
+
+        viewModel.buildRouteTo(stationX)
+        advanceUntilIdle()
+
+        val route = viewModel.route.value
+        assertNotNull(route)
+        assertEquals("Газпром", route!!.destination)
+        assertTrue(viewModel.userCancelledRoute.value)
+        assertNull(viewModel.aiRecommendation.value)
     }
 }

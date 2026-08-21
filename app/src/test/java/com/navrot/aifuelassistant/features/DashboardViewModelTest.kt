@@ -4,6 +4,7 @@ import android.content.Context
 import com.navrot.aifuelassistant.ai.router.AiRouter
 import com.navrot.aifuelassistant.data.FuelRecordRepository
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
+import com.navrot.aifuelassistant.data.RouteStateManager
 import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
@@ -47,6 +48,7 @@ class DashboardViewModelTest {
             vehicleRepository = mockVehicleRepo,
             gasStationRepository = mockStationRepo,
             aiRouter = mockAiRouter,
+            routeStateManager = RouteStateManager(),
             applicationContext = mockContext
         )
     }

@@ -48,7 +48,13 @@ data class RouteResponse(
  * Интерфейс API для сервисов AI Fuel Assistant.
  */
 interface FuelApi {
-    suspend fun getRoute(fromLon: Double, fromLat: Double, toLon: Double, toLat: Double): RouteResponse
+    suspend fun getRoute(
+        fromLon: Double,
+        fromLat: Double,
+        toLon: Double,
+        toLat: Double,
+        alternatives: Boolean = true
+    ): RouteResponse
 }
 
 /**
@@ -76,12 +82,13 @@ class FuelApiImpl @Inject constructor(
         fromLon: Double,
         fromLat: Double,
         toLon: Double,
-        toLat: Double
+        toLat: Double,
+        alternatives: Boolean
     ): RouteResponse = withContext(Dispatchers.IO) {
         val url = BASE_URL.toHttpUrl().newBuilder()
             .addQueryParameter("from", "$fromLon,$fromLat")
             .addQueryParameter("to", "$toLon,$toLat")
-            .addQueryParameter("alternatives", "true")
+            .addQueryParameter("alternatives", alternatives.toString())
             .build()
 
         val request = Request.Builder()
