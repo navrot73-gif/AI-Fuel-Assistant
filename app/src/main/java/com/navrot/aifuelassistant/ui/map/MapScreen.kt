@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -347,18 +348,19 @@ fun MapScreen(
                             .padding(end = 16.dp, bottom = bottomPadding),
                         horizontalAlignment = Alignment.End
                     ) {
-                        if (yellowRouteVisible) {
+                        if (yellowRouteVisible || route != null) {
                             androidx.compose.material3.SmallFloatingActionButton(
                                 onClick = {
                                     viewModel.clearRoute()
                                     routeStation = null
-                                    onConsumePendingRoute()   // ← ДОБАВИТЬ! очищает pendingRouteStationId
+                                    selectedStation = null
+                                    onConsumePendingRoute()
                                 },
                                 containerColor = MaterialTheme.colorScheme.surface,
                                 shape = CircleShape
                             ) {
                                 Icon(
-                                    Icons.Default.Clear,
+                                    Icons.Default.Close,
                                     contentDescription = "Сбросить маршрут",
                                     tint = Color(0xFFF08070)
                                 )
@@ -411,24 +413,6 @@ fun MapScreen(
                     }
                 }
 
-                if (yellowRouteVisible) {
-                    androidx.compose.material3.SmallFloatingActionButton(
-                        onClick = {
-                            viewModel.clearRoute()
-                            routeStation = null
-                            selectedStation = null
-                        },
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        shape = CircleShape
-                    ) {
-                        Icon(
-                            Icons.Default.Clear,
-                            contentDescription = "Сбросить маршрут",
-                            tint = Color(0xFFF08070)
-                        )
-                    }
-                    Spacer(Modifier.height(8.dp))
-                }
             }
         }
     }

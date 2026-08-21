@@ -149,7 +149,6 @@ fun OsmMapView(
     val context = LocalContext.current
     val mapViewRef = remember { arrayOfNulls<MapView>(1) }
     val locationDotRef = remember { arrayOfNulls<MyLocationDot>(1) }
-    val lastFittedRouteKey = remember { arrayOfNulls<String>(1) }
     val focusMarkerRef = remember { arrayOfNulls<Marker>(1) }
     val lastFocusPoint = remember { arrayOfNulls<GeoPoint>(1) }
 
@@ -277,9 +276,7 @@ fun OsmMapView(
             val effectiveOptions = if (routeOptions.isNotEmpty()) routeOptions
                 else if (route != null) listOf(route) else emptyList()
 
-            if (effectiveOptions.isEmpty()) {
-                lastFittedRouteKey[0] = null
-            } else {
+            if (effectiveOptions.isNotEmpty()) {
                 try {
                     val density = context.resources.displayMetrics.density
 
@@ -350,17 +347,14 @@ fun OsmMapView(
                         }
                         mapView.overlays.add(finishMarker)
 
-                        val currentFitKey = "${activeOption.points.size}_${activeOption.points.first()}_${activeOption.points.last()}_$activeRouteIndex"
-                        if (lastFittedRouteKey[0] != currentFitKey) {
-                            // Устанавливаем ключ fit, чтобы избежать повторных вызовов
-                            lastFittedRouteKey[0] = currentFitKey
-                            
-                            // Вызываем fit напрямую, т.к. карта уже измерена и элементы добавлены
+                        fun fitRoute() {
                             try {
                                 val bounds = BoundingBox.fromGeoPoints(osmPoints)
-                                mapView.zoomToBoundingBox(bounds, true, 80)  // 80px padding со всех сторон
+                                mapView.zoomToBoundingBox(bounds, true, 120)
                             } catch (_: Exception) { }
                         }
+                        mapView.post { fitRoute() }
+                        mapView.postDelayed({ fitRoute() }, 300)
                     }
                 } catch (t: Throwable) {
                     android.util.Log.e("RouteDebug", "route draw failed", t)

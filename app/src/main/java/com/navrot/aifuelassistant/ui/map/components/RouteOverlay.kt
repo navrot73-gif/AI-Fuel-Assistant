@@ -162,24 +162,4 @@ fun BoxScope.RouteOverlay(
         )
     }
 
-    // Кнопка сброса маршрута
-    if (route != null) {
-        SmallFloatingActionButton(
-            onClick = onClearRoute,
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(
-                    end = 16.dp,
-                    bottom = when {
-                        showStationList -> 524.dp
-                        selectedStation != null || (route != null && routeStation != null) -> 160.dp
-                        else -> 88.dp
-                    }
-                ),
-            containerColor = FueldeckColors.Surface,
-            contentColor = FueldeckColors.Coral
-        ) {
-            Icon(Icons.Default.Close, contentDescription = "Сбросить маршрут")
-        }
-    }
 }

@@ -86,9 +86,7 @@ object GarageRoute {
 
 @Serializable
 @SerialName("add_vehicle")
-object AddVehicleRoute {
-    val route = "add_vehicle"
-}
+data class AddVehicleRoute(val vehicleId: Long? = null)
 
 @Serializable
 @SerialName("fuel_records")
@@ -260,7 +258,7 @@ fun AppNavigation() {
                 composable<GarageListRoute> {
                     val garageViewModel: VehicleViewModel = hiltViewModel()
                     GarageListScreen(
-                        onAddClick = { navController.navigate(AddVehicleRoute) },
+                        onAddClick = { navController.navigate(AddVehicleRoute()) },
                         onVehicleClick = { vehicleId ->
                             // Type-safe навигация: navigation-compose сам URL-encode'ит
                             // аргументы. Раньше ручной .replace ломался на спецсимволах.
@@ -281,13 +279,18 @@ fun AppNavigation() {
                         vehicleName = vehicleName,
                         onBack = { navController.popBackStack() },
                         onAddClick = { navController.navigate(AddFuelRecordRoute(vehicleId, vehicleName)) },
+                        onEditClick = { id -> navController.navigate(AddVehicleRoute(vehicleId = id)) },
                         viewModel = hiltViewModel()
                     )
                 }
             }
 
-            composable<AddVehicleRoute> {
-                AddVehicleScreen(onNavigateBack = { navController.popBackStack() })
+            composable<AddVehicleRoute> { backStackEntry ->
+                val args = backStackEntry.toRoute<AddVehicleRoute>()
+                AddVehicleScreen(
+                    vehicleId = args.vehicleId,
+                    onNavigateBack = { navController.popBackStack() }
+                )
             }
 
             composable<FuelRecordListRoute> { backStackEntry ->

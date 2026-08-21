@@ -36,6 +36,7 @@ private val YEARS: List<String> = (2026 downTo 1990).map { it.toString() }
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AddVehicleScreen(
+    vehicleId: Long? = null,
     onNavigateBack: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: VehicleViewModel = hiltViewModel()
@@ -48,6 +49,21 @@ fun AddVehicleScreen(
     var tankCapacity by remember { mutableStateOf("") }
     var currentMileage by remember { mutableStateOf("") }
     var attemptedSave by remember { mutableStateOf(false) }
+
+    androidx.compose.runtime.LaunchedEffect(vehicleId) {
+        if (vehicleId != null && vehicleId > 0L) {
+            val entity = viewModel.getVehicleEntity(vehicleId)
+            if (entity != null) {
+                name = entity.name
+                brand = entity.brand
+                model = entity.model
+                year = entity.year.toString()
+                fuelType = entity.fuelType.ifBlank { VehicleCatalog.fuelTypes.first() }
+                tankCapacity = if (entity.tankCapacity % 1.0 == 0.0) entity.tankCapacity.toInt().toString() else entity.tankCapacity.toString()
+                currentMileage = if (entity.currentMileage % 1.0 == 0.0) entity.currentMileage.toLong().toString() else entity.currentMileage.toString()
+            }
+        }
+    }
 
     val modelOptions = if (brand.isBlank()) emptyList() else VehicleCatalog.getModels(brand)
 
@@ -62,7 +78,13 @@ fun AddVehicleScreen(
             && (currentMileage.toDoubleOrNull() ?: 0.0) >= 0
 
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Добавить автомобиль") }) }
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(if (vehicleId != null && vehicleId > 0L) "Редактировать автомобиль" else "Добавить автомобиль")
+                }
+            )
+        }
     ) { padding ->
         Column(
             modifier = modifier
@@ -144,15 +166,28 @@ fun AddVehicleScreen(
                 onClick = {
                     attemptedSave = true
                     if (isFormValid) {
-                        viewModel.addVehicle(
-                            name = name,
-                            brand = brand,
-                            model = model,
-                            year = year.toIntOrNull() ?: 2026,
-                            fuelType = fuelType.ifBlank { VehicleCatalog.fuelTypes.first() },
-                            tankCapacity = tankCapacity.toDoubleOrNull() ?: 50.0,
-                            currentMileage = currentMileage.toDoubleOrNull() ?: 0.0
-                        )
+                        if (vehicleId != null && vehicleId > 0L) {
+                            viewModel.updateVehicle(
+                                id = vehicleId,
+                                name = name,
+                                brand = brand,
+                                model = model,
+                                year = year.toIntOrNull() ?: 2026,
+                                fuelType = fuelType.ifBlank { VehicleCatalog.fuelTypes.first() },
+                                tankCapacity = tankCapacity.toDoubleOrNull() ?: 50.0,
+                                currentMileage = currentMileage.toDoubleOrNull() ?: 0.0
+                            )
+                        } else {
+                            viewModel.addVehicle(
+                                name = name,
+                                brand = brand,
+                                model = model,
+                                year = year.toIntOrNull() ?: 2026,
+                                fuelType = fuelType.ifBlank { VehicleCatalog.fuelTypes.first() },
+                                tankCapacity = tankCapacity.toDoubleOrNull() ?: 50.0,
+                                currentMileage = currentMileage.toDoubleOrNull() ?: 0.0
+                            )
+                        }
                         onNavigateBack()
                     }
                 }
