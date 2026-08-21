@@ -15,6 +15,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -43,6 +44,7 @@ fun VehicleDetailScreen(
     vehicleName: String,
     onBack: () -> Unit,
     onAddClick: () -> Unit,
+    onEditClick: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: VehicleViewModel = hiltViewModel()
 ) {
@@ -89,6 +91,15 @@ fun VehicleDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { onEditClick(vehicleId) }) {
+                        Icon(
+                            Icons.Default.Edit,
+                            contentDescription = "Редактировать автомобиль",
+                            tint = FueldeckColors.Ink
+                        )
                     }
                 },
                 colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(

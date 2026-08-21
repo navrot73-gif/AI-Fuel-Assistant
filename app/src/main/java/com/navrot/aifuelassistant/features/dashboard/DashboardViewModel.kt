@@ -448,11 +448,14 @@ class DashboardViewModel @Inject constructor(
 
     private suspend fun detectIntent(question: String) {
         val lowerQuestion = question.lowercase()
+        val brands = listOf("газпром", "роснефть", "татнефть", "смарт", "шелл", "лукойл")
+        val mentionedBrand = brands.find { lowerQuestion.contains(it) }
+
         val hasRouteKeyword = listOf("маршрут", "построй", "доведи", "ближайшая", "дешевле").any { lowerQuestion.contains(it) }
         val hasFuelKeyword = listOf("топливо", "цена", "наличие", "заправка").any { lowerQuestion.contains(it) }
         val hasSpecificFuelType = Regex("где.*92|где.*95|где.*98|где.*дт").containsMatchIn(lowerQuestion)
 
-        if (hasRouteKeyword || hasSpecificFuelType || hasFuelKeyword) {
+        if (hasRouteKeyword || hasSpecificFuelType || hasFuelKeyword || mentionedBrand != null) {
             if (_stations.value.isEmpty()) {
                 val loc = _userLocation.value ?: getLastLocation()?.let { it.latitude to it.longitude }
                 val stationsList = if (loc != null) {
@@ -468,10 +471,29 @@ class DashboardViewModel @Inject constructor(
                 updateBestStation()
             }
 
-            if (hasRouteKeyword || hasSpecificFuelType) {
-                val selectedStation = _bestStation.value
-                    ?: _stations.value.minByOrNull { GeoUtils.calculateDistance(userLocation.value?.first ?: 0.0, userLocation.value?.second ?: 0.0, it.latitude, it.longitude) }
-                    ?: _stations.value.minByOrNull { it.fuelTypes.filter { ft -> ft.available }.minByOrNull { ft -> ft.price }?.price ?: Double.MAX_VALUE }
+            val userLat = _userLocation.value?.first ?: 0.0
+            val userLon = _userLocation.value?.second ?: 0.0
+
+            if (hasRouteKeyword || hasSpecificFuelType || mentionedBrand != null) {
+                var selectedStation: GasStation? = null
+
+                if (mentionedBrand != null) {
+                    val matchingStations = _stations.value.filter { st ->
+                        st.name.lowercase().contains(mentionedBrand) ||
+                                st.brand.lowercase().contains(mentionedBrand)
+                    }
+                    if (matchingStations.isNotEmpty()) {
+                        selectedStation = matchingStations.minByOrNull { st ->
+                            GeoUtils.calculateDistance(userLat, userLon, st.latitude, st.longitude)
+                        }
+                    }
+                }
+
+                if (selectedStation == null) {
+                    selectedStation = _bestStation.value
+                        ?: _stations.value.minByOrNull { GeoUtils.calculateDistance(userLat, userLon, it.latitude, it.longitude) }
+                        ?: _stations.value.minByOrNull { it.fuelTypes.filter { ft -> ft.available }.minByOrNull { ft -> ft.price }?.price ?: Double.MAX_VALUE }
+                }
 
                 selectedStation?.let { station ->
                     _pendingRouteStationId.value = station.id

@@ -49,6 +49,10 @@ open class VehicleViewModel @Inject constructor(
         initialValue = emptyList()
     )
 
+    suspend fun getVehicleEntity(id: Long): VehicleEntity? {
+        return vehicleRepository.getVehicleById(id)
+    }
+
     fun addVehicle(
         name: String,
         brand: String,
@@ -69,6 +73,31 @@ open class VehicleViewModel @Inject constructor(
                 currentMileage = currentMileage
             )
             vehicleRepository.insertVehicle(newVehicle)
+        }
+    }
+
+    fun updateVehicle(
+        id: Long,
+        name: String,
+        brand: String,
+        model: String,
+        year: Int,
+        fuelType: String,
+        tankCapacity: Double,
+        currentMileage: Double
+    ) {
+        viewModelScope.launch {
+            val updatedVehicle = VehicleEntity(
+                id = id,
+                name = name,
+                brand = brand,
+                model = model,
+                year = year,
+                fuelType = fuelType,
+                tankCapacity = tankCapacity,
+                currentMileage = currentMileage
+            )
+            vehicleRepository.updateVehicle(updatedVehicle)
         }
     }
 
