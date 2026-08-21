@@ -243,7 +243,14 @@ fun OsmMapView(
             mapView.overlays.removeAll { it is Marker || it is Polyline }
 
             val activeRoute = route ?: routeOptions.getOrNull(activeRouteIndex)
-            val routeGeoPoints = activeRoute?.points?.map { GeoPoint(it.latitude, it.longitude) }
+            val routeGeoPoints = activeRoute?.points?.map { GeoPoint(it.latitude, it.longitude) }?.let { pts ->
+                val uPt = userLocation?.toGeoPoint()
+                if (uPt != null && pts.isNotEmpty() && uPt.distanceToAsDouble(pts.first()) > 30.0) {
+                    listOf(uPt) + pts.drop(1)
+                } else {
+                    pts
+                }
+            }
 
             userLocation?.let { location ->
                 val dot = locationDotRef[0] ?: MyLocationDot().also { overlay ->
@@ -283,12 +290,10 @@ fun OsmMapView(
                     // Draw inactive routes first (dimmed)
                     effectiveOptions.forEachIndexed { idx, r ->
                         if (idx != activeRouteIndex && routeOptions.size > 1) {
-                            val rawOsmPoints = r.points.map { GeoPoint(it.latitude, it.longitude) }.toMutableList()
-                            if (userLocation != null && rawOsmPoints.isNotEmpty()) {
-                                val userPt = GeoPoint(userLocation.latitude, userLocation.longitude)
-                                if (userPt.distanceToAsDouble(rawOsmPoints.first()) > 30.0) {
-                                    rawOsmPoints[0] = userPt
-                                }
+                            var rawOsmPoints = r.points.map { GeoPoint(it.latitude, it.longitude) }
+                            val uPt = userLocation?.toGeoPoint()
+                            if (uPt != null && rawOsmPoints.isNotEmpty() && uPt.distanceToAsDouble(rawOsmPoints.first()) > 30.0) {
+                                rawOsmPoints = listOf(uPt) + rawOsmPoints.drop(1)
                             }
                             val filteredPoints = mutableListOf<GeoPoint>()
                             for (pt in rawOsmPoints) {
@@ -317,12 +322,10 @@ fun OsmMapView(
 
                     // Draw active route on top
                     val activeOption = effectiveOptions.getOrNull(activeRouteIndex) ?: effectiveOptions.first()
-                    val rawOsmPoints = activeOption.points.map { GeoPoint(it.latitude, it.longitude) }.toMutableList()
-                    if (userLocation != null && rawOsmPoints.isNotEmpty()) {
-                        val userPt = GeoPoint(userLocation.latitude, userLocation.longitude)
-                        if (userPt.distanceToAsDouble(rawOsmPoints.first()) > 30.0) {
-                            rawOsmPoints[0] = userPt
-                        }
+                    var rawOsmPoints = activeOption.points.map { GeoPoint(it.latitude, it.longitude) }
+                    val uPt = userLocation?.toGeoPoint()
+                    if (uPt != null && rawOsmPoints.isNotEmpty() && uPt.distanceToAsDouble(rawOsmPoints.first()) > 30.0) {
+                        rawOsmPoints = listOf(uPt) + rawOsmPoints.drop(1)
                     }
                     val filteredPoints = mutableListOf<GeoPoint>()
                     for (pt in rawOsmPoints) {
