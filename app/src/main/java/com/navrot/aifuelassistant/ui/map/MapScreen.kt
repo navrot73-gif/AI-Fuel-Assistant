@@ -81,6 +81,7 @@ fun MapScreen(
     val isRouting by viewModel.isRouting.collectAsStateWithLifecycle()
     val openOnly by viewModel.openOnly.collectAsStateWithLifecycle()
     val aiRecommendation by viewModel.aiRecommendation.collectAsStateWithLifecycle()
+    val userCancelledRoute by viewModel.userCancelledRoute.collectAsStateWithLifecycle()
     val currentCity by viewModel.currentCity.collectAsStateWithLifecycle()
     val geocodedLocation by viewModel.geocodedLocation.collectAsStateWithLifecycle()
     val bestStationRanked by viewModel.bestStationRanked.collectAsStateWithLifecycle()
@@ -125,6 +126,7 @@ fun MapScreen(
 
     val buildRouteAndClose: (GasStation) -> Unit = { st ->
         userLocation?.let { loc -> viewModel.updateUserLocation(loc.latitude, loc.longitude) }
+        viewModel.resetUserCancelledRoute()
         viewModel.buildRouteTo(st)
         routeStation = st
         selectedStation = null
@@ -133,7 +135,8 @@ fun MapScreen(
     }
 
 
-    LaunchedEffect(pendingRouteStationId, stations, userLocation) {
+    LaunchedEffect(pendingRouteStationId, stations, userLocation, userCancelledRoute) {
+        if (userCancelledRoute) return@LaunchedEffect
         val id = pendingRouteStationId ?: return@LaunchedEffect
         // Ждём и локацию, и станцию, и маршрут — до 6 секунд
         var waited = 0
@@ -197,7 +200,8 @@ fun MapScreen(
     }
 
     // Handle pending open station from AI card handoff - bind route to opened station
-    LaunchedEffect(pendingOpenStationId, stations) {
+    LaunchedEffect(pendingOpenStationId, stations, userCancelledRoute) {
+        if (userCancelledRoute) return@LaunchedEffect
         val id = pendingOpenStationId ?: return@LaunchedEffect
         stations.firstOrNull { it.id == id }?.let { station ->
             selectedStation = station
@@ -279,7 +283,13 @@ fun MapScreen(
                     selectedStation = selectedStation, route = route, routeStation = routeStation,
                     aiRecommendation = recommendationTriple, showStationList = showStationList,
                     onBuildRoute = { selectedStation?.let { buildRouteAndClose(it) } },
-                    onClearRoute = { viewModel.clearRoute(); routeStation = null },
+                    onClearRoute = {
+                        viewModel.clearRoute()
+                        routeStation = null
+                        selectedStation = null
+                        onConsumePendingRoute()
+                        onConsumePendingOpenStation()
+                    },
                     onExpandList = { showStationList = true },
                     onSelectAiPick = { selectedStation = recommendationTriple?.first }
                 )
@@ -316,7 +326,13 @@ fun MapScreen(
                     },
                     onClose = { selectedStation = null },
                     onBuildRoute = { selectedStation?.let { buildRouteAndClose(it) } },
-                    onClearRoute = { viewModel.clearRoute(); routeStation = null },
+                    onClearRoute = {
+                        viewModel.clearRoute()
+                        routeStation = null
+                        selectedStation = null
+                        onConsumePendingRoute()
+                        onConsumePendingOpenStation()
+                    },
                     onReportPrice = { stationId, fuelType, price ->
                         viewModel.reportPrice(stationId, fuelType, price)
                         selectedStation = selectedStation?.let { st ->
@@ -357,6 +373,7 @@ fun MapScreen(
                                     routeStation = null
                                     selectedStation = null
                                     onConsumePendingRoute()
+                                    onConsumePendingOpenStation()
                                 },
                                 containerColor = MaterialTheme.colorScheme.surface,
                                 shape = CircleShape

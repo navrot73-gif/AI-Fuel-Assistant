@@ -131,6 +131,13 @@ class MapViewModel @Inject constructor(
         val distanceKm: Double
     )
 
+    private val _userCancelledRoute = MutableStateFlow(false)
+    val userCancelledRoute: StateFlow<Boolean> = _userCancelledRoute.asStateFlow()
+
+    fun resetUserCancelledRoute() {
+        _userCancelledRoute.value = false
+    }
+
     private val _aiRecommendation = MutableStateFlow<AiRecommendation?>(null)
     val aiRecommendation: StateFlow<AiRecommendation?> = _aiRecommendation.asStateFlow()
 
@@ -405,6 +412,7 @@ class MapViewModel @Inject constructor(
     }
 
     fun buildRouteTo(station: GasStation) {
+        _userCancelledRoute.value = false
         val start = _userLocation.value
         if (start == null) {
             _error.value = "Определение местоположения... Подождите и попробуйте снова"
@@ -491,9 +499,12 @@ class MapViewModel @Inject constructor(
     }
 
     fun clearRoute() {
+        _userCancelledRoute.value = true
         _routeOptions.value = emptyList()
         _activeRouteIndex.value = 0
         _isRouteOptionsPanelVisible.value = false
+        _aiRecommendation.value = null
+        _isRouting.value = false
     }
 
     private fun formatDuration(seconds: Double): String {

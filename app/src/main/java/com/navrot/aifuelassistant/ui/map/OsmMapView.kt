@@ -134,12 +134,13 @@ private val ROUTE_OUTLINE_COLORS = listOf(
 
 private fun processRoutePoints(points: List<GeoPoint>, userLocationPt: GeoPoint?): List<GeoPoint> {
     if (points.isEmpty()) return points
-    var pts = if (userLocationPt != null) {
-        listOf(userLocationPt) + points.drop(1)
+    val pts = if (userLocationPt != null) {
+        (listOf(userLocationPt) + points.drop(1)).toMutableList()
     } else {
-        points
+        points.toMutableList()
     }
-    if (pts.size >= 3) {
+
+    while (pts.size > 2) {
         val p0 = pts[0]
         val p1 = pts[1]
         val p2 = pts[2]
@@ -148,10 +149,10 @@ private fun processRoutePoints(points: List<GeoPoint>, userLocationPt: GeoPoint?
         val v2x = p2.longitude - p1.longitude
         val v2y = p2.latitude - p1.latitude
         val dot = v1x * v2x + v1y * v2y
-        val len1 = kotlin.math.hypot(v1x, v1y)
-        val len2 = kotlin.math.hypot(v2x, v2y)
-        if (len1 > 0 && len2 > 0 && dot < -0.5 * len1 * len2) {
-            pts = listOf(p0) + pts.drop(2)
+        if (dot < 0) {
+            pts.removeAt(1)
+        } else {
+            break
         }
     }
     return pts

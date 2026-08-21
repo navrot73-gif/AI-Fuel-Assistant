@@ -7,12 +7,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DirectionsCar
@@ -30,6 +29,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
@@ -44,7 +44,7 @@ fun VehicleCard(
     onEditClick: (() -> Unit)? = null
 ) {
     val cardBorderColor = if (isActive) FueldeckColors.Mint else FueldeckColors.Line
-    val cardBorderWidth = if (isActive) 1.dp else 1.dp
+    val cardBorderWidth = 1.dp
     
     val carIconBgColor = if (isActive) FueldeckColors.Mint else FueldeckColors.Amber
     val carIconColor = if (isActive) Color(0xFF17222B) else Color(0xFF1A1205)
@@ -55,43 +55,45 @@ fun VehicleCard(
         border = BorderStroke(cardBorderWidth, cardBorderColor),
         modifier = modifier
             .fillMaxWidth()
+            .wrapContentHeight()
             .clickable { onClick() }
     ) {
-        // Removed .weight(1f) and set explicit height to prevent stretching
-        Column(modifier = Modifier
-            .padding(16.dp)
-            .height(IntrinsicSize.Min), // Or use a fixed height like .height(120.dp)
-            verticalArrangement = Arrangement.spacedBy(12.dp)
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .wrapContentHeight(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             
             // Top row: car icon + name + fuel badge + active badge/radio + edit icon
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Row(
-                    modifier = Modifier.weight(1f, fill = false),
+                    modifier = Modifier.weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.Top,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    // Car icon in 56dp square with 14dp radius
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
-                            .background(carIconBgColor, RoundedCornerShape(14.dp)),
+                            .size(48.dp)
+                            .background(carIconBgColor, RoundedCornerShape(12.dp)),
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
                             imageVector = Icons.Filled.DirectionsCar,
                             contentDescription = "Автомобиль",
                             tint = carIconColor,
-                            modifier = Modifier.size(28.dp),
+                            modifier = Modifier.size(24.dp),
                         )
                     }
                     
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        // Name bold 16sp + number in mono badge
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
@@ -101,8 +103,10 @@ fun VehicleCard(
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = FueldeckColors.Ink,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f, fill = false)
                             )
-                            // Number/badge with model/year
                             if (state.modelLine != "—") {
                                 Surface(
                                     shape = FueldeckShapes.Pill,
@@ -111,23 +115,23 @@ fun VehicleCard(
                                 ) {
                                     Text(
                                         text = state.modelLine.replace(" · ", " "),
-                                        fontSize = 12.sp,
+                                        fontSize = 11.sp,
                                         fontFamily = FontFamily.Monospace,
                                         fontWeight = FontWeight.Medium,
                                         color = FueldeckColors.InkDim,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                                     )
                                 }
                             }
                         }
                         
-                        // Active badge + radio check
                         if (isActive) {
                             Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                // "АКТИВНО" badge
                                 Surface(
                                     shape = FueldeckShapes.Pill,
                                     color = FueldeckColors.Mint.copy(alpha = 0.15f),
@@ -139,25 +143,24 @@ fun VehicleCard(
                                         fontWeight = FontWeight.Bold,
                                         color = FueldeckColors.Mint,
                                         letterSpacing = 0.5.sp,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
                                     )
                                 }
                                 
-                                // Round radio check (mint for active)
                                 Box(
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(16.dp),
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Box(
                                         modifier = Modifier
-                                            .size(16.dp)
-                                            .background(Color.Transparent, RoundedCornerShape(8.dp))
-                                            .border(2.dp, FueldeckColors.Mint, RoundedCornerShape(8.dp)),
+                                            .size(14.dp)
+                                            .background(Color.Transparent, RoundedCornerShape(7.dp))
+                                            .border(1.5.dp, FueldeckColors.Mint, RoundedCornerShape(7.dp)),
                                     )
                                     Box(
                                         modifier = Modifier
-                                            .size(8.dp)
-                                            .background(FueldeckColors.Mint, RoundedCornerShape(4.dp)),
+                                            .size(6.dp)
+                                            .background(FueldeckColors.Mint, RoundedCornerShape(3.dp)),
                                     )
                                 }
                             }
@@ -169,7 +172,6 @@ fun VehicleCard(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
-                    // Fuel grade badge on right (amber)
                     Surface(
                         shape = FueldeckShapes.Pill,
                         color = FueldeckColors.AmberSoft,
@@ -181,16 +183,20 @@ fun VehicleCard(
                             fontFamily = FontFamily.Monospace,
                             fontWeight = FontWeight.Bold,
                             color = FueldeckColors.Amber,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
                         )
                     }
 
                     if (onEditClick != null) {
-                        IconButton(onClick = onEditClick) {
+                        IconButton(
+                            onClick = onEditClick,
+                            modifier = Modifier.size(36.dp)
+                        ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
                                 contentDescription = "Редактировать",
-                                tint = FueldeckColors.Amber
+                                tint = FueldeckColors.Amber,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
