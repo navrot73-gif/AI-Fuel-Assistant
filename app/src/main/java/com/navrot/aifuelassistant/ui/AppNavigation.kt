@@ -266,6 +266,9 @@ fun AppNavigation() {
                             val vehicleName = vehicle?.name ?: ""
                             navController.navigate(GarageDetailRoute(vehicleId, vehicleName))
                         },
+                        onEditClick = { vehicleId ->
+                            navController.navigate(AddVehicleRoute(vehicleId = vehicleId))
+                        },
                         viewModel = garageViewModel
                     )
                 }
