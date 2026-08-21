@@ -132,6 +132,31 @@ private val ROUTE_OUTLINE_COLORS = listOf(
     "#4A148C"  // 2: Тёмно-фиолетовый
 )
 
+private fun processRoutePoints(points: List<GeoPoint>, userLocationPt: GeoPoint?): List<GeoPoint> {
+    if (points.isEmpty()) return points
+    var pts = if (userLocationPt != null) {
+        listOf(userLocationPt) + points.drop(1)
+    } else {
+        points
+    }
+    if (pts.size >= 3) {
+        val p0 = pts[0]
+        val p1 = pts[1]
+        val p2 = pts[2]
+        val v1x = p1.longitude - p0.longitude
+        val v1y = p1.latitude - p0.latitude
+        val v2x = p2.longitude - p1.longitude
+        val v2y = p2.latitude - p1.latitude
+        val dot = v1x * v2x + v1y * v2y
+        val len1 = kotlin.math.hypot(v1x, v1y)
+        val len2 = kotlin.math.hypot(v2x, v2y)
+        if (len1 > 0 && len2 > 0 && dot < -0.5 * len1 * len2) {
+            pts = listOf(p0) + pts.drop(2)
+        }
+    }
+    return pts
+}
+
 @Composable
 fun OsmMapView(
     userLocation: UserLocationState?,
@@ -244,12 +269,7 @@ fun OsmMapView(
 
             val activeRoute = route ?: routeOptions.getOrNull(activeRouteIndex)
             val routeGeoPoints = activeRoute?.points?.map { GeoPoint(it.latitude, it.longitude) }?.let { pts ->
-                val uPt = userLocation?.toGeoPoint()
-                if (uPt != null && pts.isNotEmpty() && uPt.distanceToAsDouble(pts.first()) > 30.0) {
-                    listOf(uPt) + pts.drop(1)
-                } else {
-                    pts
-                }
+                processRoutePoints(pts, userLocation?.toGeoPoint())
             }
 
             userLocation?.let { location ->
@@ -291,10 +311,7 @@ fun OsmMapView(
                     effectiveOptions.forEachIndexed { idx, r ->
                         if (idx != activeRouteIndex && routeOptions.size > 1) {
                             var rawOsmPoints = r.points.map { GeoPoint(it.latitude, it.longitude) }
-                            val uPt = userLocation?.toGeoPoint()
-                            if (uPt != null && rawOsmPoints.isNotEmpty() && uPt.distanceToAsDouble(rawOsmPoints.first()) > 30.0) {
-                                rawOsmPoints = listOf(uPt) + rawOsmPoints.drop(1)
-                            }
+                            rawOsmPoints = processRoutePoints(rawOsmPoints, userLocation?.toGeoPoint())
                             val filteredPoints = mutableListOf<GeoPoint>()
                             for (pt in rawOsmPoints) {
                                 if (filteredPoints.isEmpty() || filteredPoints.last().distanceToAsDouble(pt) >= 1.0) {
@@ -323,10 +340,7 @@ fun OsmMapView(
                     // Draw active route on top
                     val activeOption = effectiveOptions.getOrNull(activeRouteIndex) ?: effectiveOptions.first()
                     var rawOsmPoints = activeOption.points.map { GeoPoint(it.latitude, it.longitude) }
-                    val uPt = userLocation?.toGeoPoint()
-                    if (uPt != null && rawOsmPoints.isNotEmpty() && uPt.distanceToAsDouble(rawOsmPoints.first()) > 30.0) {
-                        rawOsmPoints = listOf(uPt) + rawOsmPoints.drop(1)
-                    }
+                    rawOsmPoints = processRoutePoints(rawOsmPoints, userLocation?.toGeoPoint())
                     val filteredPoints = mutableListOf<GeoPoint>()
                     for (pt in rawOsmPoints) {
                         if (filteredPoints.isEmpty() || filteredPoints.last().distanceToAsDouble(pt) >= 1.0) {
@@ -365,7 +379,15 @@ fun OsmMapView(
                         fun fitRoute() {
                             try {
                                 val bounds = BoundingBox.fromGeoPoints(osmPoints)
-                                mapView.zoomToBoundingBox(bounds, true, 160)
+                                val dLat = bounds.latitudeSpan
+                                val dLon = bounds.longitudeSpan
+                                val expanded = BoundingBox(
+                                    bounds.latNorth + dLat * 0.3,
+                                    bounds.lonEast + dLon * 0.8,
+                                    bounds.latSouth - dLat * 0.8,
+                                    bounds.lonWest - dLon * 0.3
+                                )
+                                mapView.zoomToBoundingBox(expanded, true)
                             } catch (_: Exception) { }
                         }
                         mapView.post { fitRoute() }

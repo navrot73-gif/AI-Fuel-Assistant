@@ -165,6 +165,7 @@ fun MapScreen(
             if (loc != null && st != null) {
                 viewModel.updateUserLocation(loc.latitude, loc.longitude)
                 viewModel.buildRouteTo(st)
+                onConsumePendingRoute()
                 routeStation = st
                 selectedStation = null
                 showStationList = false
