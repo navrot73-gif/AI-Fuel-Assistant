@@ -382,9 +382,44 @@ class MapViewModelSearchTest {
     }
 
     @Test
-    fun `clearRoute then buildRouteTo maintains route and userCancelledRoute is true`() = runTest {
+    fun `dismissRouteOptionsPanel hides panel while active route remains intact`() = runTest {
         viewModel.updateUserLocation(55.0, 61.0)
+        val station = makeStation(1, "АЗС 1", "Лукойл", 55.1, 61.1)
+
+        whenever(fuelApi.getRoute(61.0, 55.0, 61.1, 55.1)).thenReturn(
+            RouteResponse(
+                distance_m = 5000.0,
+                duration_s = 300.0,
+                points = listOf(listOf(55.0, 61.0), listOf(55.1, 61.1))
+            )
+        )
+
+        viewModel.buildRouteTo(station)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.isRouteOptionsPanelVisible.value)
+        assertNotNull(viewModel.route.value)
+
+        viewModel.dismissRouteOptionsPanel()
+
+        org.junit.Assert.assertFalse(viewModel.isRouteOptionsPanelVisible.value)
+        assertNotNull(viewModel.route.value)
+        assertEquals("5.0 км", viewModel.route.value!!.distanceText)
+        assertEquals("5 мин", viewModel.route.value!!.durationText)
+    }
+
+    @Test
+    fun `clearRoute clears route state and sets userCancelledRoute but keeps aiRecommendation alive`() = runTest {
         val stationX = makeStation(10, "АЗС X", "Газпром", 55.2, 61.2)
+        whenever(repository.getNearbyStations(55.0, 61.0, 50.0)).thenReturn(listOf(stationX))
+        whenever(repository.getBestStations("АИ-95", 55.0, 61.0, 50.0)).thenReturn(listOf(stationX))
+        whenever(repository.getCheapestStation("АИ-95", 55.0, 61.0, 50.0)).thenReturn(stationX)
+
+        viewModel.loadNearbyStations(55.0, 61.0, 50.0)
+        viewModel.updateUserLocation(55.0, 61.0)
+        advanceUntilIdle()
+
+        assertNotNull(viewModel.aiRecommendation.value)
 
         whenever(fuelApi.getRoute(61.0, 55.0, 61.2, 55.2)).thenReturn(
             RouteResponse(
@@ -394,18 +429,47 @@ class MapViewModelSearchTest {
             )
         )
 
-        viewModel.clearRoute()
-        assertTrue(viewModel.userCancelledRoute.value)
-        assertNull(viewModel.aiRecommendation.value)
-        assertNull(viewModel.route.value)
-
         viewModel.buildRouteTo(stationX)
         advanceUntilIdle()
+        assertNotNull(viewModel.route.value)
 
-        val route = viewModel.route.value
-        assertNotNull(route)
-        assertEquals("Газпром", route!!.destination)
+        viewModel.clearRoute()
+
         assertTrue(viewModel.userCancelledRoute.value)
-        assertNull(viewModel.aiRecommendation.value)
+        assertNull(viewModel.route.value)
+        assertTrue(viewModel.routeOptions.value.isEmpty())
+        assertNotNull(viewModel.aiRecommendation.value)
+    }
+
+    @Test
+    fun `autoBuildConsumed flag lifecycle`() = runTest {
+        org.junit.Assert.assertFalse(viewModel.autoBuildConsumed.value)
+
+        viewModel.markAutoBuildConsumed()
+        assertTrue(viewModel.autoBuildConsumed.value)
+
+        routeStateManager.resetForNewIntent()
+        org.junit.Assert.assertFalse(viewModel.autoBuildConsumed.value)
+        org.junit.Assert.assertFalse(viewModel.userCancelledRoute.value)
+    }
+
+    @Test
+    fun `buildRouteToStation delegates to buildRouteTo and passes alternatives true`() = runTest {
+        viewModel.updateUserLocation(55.0, 61.0)
+        val station = makeStation(1, "АЗС 1", "Лукойл", 55.1, 61.1)
+
+        whenever(fuelApi.getRoute(61.0, 55.0, 61.1, 55.1, true)).thenReturn(
+            RouteResponse(
+                distance_m = 5000.0,
+                duration_s = 300.0,
+                points = listOf(listOf(55.0, 61.0), listOf(55.1, 61.1))
+            )
+        )
+
+        viewModel.buildRouteToStation(station)
+        advanceUntilIdle()
+
+        verify(fuelApi).getRoute(61.0, 55.0, 61.1, 55.1, true)
+        assertNotNull(viewModel.route.value)
     }
 }
