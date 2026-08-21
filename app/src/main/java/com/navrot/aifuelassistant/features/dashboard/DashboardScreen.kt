@@ -271,7 +271,7 @@ fun DashboardScreen(
         )
 
         // ===== 3.5. НОВЫЕ КНОПКИ =====
-        if (metrics.fillCount < 2 && vehicles.isNotEmpty()) {
+        if (vehicles.isNotEmpty()) {
             val v = vehicles.firstOrNull { it.id == selectedVehicleId }
                 ?: vehicles.firstOrNull()
             Row(
