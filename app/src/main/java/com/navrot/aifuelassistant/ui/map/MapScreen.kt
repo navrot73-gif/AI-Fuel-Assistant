@@ -129,6 +129,7 @@ fun MapScreen(
         routeStation = st
         selectedStation = null
         showStationList = false
+        onConsumePendingRoute()
     }
 
 
