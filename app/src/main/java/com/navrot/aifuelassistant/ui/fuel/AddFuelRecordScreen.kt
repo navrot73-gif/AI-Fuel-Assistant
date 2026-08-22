@@ -42,6 +42,11 @@ fun AddFuelRecordScreen(
 ) {
     val context = LocalContext.current
 
+    val records by viewModel.records.collectAsState()
+    val maxPreviousMileage = remember(records) {
+        records.maxOfOrNull { it.mileage }
+    }
+
     var mileage by remember { mutableStateOf("") }
     var fuelAmount by remember { mutableStateOf("") }
     var pricePerLiter by remember { mutableStateOf("") }
@@ -63,11 +68,15 @@ fun AddFuelRecordScreen(
     }
 
     // Валидация
-    val mileageError = attemptedSave && (mileage.isBlank() || (mileage.toDoubleOrNull() ?: 0.0) <= 0)
+    val currentMileageVal = mileage.toDoubleOrNull() ?: 0.0
+    val isMileageLessOrEqualLast = maxPreviousMileage != null && currentMileageVal > 0 && currentMileageVal <= maxPreviousMileage
+
+    val mileageError = (attemptedSave && (mileage.isBlank() || currentMileageVal <= 0)) || isMileageLessOrEqualLast
     val fuelAmountError = attemptedSave && (fuelAmount.isBlank() || (fuelAmount.toDoubleOrNull() ?: 0.0) <= 0)
     val priceError = attemptedSave && (pricePerLiter.isBlank() || (pricePerLiter.toDoubleOrNull() ?: 0.0) <= 0)
     val isFormValid = mileage.isNotBlank() && fuelAmount.isNotBlank() && pricePerLiter.isNotBlank()
-            && (mileage.toDoubleOrNull() ?: 0.0) > 0
+            && currentMileageVal > 0
+            && !isMileageLessOrEqualLast
             && (fuelAmount.toDoubleOrNull() ?: 0.0) > 0
             && (pricePerLiter.toDoubleOrNull() ?: 0.0) > 0
 
@@ -122,7 +131,11 @@ fun AddFuelRecordScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 modifier = Modifier.fillMaxWidth(),
                 isError = mileageError,
-                supportingText = if (mileageError) {{ Text("Укажите пробег больше 0") }} else null
+                supportingText = if (isMileageLessOrEqualLast) {
+                    { Text("Пробег должен быть больше предыдущего", color = MaterialTheme.colorScheme.error) }
+                } else if (mileageError) {
+                    { Text("Укажите пробег больше 0") }
+                } else null
             )
 
             OutlinedTextField(
@@ -272,7 +285,7 @@ fun AddFuelRecordScreen(
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !attemptedSave || isFormValid
+                enabled = isFormValid
             ) {
                 Text("Сохранить")
             }
