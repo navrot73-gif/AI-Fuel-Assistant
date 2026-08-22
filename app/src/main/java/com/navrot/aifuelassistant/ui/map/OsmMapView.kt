@@ -166,6 +166,7 @@ fun OsmMapView(
     route: MapViewModel.RouteOptionUiState? = null,
     routeOptions: List<MapViewModel.RouteOptionUiState> = emptyList(),
     activeRouteIndex: Int = 0,
+    isRouteOptionsPanelVisible: Boolean = false,
     recenterRequest: Int = 0,
     zoomInRequest: Int = 0,
     zoomOutRequest: Int = 0,
@@ -309,32 +310,34 @@ fun OsmMapView(
                 try {
                     val density = context.resources.displayMetrics.density
 
-                    // Draw inactive routes first (dimmed)
-                    effectiveOptions.forEachIndexed { idx, r ->
-                        if (idx != activeRouteIndex && routeOptions.size > 1) {
-                            var rawOsmPoints = r.points.map { GeoPoint(it.latitude, it.longitude) }
-                            rawOsmPoints = processRoutePoints(rawOsmPoints, userLocation?.toGeoPoint())
-                            val filteredPoints = mutableListOf<GeoPoint>()
-                            for (pt in rawOsmPoints) {
-                                if (filteredPoints.isEmpty() || filteredPoints.last().distanceToAsDouble(pt) >= 1.0) {
-                                    filteredPoints.add(pt)
+                    // Draw inactive routes first (dimmed green #4CAF50) only when route options panel is visible
+                    if (isRouteOptionsPanelVisible) {
+                        effectiveOptions.forEachIndexed { idx, r ->
+                            if (idx != activeRouteIndex && routeOptions.size > 1) {
+                                var rawOsmPoints = r.points.map { GeoPoint(it.latitude, it.longitude) }
+                                rawOsmPoints = processRoutePoints(rawOsmPoints, userLocation?.toGeoPoint())
+                                val filteredPoints = mutableListOf<GeoPoint>()
+                                for (pt in rawOsmPoints) {
+                                    if (filteredPoints.isEmpty() || filteredPoints.last().distanceToAsDouble(pt) >= 1.0) {
+                                        filteredPoints.add(pt)
+                                    }
                                 }
-                            }
-                            if (filteredPoints.size >= 2) {
-                                val polyline = Polyline().apply {
-                                    setPoints(filteredPoints)
-                                    outlinePaint.color = android.graphics.Color.parseColor("#331B5E20")
-                                    outlinePaint.strokeWidth = 6f * density
-                                    outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
-                                    outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
-                                    outlinePaint.isAntiAlias = true
-                                    paint.color = android.graphics.Color.parseColor("#E64CAF50")
-                                    paint.strokeWidth = 4f * density
-                                    paint.strokeCap = android.graphics.Paint.Cap.ROUND
-                                    paint.strokeJoin = android.graphics.Paint.Join.ROUND
-                                    paint.isAntiAlias = true
+                                if (filteredPoints.size >= 2) {
+                                    val polyline = Polyline().apply {
+                                        setPoints(filteredPoints)
+                                        outlinePaint.color = android.graphics.Color.parseColor("#331B5E20")
+                                        outlinePaint.strokeWidth = 6f * density
+                                        outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
+                                        outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
+                                        outlinePaint.isAntiAlias = true
+                                        paint.color = android.graphics.Color.parseColor("#E64CAF50")
+                                        paint.strokeWidth = 4f * density
+                                        paint.strokeCap = android.graphics.Paint.Cap.ROUND
+                                        paint.strokeJoin = android.graphics.Paint.Join.ROUND
+                                        paint.isAntiAlias = true
+                                    }
+                                    mapView.overlays.add(polyline)
                                 }
-                                mapView.overlays.add(polyline)
                             }
                         }
                     }
