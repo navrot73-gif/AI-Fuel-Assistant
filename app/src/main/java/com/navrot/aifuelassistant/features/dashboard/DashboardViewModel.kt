@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.location.Location
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.location.LocationServices
@@ -194,18 +195,34 @@ class DashboardViewModel @Inject constructor(
 
     private fun loadMetrics() {
         viewModelScope.launch {
-            val vehicleId = _selectedVehicleId.value
-            val flow = if (vehicleId != null && vehicleId > 0) {
-                fuelRecordRepository.getByVehicleId(vehicleId)
-            } else {
-                fuelRecordRepository.getAll()
-            }
-            flow
-                .catch { _metrics.value = DashboardMetrics(); _weeklyConsumption.value = emptyList() }
-                .collect { records ->
-                    _metrics.value = computeMetrics(records)
-                    _weeklyConsumption.value = computeWeeklyConsumption(records)
+            try {
+                val vehicleId = _selectedVehicleId.value
+                val flow = if (vehicleId != null && vehicleId > 0) {
+                    fuelRecordRepository.getByVehicleId(vehicleId)
+                } else {
+                    fuelRecordRepository.getAll()
                 }
+                flow
+                    .catch { e ->
+                        Log.e("Metrics", "Error loading fuel records", e)
+                        _metrics.value = DashboardMetrics()
+                        _weeklyConsumption.value = emptyList()
+                    }
+                    .collect { records ->
+                        try {
+                            _metrics.value = computeMetrics(records)
+                            _weeklyConsumption.value = computeWeeklyConsumption(records)
+                        } catch (e: Exception) {
+                            Log.e("Metrics", "Error computing metrics", e)
+                            _metrics.value = DashboardMetrics()
+                            _weeklyConsumption.value = emptyList()
+                        }
+                    }
+            } catch (e: Exception) {
+                Log.e("Metrics", "Error in loadMetrics", e)
+                _metrics.value = DashboardMetrics()
+                _weeklyConsumption.value = emptyList()
+            }
         }
     }
 
@@ -290,8 +307,7 @@ class DashboardViewModel @Inject constructor(
             records.filter { it.vehicleId == vehicleId }
         } else records
 
-        // Group by day of week (Calendar.DAY_OF_WEEK: 1=Sun, 2=Mon, ..., 7=Sat)
-        val dayNames = arrayOf("Вс", "Пн", "Вт", "Ср", "Чт", "Пт", "Сб")
+        val dayNames = arrayOf("Пн", "Вт", "Ср", "Чт", "Пт", "Сб", "Вс")
         val grouped = mutableMapOf<Int, MutableList<Float>>()
 
         val sorted = filteredRecords.sortedBy { it.date }
@@ -305,25 +321,21 @@ class DashboardViewModel @Inject constructor(
                 if (consumption in 2f..50f) {
                     val cal = Calendar.getInstance()
                     cal.timeInMillis = curr.date
-                    val dayOfWeek = cal.get(Calendar.DAY_OF_WEEK) // 1=Sun...7=Sat
+                    val calDay = cal.get(Calendar.DAY_OF_WEEK) // 1=Sun, 2=Mon, ..., 7=Sat
+                    val dayOfWeek = if (calDay == Calendar.SUNDAY) 7 else calDay - 1 // 1=Mon..7=Sun
                     grouped.getOrPut(dayOfWeek) { mutableListOf() }.add(consumption)
                 }
             }
         }
 
-        // Build result: only days with data, in order Mon-Sun
         val result = mutableListOf<Pair<String, Float>>()
-        for (day in 2..7) { // Mon=2 to Sat=7
+        for (day in 1..7) { // 1=Mon..7=Sun
             val consumptions = grouped[day]
             if (consumptions != null && consumptions.isNotEmpty()) {
                 val avg = consumptions.average().toFloat()
-                result.add(dayNames[day] to avg)
+                val idx = (day - 1).coerceIn(0, 6)
+                result.add(dayNames[idx] to avg)
             }
-        }
-        // Add Sunday (1) at the end if it has data
-        val sunConsumptions = grouped[1]
-        if (sunConsumptions != null && sunConsumptions.isNotEmpty()) {
-            result.add(dayNames[1] to sunConsumptions.average().toFloat())
         }
 
         return result
