@@ -453,14 +453,34 @@ class MapViewModel @Inject constructor(
             _isRouting.value = true
             try {
                 // GET worker route with alternatives=true: from={lon},{lat}&to={lon},{lat}
-                val response = fuelApi.getRoute(
+                var response = fuelApi.getRoute(
                     fromLon = start.second,
                     fromLat = start.first,
                     toLon = station.longitude,
                     toLat = station.latitude,
                     alternatives = true
                 )
-                val rawOptions = response.getRouteOptions()
+                var rawOptions = response.getRouteOptions()
+
+                if (distKm > 5.0 && rawOptions.size == 1) {
+                    try {
+                        val retryResponse = fuelApi.getRoute(
+                            fromLon = start.second,
+                            fromLat = start.first,
+                            toLon = station.longitude,
+                            toLat = station.latitude,
+                            alternatives = true
+                        )
+                        val retryOptions = retryResponse.getRouteOptions()
+                        if (retryOptions.size > 1) {
+                            response = retryResponse
+                            rawOptions = retryOptions
+                        }
+                    } catch (retryEx: Exception) {
+                        Log.w(TAG, "Retry routing failed: ${retryEx.message}")
+                    }
+                }
+
                 if (rawOptions.isEmpty()) {
                     throw Exception("Worker returned no route options")
                 }
@@ -489,12 +509,12 @@ class MapViewModel @Inject constructor(
 
                 _routeOptions.value = parsedOptions
                 _activeRouteIndex.value = 0
-                _isRouteOptionsPanelVisible.value = true
+                _isRouteOptionsPanelVisible.value = parsedOptions.size >= 2
             } catch (e: Exception) {
                 Log.w(TAG, "Worker routing failed: ${e.message}, fallback to straight line")
                 _routeOptions.value = listOf(fallbackState)
                 _activeRouteIndex.value = 0
-                _isRouteOptionsPanelVisible.value = true
+                _isRouteOptionsPanelVisible.value = false
             } finally {
                 _isRouting.value = false
             }

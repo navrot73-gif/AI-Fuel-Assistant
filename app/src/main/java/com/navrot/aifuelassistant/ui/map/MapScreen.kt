@@ -273,6 +273,7 @@ fun MapScreen(
                     userLocation = userLocation, stations = stations,
                     selectedFuelTypes = selectedFuelTypes, route = route,
                     routeOptions = routeOptions, activeRouteIndex = activeRouteIndex,
+                    isRouteOptionsPanelVisible = isRouteOptionsPanelVisible,
                     recenterRequest = recenterTick,
                     zoomInRequest = zoomInTick, zoomOutRequest = zoomOutTick,
                     focusPoint = geocodedLocation?.let { OsmGeoPoint(it.latitude, it.longitude) },
