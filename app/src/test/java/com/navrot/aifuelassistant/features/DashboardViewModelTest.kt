@@ -274,8 +274,46 @@ class DashboardViewModelTest {
         assertEquals("user", messages[0].role)
         assertEquals("Построй маршрут на АЗС", messages[0].text)
         assertEquals("ai", messages[1].role)
-        assertTrue(messages[1].text.contains("AI временно недоступен: 401 Unauthorized. Маршрут/АЗС обработаны локально."))
+        assertEquals("AI не отвечает, попробую локально", messages[1].text)
         assertEquals("401 Unauthorized", vm.error.value)
+    }
+
+    @Test
+    fun `askUserQuestion on Worker timeout posts AI fallback message and executes local intent`() = runTest {
+        whenever(mockRecordRepo.getAll()).thenReturn(flowOf(emptyList()))
+        whenever(mockRecordRepo.getByVehicleId(any())).thenReturn(flowOf(emptyList()))
+        whenever(mockVehicleRepo.getAllVehicles()).thenReturn(flowOf(emptyList()))
+        val testStation = com.navrot.aifuelassistant.data.model.GasStation(
+            id = 99,
+            name = "Лукойл",
+            brand = "Лукойл",
+            address = "ул. Ленина",
+            latitude = 55.0,
+            longitude = 61.0,
+            fuelTypes = emptyList(),
+            queueTime = 0,
+            reliability = 100
+        )
+        whenever(mockStationRepo.getAllStations()).thenReturn(listOf(testStation))
+        whenever(mockAiRouter.ask(any(), anyOrNull(), anyOrNull(), any(), any())).thenAnswer {
+            throw kotlinx.coroutines.TimeoutCancellationException::class.java.getDeclaredConstructor(String::class.java).apply { isAccessible = true }.newInstance("Timed out")
+        }
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.setUserQuestion("Построй маршрут на Лукойл")
+        vm.askUserQuestion()
+        advanceUntilIdle()
+
+        val messages = vm.chatMessages.value
+        assertEquals(2, messages.size)
+        assertEquals("user", messages[0].role)
+        assertEquals("Построй маршрут на Лукойл", messages[0].text)
+        assertEquals("ai", messages[1].role)
+        assertEquals("AI не отвечает, попробую локально", messages[1].text)
+        assertEquals(99, vm.pendingRouteStationId.value)
+        assertEquals(com.navrot.aifuelassistant.features.dashboard.DashboardViewModel.PendingRouteMode.ROUTE, vm.pendingRouteMode.value)
     }
 
     @Test

@@ -214,12 +214,19 @@ fun MapScreen(
         }
     }
 
-    // Snackbar for AI answer handoff
+    // Snackbar for AI answer handoff and routing errors
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(aiAnswerText, snackbarHostState) {
         aiAnswerText?.let { text ->
             val snippet = if (text.length > 100) text.substring(0, 100) + "…" else text
             snackbarHostState.showSnackbar(message = snippet)
+        }
+    }
+    LaunchedEffect(error, snackbarHostState) {
+        error?.let { errMsg ->
+            if (errMsg.startsWith("Маршрут недоступен")) {
+                snackbarHostState.showSnackbar(message = errMsg)
+            }
         }
     }
 
