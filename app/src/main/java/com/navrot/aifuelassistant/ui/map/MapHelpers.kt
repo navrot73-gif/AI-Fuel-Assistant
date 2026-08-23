@@ -1,7 +1,9 @@
 package com.navrot.aifuelassistant.ui.map
 
 import android.content.Context
+import android.content.Intent
 import android.graphics.drawable.GradientDrawable
+import android.net.Uri
 import android.location.Location
 import android.os.Looper
 import android.widget.Toast
@@ -16,6 +18,24 @@ import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.util.Format
+
+fun buildYandexMapsIntent(user: Pair<Double, Double>, dest: Pair<Double, Double>): Intent {
+    val yandexUrl = "https://yandex.ru/maps/?rtext=" +
+            "${user.first},${user.second}~${dest.first},${dest.second}" +
+            "&rtt=auto"
+    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(yandexUrl))
+    intent.setPackage("ru.yandex.yandexmaps")
+    return intent
+}
+
+fun launchYandexMapsRoute(context: Context, user: Pair<Double, Double>, dest: Pair<Double, Double>) {
+    val yandexIntent = buildYandexMapsIntent(user, dest)
+    try {
+        context.startActivity(yandexIntent)
+    } catch (e: Exception) {
+        context.startActivity(Intent(Intent.ACTION_VIEW, yandexIntent.data))
+    }
+}
 
 fun openMapsRoute(context: Context, lat: Double, lon: Double, label: String) {
     try {

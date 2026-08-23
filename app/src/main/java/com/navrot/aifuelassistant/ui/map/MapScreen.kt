@@ -35,6 +35,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -348,14 +349,24 @@ fun MapScreen(
                 )
 
                 if (isRouteOptionsPanelVisible && routeOptions.size >= 2 && selectedStation == null && !showStationList) {
+                    val context = LocalContext.current
                     RouteOptionsPanel(
                         routeOptions = routeOptions,
                         activeRouteIndex = activeRouteIndex,
                         onSelectOption = { viewModel.selectRouteOption(it) },
                         onGoClick = {
                             viewModel.dismissRouteOptionsPanel()
-                            val activeOpt = routeOptions.getOrNull(activeRouteIndex)
-                            Log.d("RouteOptions", "Поехали pressed: active index=$activeRouteIndex, route=${activeOpt?.title}, dest=${activeOpt?.destination}, dist=${activeOpt?.distanceText}")
+                            val currentRoute = route
+                            val points = currentRoute?.points
+                            if (!points.isNullOrEmpty()) {
+                                val userPt = points.first()
+                                val destPt = points.last()
+                                launchYandexMapsRoute(
+                                    context = context,
+                                    user = userPt.latitude to userPt.longitude,
+                                    dest = destPt.latitude to destPt.longitude
+                                )
+                            }
                         },
                         modifier = Modifier.align(Alignment.BottomCenter)
                     )
