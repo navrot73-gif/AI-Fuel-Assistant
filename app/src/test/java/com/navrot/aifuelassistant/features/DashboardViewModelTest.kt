@@ -193,6 +193,68 @@ class DashboardViewModelTest {
     }
 
     @Test
+    fun `askUserQuestion with ROUTE tag sets pendingRouteStationId and hides tag`() = runTest {
+        whenever(mockRecordRepo.getAll()).thenReturn(flowOf(emptyList()))
+        whenever(mockRecordRepo.getByVehicleId(any())).thenReturn(flowOf(emptyList()))
+        whenever(mockVehicleRepo.getAllVehicles()).thenReturn(flowOf(emptyList()))
+        whenever(mockStationRepo.getAllStations()).thenReturn(emptyList())
+        whenever(mockAiRouter.ask(any(), anyOrNull(), anyOrNull(), any(), any()))
+            .thenReturn("Едем на заправку GetPetrol.\n[ROUTE:5]")
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.setUserQuestion("Построй маршрут до GetPetrol")
+        vm.askUserQuestion()
+        advanceUntilIdle()
+
+        assertEquals(5, vm.pendingRouteStationId.value)
+        assertEquals(com.navrot.aifuelassistant.features.dashboard.DashboardViewModel.PendingRouteMode.ROUTE, vm.pendingRouteMode.value)
+
+        val messages = vm.chatMessages.value
+        assertEquals(2, messages.size)
+        assertEquals("user", messages[0].role)
+        assertEquals("ai", messages[1].role)
+        assertEquals("Едем на заправку GetPetrol.", messages[1].text)
+        assertFalse(messages[1].text.contains("[ROUTE:5]"))
+    }
+
+    @Test
+    fun `askUserQuestion without ROUTE tag uses fallback detectIntent`() = runTest {
+        val testStation = com.navrot.aifuelassistant.data.model.GasStation(
+            id = 42,
+            name = "Лукойл",
+            brand = "Лукойл",
+            address = "ул. Тестовая",
+            latitude = 55.0,
+            longitude = 37.0,
+            fuelTypes = emptyList(),
+            queueTime = 0,
+            reliability = 100
+        )
+        whenever(mockRecordRepo.getAll()).thenReturn(flowOf(emptyList()))
+        whenever(mockRecordRepo.getByVehicleId(any())).thenReturn(flowOf(emptyList()))
+        whenever(mockVehicleRepo.getAllVehicles()).thenReturn(flowOf(emptyList()))
+        whenever(mockStationRepo.getAllStations()).thenReturn(listOf(testStation))
+        whenever(mockAiRouter.ask(any(), anyOrNull(), anyOrNull(), any(), any()))
+            .thenReturn("Попробуйте заправиться на Лукойле.")
+
+        val vm = createViewModel()
+        advanceUntilIdle()
+
+        vm.setUserQuestion("Построй маршрут на Лукойл")
+        vm.askUserQuestion()
+        advanceUntilIdle()
+
+        assertEquals(42, vm.pendingRouteStationId.value)
+        assertEquals(com.navrot.aifuelassistant.features.dashboard.DashboardViewModel.PendingRouteMode.ROUTE, vm.pendingRouteMode.value)
+
+        val messages = vm.chatMessages.value
+        assertEquals(2, messages.size)
+        assertEquals("Попробуйте заправиться на Лукойле.", messages[1].text)
+    }
+
+    @Test
     fun `askUserQuestion on AI error keeps user message and handles intent`() = runTest {
         whenever(mockRecordRepo.getAll()).thenReturn(flowOf(emptyList()))
         whenever(mockRecordRepo.getByVehicleId(any())).thenReturn(flowOf(emptyList()))

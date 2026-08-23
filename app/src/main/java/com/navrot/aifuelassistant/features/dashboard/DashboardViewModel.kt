@@ -381,20 +381,19 @@ class DashboardViewModel @Inject constructor(
             emptyList<GasStation>()
         }
 
-        val top5 = nearbyStations.take(5)
-        val stationsInfo = if (top5.isNotEmpty()) {
-            top5.joinToString("\n") { station ->
+        val stationsList = if (nearbyStations.isNotEmpty()) nearbyStations else _stations.value
+        val stationsInfo = if (stationsList.isNotEmpty()) {
+            stationsList.joinToString("\n") { station ->
                 val price = station.fuelTypes
                     .filter { it.available }
                     .minByOrNull { it.price }?.price
                     ?: 0.0
-                val distance = GeoUtils.calculateDistance(lat, lon, station.latitude, station.longitude)
-                "${station.brand} — ${Format.price(price)}₽ — ${Format.km(distance)}км"
+                "[${station.id}] ${station.brand} (${station.name}), ${station.address}, ${Format.price(price)}₽"
             }
-        } else "нет станций в радиусе 50км"
+        } else "нет доступных АЗС"
 
-        val text = "Пользователь: $lat, $lon, город: $city.\nБлижайшие АЗС:\n$stationsInfo"
-        return UserContext(text, top5.firstOrNull()?.id)
+        val text = "Пользователь: $lat, $lon, город: $city.\nСписок АЗС:\n$stationsInfo"
+        return UserContext(text, stationsList.firstOrNull()?.id)
     }
 
     fun askUserQuestion() {
@@ -424,10 +423,7 @@ class DashboardViewModel @Inject constructor(
                 // 2. addChatMessage(user-сообщение) — СРАЗУ, до любого AI-запроса
                 addChatMessage(ChatMessage(role = "user", text = question, ts = System.currentTimeMillis()))
 
-                // 3. detectIntent(question) — ДО AI-запроса! Маршрут и панель АЗС должны срабатывать даже при 401 от AI.
-                detectIntent(question)
-
-                // 4. try { aiRouter.ask } catch (e)
+                // 3. try { aiRouter.ask } catch (e)
                 _error.value = null
                 _userAnswer.value = null
 
@@ -440,10 +436,28 @@ class DashboardViewModel @Inject constructor(
                     val history = _chatMessages.value.takeLast(6)
 
                     val rawAnswer = aiRouter.ask(fullPrompt, history = history)
-                    val answer = rawAnswer.replace("**", "").replace("*", "")
-                    _userAnswer.value = answer
+                    val routeTagRegex = Regex("\\[ROUTE:(\\d+)\\]")
+                    val match = routeTagRegex.find(rawAnswer)
 
-                    addChatMessage(ChatMessage(role = "ai", text = answer, ts = System.currentTimeMillis()))
+                    if (match != null) {
+                        val stationId = match.groupValues[1].toIntOrNull()
+                        val cleanedAnswer = rawAnswer.replace(routeTagRegex, "").replace("**", "").replace("*", "").trim()
+                        _userAnswer.value = cleanedAnswer
+                        addChatMessage(ChatMessage(role = "ai", text = cleanedAnswer, ts = System.currentTimeMillis()))
+
+                        if (stationId != null) {
+                            _pendingRouteStationId.value = stationId
+                            routeStateManager.setPendingRouteStationId(stationId)
+                            _pendingRouteMode.value = PendingRouteMode.ROUTE
+                        } else {
+                            detectIntent(question)
+                        }
+                    } else {
+                        val answer = rawAnswer.replace("**", "").replace("*", "")
+                        _userAnswer.value = answer
+                        addChatMessage(ChatMessage(role = "ai", text = answer, ts = System.currentTimeMillis()))
+                        detectIntent(question)
+                    }
                 } catch (e: Exception) {
                     _error.value = e.message ?: "Ошибка при обработке запроса"
                     addChatMessage(
@@ -453,6 +467,7 @@ class DashboardViewModel @Inject constructor(
                             ts = System.currentTimeMillis()
                         )
                     )
+                    detectIntent(question)
                 }
             } finally {
                 _isAnalyzing.value = false
