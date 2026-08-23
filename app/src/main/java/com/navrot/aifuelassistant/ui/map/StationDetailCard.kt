@@ -183,8 +183,7 @@ fun StationDetailCard(
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
-                            text = "${if (fuel.isMedianFromNetwork) "~" else ""}${Format.price2(fuel.price)}",
-                            fontFamily = FontFamily.Monospace,
+                            text = "${if (fuel.isMedianFromNetwork) "~" else ""}${Format.price2(fuel.price)} ₽",
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp,
                             color = FueldeckColors.Mint
