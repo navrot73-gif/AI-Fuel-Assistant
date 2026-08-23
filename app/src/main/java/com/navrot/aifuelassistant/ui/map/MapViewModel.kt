@@ -453,65 +453,93 @@ class MapViewModel @Inject constructor(
             _isRouting.value = true
             try {
                 // GET worker route with alternatives=true: from={lon},{lat}&to={lon},{lat}
-                var response = fuelApi.getRoute(
+                val routeResult = fuelApi.getRoute(
                     fromLon = start.second,
                     fromLat = start.first,
                     toLon = station.longitude,
                     toLat = station.latitude,
                     alternatives = true
                 )
-                var rawOptions = response.getRouteOptions()
 
-                if (distKm > 5.0 && rawOptions.size == 1) {
-                    try {
-                        val retryResponse = fuelApi.getRoute(
-                            fromLon = start.second,
-                            fromLat = start.first,
-                            toLon = station.longitude,
-                            toLat = station.latitude,
-                            alternatives = true
-                        )
-                        val retryOptions = retryResponse.getRouteOptions()
-                        if (retryOptions.size > 1) {
-                            response = retryResponse
-                            rawOptions = retryOptions
-                        }
-                    } catch (retryEx: Exception) {
-                        Log.w(TAG, "Retry routing failed: ${retryEx.message}")
-                    }
-                }
+                var response: com.navrot.aifuelassistant.network.RouteResponse? = routeResult.getOrNull()
+                var primaryException: Throwable? = routeResult.exceptionOrNull()
 
-                if (rawOptions.isEmpty()) {
-                    throw Exception("Worker returned no route options")
-                }
-
-                val titles = listOf("Быстрый", "Без пробок", "Альтернативный")
-                val parsedOptions = rawOptions.mapIndexed { index, optionData ->
-                    val routePoints = optionData.points.map { pt ->
-                        GeoPoint(latitude = pt[0], longitude = pt[1])
-                    }
-                    val min = Math.round(optionData.durationSeconds / 60.0).toInt()
-                    val durText = if (min < 60) "$min мин" else "${min / 60} ч ${min % 60} мин"
-                    val title = titles.getOrElse(index) { "Вариант ${index + 1}" }
-
-                    RouteOptionUiState(
-                        title = title,
-                        points = routePoints,
-                        distanceText = "${Format.km(optionData.distanceMeters / 1000.0)} км",
-                        durationText = durText,
-                        destination = station.brand,
-                        isStraightLine = false,
-                        isDirect = false,
-                        distanceMeters = optionData.distanceMeters,
-                        durationSeconds = optionData.durationSeconds
+                if (response == null && distKm > 0.0) {
+                    // Initial failed, try retry
+                    val retryResult = fuelApi.getRoute(
+                        fromLon = start.second,
+                        fromLat = start.first,
+                        toLon = station.longitude,
+                        toLat = station.latitude,
+                        alternatives = true
                     )
+                    response = retryResult.getOrNull()
+                    if (response == null) {
+                        primaryException = retryResult.exceptionOrNull() ?: primaryException
+                    }
+                } else if (distKm > 5.0 && response != null && response.getRouteOptions().size == 1) {
+                    // Initial succeeded with 1 option for > 5km, try retry to see if alternatives appear
+                    val retryResult = fuelApi.getRoute(
+                        fromLon = start.second,
+                        fromLat = start.first,
+                        toLon = station.longitude,
+                        toLat = station.latitude,
+                        alternatives = true
+                    )
+                    retryResult.getOrNull()?.let { retryResp ->
+                        if (retryResp.getRouteOptions().size > 1) {
+                            response = retryResp
+                        }
+                    }
                 }
 
-                _routeOptions.value = parsedOptions
-                _activeRouteIndex.value = 0
-                _isRouteOptionsPanelVisible.value = parsedOptions.size >= 2
+                val finalResponse = response
+                if (finalResponse == null) {
+                    val errMsg = primaryException?.message ?: "неизвестная ошибка"
+                    _error.value = "Маршрут недоступен: $errMsg"
+                    Log.w(TAG, "Worker routing failed: $errMsg, fallback to straight line")
+                    _routeOptions.value = listOf(fallbackState)
+                    _activeRouteIndex.value = 0
+                    _isRouteOptionsPanelVisible.value = false
+                } else {
+                    val rawOptions = finalResponse.getRouteOptions()
+                    if (rawOptions.isEmpty()) {
+                        _error.value = "Маршрут недоступен: пустой ответ от сервера"
+                        _routeOptions.value = listOf(fallbackState)
+                        _activeRouteIndex.value = 0
+                        _isRouteOptionsPanelVisible.value = false
+                    } else {
+                        val titles = listOf("Быстрый", "Без пробок", "Альтернативный")
+                        val parsedOptions = rawOptions.mapIndexed { index, optionData ->
+                            val routePoints = optionData.points.map { pt ->
+                                GeoPoint(latitude = pt[0], longitude = pt[1])
+                            }
+                            val min = Math.round(optionData.durationSeconds / 60.0).toInt()
+                            val durText = if (min < 60) "$min мин" else "${min / 60} ч ${min % 60} мин"
+                            val title = titles.getOrElse(index) { "Вариант ${index + 1}" }
+
+                            RouteOptionUiState(
+                                title = title,
+                                points = routePoints,
+                                distanceText = "${Format.km(optionData.distanceMeters / 1000.0)} км",
+                                durationText = durText,
+                                destination = station.brand,
+                                isStraightLine = false,
+                                isDirect = false,
+                                distanceMeters = optionData.distanceMeters,
+                                durationSeconds = optionData.durationSeconds
+                            )
+                        }
+
+                        _routeOptions.value = parsedOptions
+                        _activeRouteIndex.value = 0
+                        _isRouteOptionsPanelVisible.value = parsedOptions.size >= 2
+                    }
+                }
             } catch (e: Exception) {
-                Log.w(TAG, "Worker routing failed: ${e.message}, fallback to straight line")
+                val errMsg = e.message ?: "неизвестная ошибка"
+                _error.value = "Маршрут недоступен: $errMsg"
+                Log.w(TAG, "Worker routing failed: $errMsg, fallback to straight line")
                 _routeOptions.value = listOf(fallbackState)
                 _activeRouteIndex.value = 0
                 _isRouteOptionsPanelVisible.value = false

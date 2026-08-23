@@ -298,14 +298,16 @@ class MapViewModelSearchTest {
         viewModel.updateUserLocation(55.0, 61.0)
         val station = makeStation(1, "АЗС 1", "Лукойл", 55.1, 61.1)
 
-        whenever(fuelApi.getRoute(61.0, 55.0, 61.1, 55.1)).thenReturn(
-            RouteResponse(
-                distance_m = 6877.0,
-                duration_s = 598.0,
-                points = listOf(
-                    listOf(55.0, 61.0),
-                    listOf(55.05, 61.05),
-                    listOf(55.1, 61.1)
+        whenever(fuelApi.getRoute(61.0, 55.0, 61.1, 55.1, true)).thenReturn(
+            Result.success(
+                RouteResponse(
+                    distance_m = 6877.0,
+                    duration_s = 598.0,
+                    points = listOf(
+                        listOf(55.0, 61.0),
+                        listOf(55.05, 61.05),
+                        listOf(55.1, 61.1)
+                    )
                 )
             )
         )
@@ -327,7 +329,7 @@ class MapViewModelSearchTest {
         viewModel.updateUserLocation(55.0, 61.0)
         val station = makeStation(1, "АЗС 1", "Лукойл", 55.1, 61.1)
 
-        whenever(fuelApi.getRoute(61.0, 55.0, 61.1, 55.1)).doThrow(RuntimeException("Network error"))
+        whenever(fuelApi.getRoute(61.0, 55.0, 61.1, 55.1, true)).thenReturn(Result.failure(RuntimeException("Network error")))
 
         viewModel.buildRouteTo(station)
         advanceUntilIdle()
@@ -338,6 +340,7 @@ class MapViewModelSearchTest {
         assertEquals("по прямой", route.durationText)
         assertEquals(true, route.isDirect)
         assertEquals(true, route.isStraightLine)
+        assertEquals("Маршрут недоступен: Network error", viewModel.error.value)
     }
 
     @Test
@@ -351,12 +354,14 @@ class MapViewModelSearchTest {
             RouteOptionData(6000.0, 420.0, listOf(listOf(55.0, 61.0), listOf(55.08, 61.08), listOf(55.1, 61.1)))
         )
 
-        whenever(fuelApi.getRoute(61.0, 55.0, 61.1, 55.1)).thenReturn(
-            RouteResponse(
-                distance_m = 5000.0,
-                duration_s = 300.0,
-                points = optionsData[0].points,
-                routes = optionsData
+        whenever(fuelApi.getRoute(61.0, 55.0, 61.1, 55.1, true)).thenReturn(
+            Result.success(
+                RouteResponse(
+                    distance_m = 5000.0,
+                    duration_s = 300.0,
+                    points = optionsData[0].points,
+                    routes = optionsData
+                )
             )
         )
 
@@ -392,11 +397,13 @@ class MapViewModelSearchTest {
         )
 
         whenever(fuelApi.getRoute(61.0, 55.0, 61.01, 55.01, true)).thenReturn(
-            RouteResponse(
-                distance_m = 5000.0,
-                duration_s = 300.0,
-                points = optionsData[0].points,
-                routes = optionsData
+            Result.success(
+                RouteResponse(
+                    distance_m = 5000.0,
+                    duration_s = 300.0,
+                    points = optionsData[0].points,
+                    routes = optionsData
+                )
             )
         )
 
@@ -427,11 +434,13 @@ class MapViewModelSearchTest {
 
         assertNotNull(viewModel.aiRecommendation.value)
 
-        whenever(fuelApi.getRoute(61.0, 55.0, 61.2, 55.2)).thenReturn(
-            RouteResponse(
-                distance_m = 10000.0,
-                duration_s = 600.0,
-                points = listOf(listOf(55.0, 61.0), listOf(55.2, 61.2))
+        whenever(fuelApi.getRoute(61.0, 55.0, 61.2, 55.2, true)).thenReturn(
+            Result.success(
+                RouteResponse(
+                    distance_m = 10000.0,
+                    duration_s = 600.0,
+                    points = listOf(listOf(55.0, 61.0), listOf(55.2, 61.2))
+                )
             )
         )
 
@@ -465,10 +474,12 @@ class MapViewModelSearchTest {
         val station = makeStation(1, "АЗС 1", "Лукойл", 55.01, 61.01) // < 5km
 
         whenever(fuelApi.getRoute(61.0, 55.0, 61.01, 55.01, true)).thenReturn(
-            RouteResponse(
-                distance_m = 5000.0,
-                duration_s = 300.0,
-                points = listOf(listOf(55.0, 61.0), listOf(55.01, 61.01))
+            Result.success(
+                RouteResponse(
+                    distance_m = 5000.0,
+                    duration_s = 300.0,
+                    points = listOf(listOf(55.0, 61.0), listOf(55.01, 61.01))
+                )
             )
         )
 
@@ -490,11 +501,13 @@ class MapViewModelSearchTest {
         )
 
         whenever(fuelApi.getRoute(61.0, 55.0, 61.1, 55.1, true)).thenReturn(
-            RouteResponse(
-                distance_m = 5000.0,
-                duration_s = 300.0,
-                points = optionsData[0].points,
-                routes = optionsData
+            Result.success(
+                RouteResponse(
+                    distance_m = 5000.0,
+                    duration_s = 300.0,
+                    points = optionsData[0].points,
+                    routes = optionsData
+                )
             )
         )
 
@@ -527,11 +540,13 @@ class MapViewModelSearchTest {
         )
 
         whenever(fuelApi.getRoute(61.0, 55.0, 61.1, 55.1, true)).thenReturn(
-            RouteResponse(
-                distance_m = 5000.0,
-                duration_s = 300.0,
-                points = optionsData[0].points,
-                routes = optionsData
+            Result.success(
+                RouteResponse(
+                    distance_m = 5000.0,
+                    duration_s = 300.0,
+                    points = optionsData[0].points,
+                    routes = optionsData
+                )
             )
         )
 
@@ -571,8 +586,8 @@ class MapViewModelSearchTest {
 
         // Первый вызов возвращает 1 маршрут, второй вызов (повторный) возвращает 2 маршрута
         whenever(fuelApi.getRoute(61.0, 55.0, 61.2, 55.2, true))
-            .thenReturn(RouteResponse(22000.0, 1200.0, singleOption[0].points, singleOption))
-            .thenReturn(RouteResponse(22000.0, 1200.0, singleOption[0].points, multiOptions))
+            .thenReturn(Result.success(RouteResponse(22000.0, 1200.0, singleOption[0].points, singleOption)))
+            .thenReturn(Result.success(RouteResponse(22000.0, 1200.0, singleOption[0].points, multiOptions)))
 
         viewModel.buildRouteTo(station)
         advanceUntilIdle()
@@ -594,7 +609,7 @@ class MapViewModelSearchTest {
 
         // Оба вызова возвращают по 1 маршруту
         whenever(fuelApi.getRoute(61.0, 55.0, 61.2, 55.2, true))
-            .thenReturn(RouteResponse(22000.0, 1200.0, singleOption[0].points, singleOption))
+            .thenReturn(Result.success(RouteResponse(22000.0, 1200.0, singleOption[0].points, singleOption)))
 
         viewModel.buildRouteTo(station)
         advanceUntilIdle()

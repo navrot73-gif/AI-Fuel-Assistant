@@ -54,11 +54,11 @@ interface FuelApi {
         toLon: Double,
         toLat: Double,
         alternatives: Boolean = true
-    ): RouteResponse
+    ): Result<RouteResponse>
 }
 
 /**
- * Реализация FuelApi через OkHttpClient с таймаутом 3 секунды.
+ * Реализация FuelApi через OkHttpClient с таймаутом 15 секунд.
  */
 @Singleton
 class FuelApiImpl @Inject constructor(
@@ -71,10 +71,10 @@ class FuelApiImpl @Inject constructor(
 
     private val routeClient: OkHttpClient by lazy {
         httpClient.newBuilder()
-            .connectTimeout(10, TimeUnit.SECONDS)
-            .readTimeout(10, TimeUnit.SECONDS)
-            .writeTimeout(10, TimeUnit.SECONDS)
-            .callTimeout(10, TimeUnit.SECONDS)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(15, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
+            .callTimeout(15, TimeUnit.SECONDS)
             .build()
     }
 
@@ -84,76 +84,78 @@ class FuelApiImpl @Inject constructor(
         toLon: Double,
         toLat: Double,
         alternatives: Boolean
-    ): RouteResponse = withContext(Dispatchers.IO) {
-        val url = BASE_URL.toHttpUrl().newBuilder()
-            .addQueryParameter("from", "$fromLon,$fromLat")
-            .addQueryParameter("to", "$toLon,$toLat")
-            .addQueryParameter("alternatives", alternatives.toString())
-            .build()
+    ): Result<RouteResponse> = withContext(Dispatchers.IO) {
+        runCatching {
+            val url = BASE_URL.toHttpUrl().newBuilder()
+                .addQueryParameter("from", "$fromLon,$fromLat")
+                .addQueryParameter("to", "$toLon,$toLat")
+                .addQueryParameter("alternatives", alternatives.toString())
+                .build()
 
-        val request = Request.Builder()
-            .url(url)
-            .get()
-            .header("User-Agent", "AIFuelAssistant/1.0")
-            .header("Accept", "application/json")
-            .build()
+            val request = Request.Builder()
+                .url(url)
+                .get()
+                .header("User-Agent", "AIFuelAssistant/1.0")
+                .header("Accept", "application/json")
+                .build()
 
-        routeClient.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                throw Exception("HTTP ${response.code} от Worker route")
-            }
-            val body = response.body?.string()
-                ?: throw Exception("Пустой ответ от Worker route")
-
-            val json = JSONObject(body)
-            val parsedRoutes = mutableListOf<RouteOptionData>()
-
-            if (json.has("routes") && !json.isNull("routes")) {
-                val routesArray = json.getJSONArray("routes")
-                val count = minOf(routesArray.length(), 3)
-                for (i in 0 until count) {
-                    val routeObj = routesArray.getJSONObject(i)
-                    val dist = if (routeObj.has("distance_m")) routeObj.getDouble("distance_m") else routeObj.optDouble("distance", 0.0)
-                    val dur = if (routeObj.has("duration_s")) routeObj.getDouble("duration_s") else routeObj.optDouble("duration", 0.0)
-                    val pointsArray = routeObj.getJSONArray("points")
-                    val pointsList = ArrayList<List<Double>>(pointsArray.length())
-                    for (j in 0 until pointsArray.length()) {
-                        val pt = pointsArray.getJSONArray(j)
-                        pointsList.add(listOf(pt.getDouble(0), pt.getDouble(1)))
-                    }
-                    parsedRoutes.add(RouteOptionData(dist, dur, pointsList))
+            routeClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    throw Exception("HTTP ${response.code} от Worker route")
                 }
-            }
+                val body = response.body?.string()
+                    ?: throw Exception("Пустой ответ от Worker route")
 
-            val mainDistance = if (parsedRoutes.isNotEmpty()) parsedRoutes[0].distanceMeters
-                else if (json.has("distance_m")) json.getDouble("distance_m") else 0.0
-            val mainDuration = if (parsedRoutes.isNotEmpty()) parsedRoutes[0].durationSeconds
-                else if (json.has("duration_s")) json.getDouble("duration_s") else 0.0
-            val mainPoints = if (parsedRoutes.isNotEmpty()) parsedRoutes[0].points
-                else if (json.has("points")) {
-                    val pointsArray = json.getJSONArray("points")
-                    val list = ArrayList<List<Double>>(pointsArray.length())
-                    for (i in 0 until pointsArray.length()) {
-                        val pt = pointsArray.getJSONArray(i)
-                        list.add(listOf(pt.getDouble(0), pt.getDouble(1)))
+                val json = JSONObject(body)
+                val parsedRoutes = mutableListOf<RouteOptionData>()
+
+                if (json.has("routes") && !json.isNull("routes")) {
+                    val routesArray = json.getJSONArray("routes")
+                    val count = minOf(routesArray.length(), 3)
+                    for (i in 0 until count) {
+                        val routeObj = routesArray.getJSONObject(i)
+                        val dist = if (routeObj.has("distance_m")) routeObj.getDouble("distance_m") else routeObj.optDouble("distance", 0.0)
+                        val dur = if (routeObj.has("duration_s")) routeObj.getDouble("duration_s") else routeObj.optDouble("duration", 0.0)
+                        val pointsArray = routeObj.getJSONArray("points")
+                        val pointsList = ArrayList<List<Double>>(pointsArray.length())
+                        for (j in 0 until pointsArray.length()) {
+                            val pt = pointsArray.getJSONArray(j)
+                            pointsList.add(listOf(pt.getDouble(0), pt.getDouble(1)))
+                        }
+                        parsedRoutes.add(RouteOptionData(dist, dur, pointsList))
                     }
-                    list
-                } else emptyList()
+                }
 
-            val finalRoutes = if (parsedRoutes.isNotEmpty()) {
-                parsedRoutes
-            } else if (mainPoints.isNotEmpty()) {
-                listOf(RouteOptionData(mainDistance, mainDuration, mainPoints))
-            } else {
-                emptyList()
+                val mainDistance = if (parsedRoutes.isNotEmpty()) parsedRoutes[0].distanceMeters
+                    else if (json.has("distance_m")) json.getDouble("distance_m") else 0.0
+                val mainDuration = if (parsedRoutes.isNotEmpty()) parsedRoutes[0].durationSeconds
+                    else if (json.has("duration_s")) json.getDouble("duration_s") else 0.0
+                val mainPoints = if (parsedRoutes.isNotEmpty()) parsedRoutes[0].points
+                    else if (json.has("points")) {
+                        val pointsArray = json.getJSONArray("points")
+                        val list = ArrayList<List<Double>>(pointsArray.length())
+                        for (i in 0 until pointsArray.length()) {
+                            val pt = pointsArray.getJSONArray(i)
+                            list.add(listOf(pt.getDouble(0), pt.getDouble(1)))
+                        }
+                        list
+                    } else emptyList()
+
+                val finalRoutes = if (parsedRoutes.isNotEmpty()) {
+                    parsedRoutes
+                } else if (mainPoints.isNotEmpty()) {
+                    listOf(RouteOptionData(mainDistance, mainDuration, mainPoints))
+                } else {
+                    emptyList()
+                }
+
+                RouteResponse(
+                    distance_m = mainDistance,
+                    duration_s = mainDuration,
+                    points = mainPoints,
+                    routes = finalRoutes
+                )
             }
-
-            RouteResponse(
-                distance_m = mainDistance,
-                duration_s = mainDuration,
-                points = mainPoints,
-                routes = finalRoutes
-            )
         }
     }
 }

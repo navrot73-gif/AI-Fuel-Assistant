@@ -28,6 +28,8 @@ import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.TimeoutCancellationException
 import java.util.Calendar
 import javax.inject.Inject
 import kotlin.coroutines.resume
@@ -435,7 +437,9 @@ class DashboardViewModel @Inject constructor(
 
                     val history = _chatMessages.value.takeLast(6)
 
-                    val rawAnswer = aiRouter.ask(fullPrompt, history = history)
+                    val rawAnswer = withTimeout(20_000L) {
+                        aiRouter.ask(fullPrompt, history = history)
+                    }
                     val routeTagRegex = Regex("\\[ROUTE:(\\d+)\\]")
                     val match = routeTagRegex.find(rawAnswer)
 
@@ -458,17 +462,36 @@ class DashboardViewModel @Inject constructor(
                         addChatMessage(ChatMessage(role = "ai", text = answer, ts = System.currentTimeMillis()))
                         detectIntent(question)
                     }
+                } catch (e: TimeoutCancellationException) {
+                    _error.value = "Таймаут запроса к AI"
+                    addChatMessage(
+                        ChatMessage(
+                            role = "ai",
+                            text = "AI не отвечает, попробую локально",
+                            ts = System.currentTimeMillis()
+                        )
+                    )
+                    detectIntent(question)
                 } catch (e: Exception) {
                     _error.value = e.message ?: "Ошибка при обработке запроса"
                     addChatMessage(
                         ChatMessage(
                             role = "ai",
-                            text = "AI временно недоступен: ${e.message}. Маршрут/АЗС обработаны локально.",
+                            text = "AI не отвечает, попробую локально",
                             ts = System.currentTimeMillis()
                         )
                     )
                     detectIntent(question)
                 }
+            } catch (topLevelError: Exception) {
+                Log.e("DashboardViewModel", "Unhandled error in askUserQuestion", topLevelError)
+                addChatMessage(
+                    ChatMessage(
+                        role = "ai",
+                        text = "Произошла ошибка: ${topLevelError.message ?: "неизвестно"}",
+                        ts = System.currentTimeMillis()
+                    )
+                )
             } finally {
                 _isAnalyzing.value = false
             }
