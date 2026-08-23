@@ -384,13 +384,19 @@ class MapViewModelSearchTest {
     @Test
     fun `dismissRouteOptionsPanel hides panel while active route remains intact`() = runTest {
         viewModel.updateUserLocation(55.0, 61.0)
-        val station = makeStation(1, "АЗС 1", "Лукойл", 55.1, 61.1)
+        val station = makeStation(1, "АЗС 1", "Лукойл", 55.01, 61.01) // < 5km
 
-        whenever(fuelApi.getRoute(61.0, 55.0, 61.1, 55.1)).thenReturn(
+        val optionsData = listOf(
+            RouteOptionData(5000.0, 300.0, listOf(listOf(55.0, 61.0), listOf(55.01, 61.01))),
+            RouteOptionData(5500.0, 360.0, listOf(listOf(55.0, 61.0), listOf(55.005, 61.005), listOf(55.01, 61.01)))
+        )
+
+        whenever(fuelApi.getRoute(61.0, 55.0, 61.01, 55.01, true)).thenReturn(
             RouteResponse(
                 distance_m = 5000.0,
                 duration_s = 300.0,
-                points = listOf(listOf(55.0, 61.0), listOf(55.1, 61.1))
+                points = optionsData[0].points,
+                routes = optionsData
             )
         )
 
@@ -456,20 +462,147 @@ class MapViewModelSearchTest {
     @Test
     fun `buildRouteToStation delegates to buildRouteTo and passes alternatives true`() = runTest {
         viewModel.updateUserLocation(55.0, 61.0)
-        val station = makeStation(1, "АЗС 1", "Лукойл", 55.1, 61.1)
+        val station = makeStation(1, "АЗС 1", "Лукойл", 55.01, 61.01) // < 5km
 
-        whenever(fuelApi.getRoute(61.0, 55.0, 61.1, 55.1, true)).thenReturn(
+        whenever(fuelApi.getRoute(61.0, 55.0, 61.01, 55.01, true)).thenReturn(
             RouteResponse(
                 distance_m = 5000.0,
                 duration_s = 300.0,
-                points = listOf(listOf(55.0, 61.0), listOf(55.1, 61.1))
+                points = listOf(listOf(55.0, 61.0), listOf(55.01, 61.01))
             )
         )
 
         viewModel.buildRouteToStation(station)
         advanceUntilIdle()
 
-        verify(fuelApi).getRoute(61.0, 55.0, 61.1, 55.1, true)
+        verify(fuelApi).getRoute(61.0, 55.0, 61.01, 55.01, true)
+        assertNotNull(viewModel.route.value)
+    }
+
+    @Test
+    fun `poyekhali does NOT clear route`() = runTest {
+        viewModel.updateUserLocation(55.0, 61.0)
+        val station = makeStation(1, "АЗС 1", "Лукойл", 55.1, 61.1)
+
+        val optionsData = listOf(
+            RouteOptionData(5000.0, 300.0, listOf(listOf(55.0, 61.0), listOf(55.1, 61.1))),
+            RouteOptionData(5500.0, 360.0, listOf(listOf(55.0, 61.0), listOf(55.05, 61.05), listOf(55.1, 61.1)))
+        )
+
+        whenever(fuelApi.getRoute(61.0, 55.0, 61.1, 55.1, true)).thenReturn(
+            RouteResponse(
+                distance_m = 5000.0,
+                duration_s = 300.0,
+                points = optionsData[0].points,
+                routes = optionsData
+            )
+        )
+
+        viewModel.buildRouteTo(station)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.isRouteOptionsPanelVisible.value)
+        assertNotNull(viewModel.route.value)
+        assertEquals(2, viewModel.routeOptions.value.size)
+
+        // Тап "Поехали" -> dismissRouteOptionsPanel()
+        viewModel.dismissRouteOptionsPanel()
+
+        // Панель скрыта, но маршрут и варианты остаются
+        org.junit.Assert.assertFalse(viewModel.isRouteOptionsPanelVisible.value)
+        assertNotNull(viewModel.route.value)
+        assertEquals(2, viewModel.routeOptions.value.size)
+        assertEquals("5.0 км", viewModel.route.value!!.distanceText)
+        assertEquals("5 мин", viewModel.route.value!!.durationText)
+    }
+
+    @Test
+    fun `selecting index 1 changes main line points and chip text`() = runTest {
+        viewModel.updateUserLocation(55.0, 61.0)
+        val station = makeStation(1, "АЗС 1", "Лукойл", 55.1, 61.1)
+
+        val optionsData = listOf(
+            RouteOptionData(5000.0, 300.0, listOf(listOf(55.0, 61.0), listOf(55.1, 61.1))),
+            RouteOptionData(7200.0, 480.0, listOf(listOf(55.0, 61.0), listOf(55.05, 61.05), listOf(55.1, 61.1)))
+        )
+
+        whenever(fuelApi.getRoute(61.0, 55.0, 61.1, 55.1, true)).thenReturn(
+            RouteResponse(
+                distance_m = 5000.0,
+                duration_s = 300.0,
+                points = optionsData[0].points,
+                routes = optionsData
+            )
+        )
+
+        viewModel.buildRouteTo(station)
+        advanceUntilIdle()
+
+        assertEquals(0, viewModel.activeRouteIndex.value)
+        assertEquals("5.0 км", viewModel.route.value!!.distanceText)
+        assertEquals("5 мин", viewModel.route.value!!.durationText)
+        assertEquals(2, viewModel.route.value!!.points.size)
+
+        // Клик по варианту index 1 ("Без пробок")
+        viewModel.selectRouteOption(1)
+
+        assertEquals(1, viewModel.activeRouteIndex.value)
+        val activeRoute = viewModel.route.value
+        assertNotNull(activeRoute)
+        assertEquals("7.2 км", activeRoute!!.distanceText)
+        assertEquals("8 мин", activeRoute.durationText)
+        assertEquals(3, activeRoute.points.size)
+        assertEquals(55.05, activeRoute.points[1].latitude, 0.001)
+    }
+
+    @Test
+    fun `buildRouteTo distance greater than 5km retries once when 1 route returned`() = runTest {
+        // Локация > 5 км от станции (~22 км)
+        viewModel.updateUserLocation(55.0, 61.0)
+        val station = makeStation(1, "Дальняя АЗС", "Газпром", 55.2, 61.2)
+
+        val singleOption = listOf(
+            RouteOptionData(22000.0, 1200.0, listOf(listOf(55.0, 61.0), listOf(55.2, 61.2)))
+        )
+        val multiOptions = listOf(
+            RouteOptionData(22000.0, 1200.0, listOf(listOf(55.0, 61.0), listOf(55.2, 61.2))),
+            RouteOptionData(24000.0, 1300.0, listOf(listOf(55.0, 61.0), listOf(55.1, 61.1), listOf(55.2, 61.2)))
+        )
+
+        // Первый вызов возвращает 1 маршрут, второй вызов (повторный) возвращает 2 маршрута
+        whenever(fuelApi.getRoute(61.0, 55.0, 61.2, 55.2, true))
+            .thenReturn(RouteResponse(22000.0, 1200.0, singleOption[0].points, singleOption))
+            .thenReturn(RouteResponse(22000.0, 1200.0, singleOption[0].points, multiOptions))
+
+        viewModel.buildRouteTo(station)
+        advanceUntilIdle()
+
+        // Проверяем, что getRoute вызывался 2 раза (1-й запрос + 1 повтор)
+        verify(fuelApi, Mockito.times(2)).getRoute(61.0, 55.0, 61.2, 55.2, true)
+        assertEquals(2, viewModel.routeOptions.value.size)
+        assertTrue(viewModel.isRouteOptionsPanelVisible.value)
+    }
+
+    @Test
+    fun `buildRouteTo distance greater than 5km stays 1 route after retry hides panel`() = runTest {
+        viewModel.updateUserLocation(55.0, 61.0)
+        val station = makeStation(1, "Дальняя АЗС", "Газпром", 55.2, 61.2)
+
+        val singleOption = listOf(
+            RouteOptionData(22000.0, 1200.0, listOf(listOf(55.0, 61.0), listOf(55.2, 61.2)))
+        )
+
+        // Оба вызова возвращают по 1 маршруту
+        whenever(fuelApi.getRoute(61.0, 55.0, 61.2, 55.2, true))
+            .thenReturn(RouteResponse(22000.0, 1200.0, singleOption[0].points, singleOption))
+
+        viewModel.buildRouteTo(station)
+        advanceUntilIdle()
+
+        verify(fuelApi, Mockito.times(2)).getRoute(61.0, 55.0, 61.2, 55.2, true)
+        assertEquals(1, viewModel.routeOptions.value.size)
+        // Если вариант всё ещё 1 — панель скрыта, но маршрут активен
+        org.junit.Assert.assertFalse(viewModel.isRouteOptionsPanelVisible.value)
         assertNotNull(viewModel.route.value)
     }
 }
