@@ -1,8 +1,11 @@
 package com.navrot.aifuelassistant.ui.map
 
+import android.content.Context
+import android.content.SharedPreferences
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import dagger.hilt.android.qualifiers.ApplicationContext
 import com.navrot.aifuelassistant.BuildConfig
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.RouteStateManager
@@ -40,13 +43,29 @@ class MapViewModel @Inject constructor(
     private val benzonavtProvider: BenzonavtProvider,
     private val tileWarmupService: TileWarmupService,
     private val geocodingProvider: GeocodingProvider,
-    private val routeStateManager: RouteStateManager
+    private val routeStateManager: RouteStateManager,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     companion object {
         private const val TAG = "MapViewModel"
         private const val DISTANCE_WEIGHT = 1.2
         private const val DEFAULT_CITY_SLUG = "chelyabinsk"
+        private const val PREFS_NAME = "map_prefs"
+        private const val KEY_IS_DARK_MODE = "is_dark_mode"
+    }
+
+    private val prefs: SharedPreferences by lazy {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    private val _isDarkMode = MutableStateFlow(prefs.getBoolean(KEY_IS_DARK_MODE, false))
+    val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
+
+    fun toggleDarkMode() {
+        val newMode = !_isDarkMode.value
+        _isDarkMode.value = newMode
+        prefs.edit().putBoolean(KEY_IS_DARK_MODE, newMode).apply()
     }
 
     // Race-guard для быстрого ввода: инкрементируется при каждом новом запросе
@@ -163,20 +182,8 @@ class MapViewModel @Inject constructor(
         val durationSeconds: Double = 0.0
     )
 
-    private val _routeOptions = MutableStateFlow<List<RouteOptionUiState>>(emptyList())
-    val routeOptions: StateFlow<List<RouteOptionUiState>> = _routeOptions.asStateFlow()
-
-    private val _activeRouteIndex = MutableStateFlow(0)
-    val activeRouteIndex: StateFlow<Int> = _activeRouteIndex.asStateFlow()
-
-    val activeRoute: StateFlow<RouteOptionUiState?> = combine(_routeOptions, _activeRouteIndex) { options, index ->
-        options.getOrNull(index)
-    }.distinctUntilChanged().stateIn(viewModelScope, SharingStarted.Eagerly, null)
-
-    val route: StateFlow<RouteOptionUiState?> = activeRoute
-
-    private val _isRouteOptionsPanelVisible = MutableStateFlow(false)
-    val isRouteOptionsPanelVisible: StateFlow<Boolean> = _isRouteOptionsPanelVisible.asStateFlow()
+    private val _route = MutableStateFlow<RouteOptionUiState?>(null)
+    val route: StateFlow<RouteOptionUiState?> = _route.asStateFlow()
 
     private val _isRouting = MutableStateFlow(false)
     val isRouting: StateFlow<Boolean> = _isRouting.asStateFlow()
@@ -452,119 +459,62 @@ class MapViewModel @Inject constructor(
         viewModelScope.launch {
             _isRouting.value = true
             try {
-                // GET worker route with alternatives=true: from={lon},{lat}&to={lon},{lat}
+                // GET worker route with alternatives=false: from={lon},{lat}&to={lon},{lat}
                 val routeResult = fuelApi.getRoute(
                     fromLon = start.second,
                     fromLat = start.first,
                     toLon = station.longitude,
                     toLat = station.latitude,
-                    alternatives = true
+                    alternatives = false
                 )
 
-                var response: com.navrot.aifuelassistant.network.RouteResponse? = routeResult.getOrNull()
-                var primaryException: Throwable? = routeResult.exceptionOrNull()
-
-                if (response == null && distKm > 0.0) {
-                    // Initial failed, try retry
-                    val retryResult = fuelApi.getRoute(
-                        fromLon = start.second,
-                        fromLat = start.first,
-                        toLon = station.longitude,
-                        toLat = station.latitude,
-                        alternatives = true
-                    )
-                    response = retryResult.getOrNull()
-                    if (response == null) {
-                        primaryException = retryResult.exceptionOrNull() ?: primaryException
-                    }
-                } else if (distKm > 5.0 && response != null && response.getRouteOptions().size == 1) {
-                    // Initial succeeded with 1 option for > 5km, try retry to see if alternatives appear
-                    val retryResult = fuelApi.getRoute(
-                        fromLon = start.second,
-                        fromLat = start.first,
-                        toLon = station.longitude,
-                        toLat = station.latitude,
-                        alternatives = true
-                    )
-                    retryResult.getOrNull()?.let { retryResp ->
-                        if (retryResp.getRouteOptions().size > 1) {
-                            response = retryResp
-                        }
-                    }
-                }
-
-                val finalResponse = response
-                if (finalResponse == null) {
-                    val errMsg = primaryException?.message ?: "неизвестная ошибка"
+                val response = routeResult.getOrNull()
+                if (response == null) {
+                    val errMsg = routeResult.exceptionOrNull()?.message ?: "неизвестная ошибка"
                     _error.value = "Маршрут недоступен: $errMsg"
                     Log.w(TAG, "Worker routing failed: $errMsg, fallback to straight line")
-                    _routeOptions.value = listOf(fallbackState)
-                    _activeRouteIndex.value = 0
-                    _isRouteOptionsPanelVisible.value = false
+                    _route.value = fallbackState
                 } else {
-                    val rawOptions = finalResponse.getRouteOptions()
+                    val rawOptions = response.getRouteOptions()
                     if (rawOptions.isEmpty()) {
                         _error.value = "Маршрут недоступен: пустой ответ от сервера"
-                        _routeOptions.value = listOf(fallbackState)
-                        _activeRouteIndex.value = 0
-                        _isRouteOptionsPanelVisible.value = false
+                        _route.value = fallbackState
                     } else {
-                        val titles = listOf("Быстрый", "Без пробок", "Альтернативный")
-                        val parsedOptions = rawOptions.mapIndexed { index, optionData ->
-                            val routePoints = optionData.points.map { pt ->
-                                GeoPoint(latitude = pt[0], longitude = pt[1])
-                            }
-                            val min = Math.round(optionData.durationSeconds / 60.0).toInt()
-                            val durText = if (min < 60) "$min мин" else "${min / 60} ч ${min % 60} мин"
-                            val title = titles.getOrElse(index) { "Вариант ${index + 1}" }
-
-                            RouteOptionUiState(
-                                title = title,
-                                points = routePoints,
-                                distanceText = "${Format.km(optionData.distanceMeters / 1000.0)} км",
-                                durationText = durText,
-                                destination = station.brand,
-                                isStraightLine = false,
-                                isDirect = false,
-                                distanceMeters = optionData.distanceMeters,
-                                durationSeconds = optionData.durationSeconds
-                            )
+                        val optionData = rawOptions.first()
+                        val routePoints = optionData.points.map { pt ->
+                            GeoPoint(latitude = pt[0], longitude = pt[1])
                         }
+                        val min = Math.round(optionData.durationSeconds / 60.0).toInt()
+                        val durText = if (min < 60) "$min мин" else "${min / 60} ч ${min % 60} мин"
 
-                        _routeOptions.value = parsedOptions
-                        _activeRouteIndex.value = 0
-                        _isRouteOptionsPanelVisible.value = parsedOptions.size >= 2
+                        _route.value = RouteOptionUiState(
+                            title = "Быстрый",
+                            points = routePoints,
+                            distanceText = "${Format.km(optionData.distanceMeters / 1000.0)} км",
+                            durationText = durText,
+                            destination = station.brand,
+                            isStraightLine = false,
+                            isDirect = false,
+                            distanceMeters = optionData.distanceMeters,
+                            durationSeconds = optionData.durationSeconds
+                        )
                     }
                 }
             } catch (e: Exception) {
                 val errMsg = e.message ?: "неизвестная ошибка"
                 _error.value = "Маршрут недоступен: $errMsg"
                 Log.w(TAG, "Worker routing failed: $errMsg, fallback to straight line")
-                _routeOptions.value = listOf(fallbackState)
-                _activeRouteIndex.value = 0
-                _isRouteOptionsPanelVisible.value = false
+                _route.value = fallbackState
             } finally {
                 _isRouting.value = false
             }
         }
     }
 
-    fun selectRouteOption(index: Int) {
-        if (index in _routeOptions.value.indices) {
-            _activeRouteIndex.value = index
-        }
-    }
-
-    fun dismissRouteOptionsPanel() {
-        _isRouteOptionsPanelVisible.value = false
-    }
-
     fun clearRoute() {
         routeStateManager.setUserCancelledRoute(true)
         routeStateManager.consumePendingRouteStationId()
-        _routeOptions.value = emptyList()
-        _activeRouteIndex.value = 0
-        _isRouteOptionsPanelVisible.value = false
+        _route.value = null
         _isRouting.value = false
     }
 
