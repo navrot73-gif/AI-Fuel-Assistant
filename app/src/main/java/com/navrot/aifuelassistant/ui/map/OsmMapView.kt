@@ -120,18 +120,6 @@ private fun createRedPinIcon(context: android.content.Context): BitmapDrawable {
     return BitmapDrawable(context.resources, bitmap)
 }
 
-private val ROUTE_ACCENT_COLORS = listOf(
-    "#2196F3", // 0: Быстрый (Синий)
-    "#4CAF50", // 1: Без пробок (Зелёный)
-    "#9C27B0"  // 2: Альтернативный (Фиолетовый)
-)
-
-private val ROUTE_OUTLINE_COLORS = listOf(
-    "#0D47A1", // 0: Тёмно-синий
-    "#1B5E20", // 1: Тёмно-зелёный
-    "#4A148C"  // 2: Тёмно-фиолетовый
-)
-
 private fun processRoutePoints(points: List<GeoPoint>, userLocationPt: GeoPoint?): List<GeoPoint> {
     if (points.isEmpty()) return points
     val pts = if (userLocationPt != null) {
@@ -164,9 +152,7 @@ fun OsmMapView(
     stations: List<GasStation>,
     selectedFuelTypes: Set<String>,
     route: MapViewModel.RouteOptionUiState? = null,
-    routeOptions: List<MapViewModel.RouteOptionUiState> = emptyList(),
-    activeRouteIndex: Int = 0,
-    isRouteOptionsPanelVisible: Boolean = false,
+    isDarkMode: Boolean = false,
     recenterRequest: Int = 0,
     zoomInRequest: Int = 0,
     zoomOutRequest: Int = 0,
@@ -235,30 +221,8 @@ fun OsmMapView(
 
             MapView(ctx).apply {
                 setTilesScaledToDpi(true)
-                setBackgroundColor(android.graphics.Color.parseColor(MAP_BACKGROUND))
-                setTileSource(cartoDarkNoLabelsTileSource())
                 setMultiTouchControls(true)
                 setBuiltInZoomControls(false)
-                overlayManager.tilesOverlay.setColorFilter(
-                    ColorMatrixColorFilter(GOOGLE_DARK_COLOR_MATRIX)
-                )
-
-                val labelsSource = XYTileSource(
-                    "CartoDB_Dark_Labels",
-                    1, 20, 256, ".png",
-                    arrayOf(
-                        "https://a.basemaps.cartocdn.com/dark_only_labels/",
-                        "https://b.basemaps.cartocdn.com/dark_only_labels/",
-                        "https://c.basemaps.cartocdn.com/dark_only_labels/",
-                        "https://d.basemaps.cartocdn.com/dark_only_labels/"
-                    ),
-                    "© OpenStreetMap contributors © CARTO"
-                )
-                val labelsProvider = MapTileProviderBasic(ctx, labelsSource)
-                val labelsOverlay = TilesOverlay(labelsProvider, ctx)
-                labelsOverlay.setLoadingBackgroundColor(android.graphics.Color.TRANSPARENT)
-                labelsOverlay.setColorFilter(ColorMatrixColorFilter(LABELS_LIGHTEN_MATRIX))
-                overlayManager.add(0, labelsOverlay)
 
                 val centerPoint = userLocation?.toGeoPoint() ?: GeoPoint(55.1644, 61.4368)
                 controller.setZoom(if (userLocation != null) 16.0 else 13.0)
@@ -268,10 +232,46 @@ fun OsmMapView(
         },
         modifier = Modifier.fillMaxSize(),
         update = { mapView ->
+            if (isDarkMode) {
+                mapView.setBackgroundColor(android.graphics.Color.parseColor(MAP_BACKGROUND))
+                mapView.setTileSource(cartoDarkNoLabelsTileSource())
+                mapView.overlayManager.tilesOverlay.setColorFilter(
+                    ColorMatrixColorFilter(GOOGLE_DARK_COLOR_MATRIX)
+                )
+
+                val hasLabelsOverlay = mapView.overlays.any {
+                    it is TilesOverlay && it != mapView.overlayManager.tilesOverlay
+                }
+                if (!hasLabelsOverlay) {
+                    val labelsSource = XYTileSource(
+                        "CartoDB_Dark_Labels",
+                        1, 20, 256, ".png",
+                        arrayOf(
+                            "https://a.basemaps.cartocdn.com/dark_only_labels/",
+                            "https://b.basemaps.cartocdn.com/dark_only_labels/",
+                            "https://c.basemaps.cartocdn.com/dark_only_labels/",
+                            "https://d.basemaps.cartocdn.com/dark_only_labels/"
+                        ),
+                        "© OpenStreetMap contributors © CARTO"
+                    )
+                    val labelsProvider = MapTileProviderBasic(context, labelsSource)
+                    val labelsOverlay = TilesOverlay(labelsProvider, context)
+                    labelsOverlay.setLoadingBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    labelsOverlay.setColorFilter(ColorMatrixColorFilter(LABELS_LIGHTEN_MATRIX))
+                    mapView.overlayManager.add(0, labelsOverlay)
+                }
+            } else {
+                mapView.setBackgroundColor(android.graphics.Color.WHITE)
+                mapView.setTileSource(TileSourceFactory.MAPNIK)
+                mapView.overlayManager.tilesOverlay.setColorFilter(null)
+                mapView.overlays.removeAll {
+                    it is TilesOverlay && it != mapView.overlayManager.tilesOverlay
+                }
+            }
+
             mapView.overlays.removeAll { it is Marker || it is Polyline }
 
-            val activeRoute = route ?: routeOptions.getOrNull(activeRouteIndex)
-            val routeGeoPoints = activeRoute?.points?.map { GeoPoint(it.latitude, it.longitude) }?.let { pts ->
+            val routeGeoPoints = route?.points?.map { GeoPoint(it.latitude, it.longitude) }?.let { pts ->
                 processRoutePoints(pts, userLocation?.toGeoPoint())
             }
 
@@ -303,48 +303,11 @@ fun OsmMapView(
                 mapView.overlays.add(marker)
             }
 
-            val effectiveOptions = if (routeOptions.isNotEmpty()) routeOptions
-                else if (route != null) listOf(route) else emptyList()
-
-            if (effectiveOptions.isNotEmpty()) {
+            route?.let { activeRoute ->
                 try {
                     val density = context.resources.displayMetrics.density
 
-                    // Draw inactive routes first (dimmed green #4CAF50) only when route options panel is visible
-                    if (isRouteOptionsPanelVisible) {
-                        effectiveOptions.forEachIndexed { idx, r ->
-                            if (idx != activeRouteIndex && routeOptions.size > 1) {
-                                var rawOsmPoints = r.points.map { GeoPoint(it.latitude, it.longitude) }
-                                rawOsmPoints = processRoutePoints(rawOsmPoints, userLocation?.toGeoPoint())
-                                val filteredPoints = mutableListOf<GeoPoint>()
-                                for (pt in rawOsmPoints) {
-                                    if (filteredPoints.isEmpty() || filteredPoints.last().distanceToAsDouble(pt) >= 1.0) {
-                                        filteredPoints.add(pt)
-                                    }
-                                }
-                                if (filteredPoints.size >= 2) {
-                                    val polyline = Polyline().apply {
-                                        setPoints(filteredPoints)
-                                        outlinePaint.color = android.graphics.Color.parseColor("#331B5E20")
-                                        outlinePaint.strokeWidth = 6f * density
-                                        outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
-                                        outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
-                                        outlinePaint.isAntiAlias = true
-                                        paint.color = android.graphics.Color.parseColor("#E64CAF50")
-                                        paint.strokeWidth = 4f * density
-                                        paint.strokeCap = android.graphics.Paint.Cap.ROUND
-                                        paint.strokeJoin = android.graphics.Paint.Join.ROUND
-                                        paint.isAntiAlias = true
-                                    }
-                                    mapView.overlays.add(polyline)
-                                }
-                            }
-                        }
-                    }
-
-                    // Draw active route on top
-                    val activeOption = effectiveOptions.getOrNull(activeRouteIndex) ?: effectiveOptions.first()
-                    var rawOsmPoints = activeOption.points.map { GeoPoint(it.latitude, it.longitude) }
+                    var rawOsmPoints = activeRoute.points.map { GeoPoint(it.latitude, it.longitude) }
                     rawOsmPoints = processRoutePoints(rawOsmPoints, userLocation?.toGeoPoint())
                     val filteredPoints = mutableListOf<GeoPoint>()
                     for (pt in rawOsmPoints) {
@@ -372,7 +335,7 @@ fun OsmMapView(
                         }
                         mapView.overlays.add(mainPolyline)
 
-                        val finishPoint = activeOption.points.last()
+                        val finishPoint = activeRoute.points.last()
                         val finishMarker = Marker(mapView).apply {
                             position = GeoPoint(finishPoint.latitude, finishPoint.longitude)
                             icon = createRedPinIcon(context)

@@ -15,6 +15,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.NightsStay
+import androidx.compose.material.icons.filled.WbSunny
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,7 +48,6 @@ import com.navrot.aifuelassistant.ui.map.components.MapErrorDialog
 import com.navrot.aifuelassistant.ui.map.components.MapFloatingActions
 import com.navrot.aifuelassistant.ui.map.components.MapSearchBar
 import com.navrot.aifuelassistant.ui.map.components.MapTopBar
-import com.navrot.aifuelassistant.ui.map.components.RouteOptionsPanel
 import com.navrot.aifuelassistant.ui.map.components.RouteOverlay
 import com.navrot.aifuelassistant.ui.map.components.StationDetailOverlay
 import com.navrot.aifuelassistant.ui.map.components.StationListBottomSheet
@@ -76,10 +77,8 @@ fun MapScreen(
     val selectedBrands by viewModel.selectedBrands.collectAsStateWithLifecycle()
     val sortMode by viewModel.sortMode.collectAsStateWithLifecycle()
     val route by viewModel.route.collectAsStateWithLifecycle()
-    val routeOptions by viewModel.routeOptions.collectAsStateWithLifecycle()
-    val activeRouteIndex by viewModel.activeRouteIndex.collectAsStateWithLifecycle()
-    val isRouteOptionsPanelVisible by viewModel.isRouteOptionsPanelVisible.collectAsStateWithLifecycle()
     val isRouting by viewModel.isRouting.collectAsStateWithLifecycle()
+    val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
     val openOnly by viewModel.openOnly.collectAsStateWithLifecycle()
     val aiRecommendation by viewModel.aiRecommendation.collectAsStateWithLifecycle()
     val userCancelledRoute by viewModel.userCancelledRoute.collectAsStateWithLifecycle()
@@ -107,7 +106,6 @@ fun MapScreen(
 
     val bottomPadding = when {
         showStationList -> 452.dp
-        isRouteOptionsPanelVisible && routeOptions.size >= 2 -> 200.dp
         aiRecommendation != null -> 150.dp
         yellowRouteVisible -> 88.dp
         else -> 16.dp
@@ -280,8 +278,7 @@ fun MapScreen(
                 OsmMapView(
                     userLocation = userLocation, stations = stations,
                     selectedFuelTypes = selectedFuelTypes, route = route,
-                    routeOptions = routeOptions, activeRouteIndex = activeRouteIndex,
-                    isRouteOptionsPanelVisible = isRouteOptionsPanelVisible,
+                    isDarkMode = isDarkMode,
                     recenterRequest = recenterTick,
                     zoomInRequest = zoomInTick, zoomOutRequest = zoomOutTick,
                     focusPoint = geocodedLocation?.let { OsmGeoPoint(it.latitude, it.longitude) },
@@ -356,30 +353,6 @@ fun MapScreen(
                     }
                 )
 
-                if (isRouteOptionsPanelVisible && routeOptions.size >= 2 && selectedStation == null && !showStationList) {
-                    val context = LocalContext.current
-                    RouteOptionsPanel(
-                        routeOptions = routeOptions,
-                        activeRouteIndex = activeRouteIndex,
-                        onSelectOption = { viewModel.selectRouteOption(it) },
-                        onGoClick = {
-                            viewModel.dismissRouteOptionsPanel()
-                            val currentRoute = route
-                            val points = currentRoute?.points
-                            if (!points.isNullOrEmpty()) {
-                                val userPt = points.first()
-                                val destPt = points.last()
-                                launchYandexMapsRoute(
-                                    context = context,
-                                    user = userPt.latitude to userPt.longitude,
-                                    dest = destPt.latitude to destPt.longitude
-                                )
-                            }
-                        },
-                        modifier = Modifier.align(Alignment.BottomCenter)
-                    )
-                }
-
                 if (selectedStation == null && !showStationList) {
                     Column(
                         modifier = Modifier
@@ -407,6 +380,20 @@ fun MapScreen(
                             }
                             Spacer(Modifier.height(8.dp))
                         }
+
+                        androidx.compose.material3.SmallFloatingActionButton(
+                            onClick = { viewModel.toggleDarkMode() },
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            shape = CircleShape
+                        ) {
+                            Icon(
+                                if (isDarkMode) Icons.Default.WbSunny else Icons.Default.NightsStay,
+                                contentDescription = "Переключить тему карты",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+
+                        Spacer(Modifier.height(8.dp))
 
                         androidx.compose.material3.FloatingActionButton(
                             onClick = { if (userLocation != null) recenterTick++ },
