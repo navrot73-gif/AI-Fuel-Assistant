@@ -20,4 +20,10 @@ interface FuelRecordDao {
 
     @Delete
     suspend fun delete(record: FuelRecordEntity)
+
+    @Query("SELECT * FROM fuel_records WHERE date >= :startDateMillis AND date <= :endDateMillis ORDER BY date DESC")
+    fun getByDateRange(startDateMillis: Long, endDateMillis: Long): Flow<List<FuelRecordEntity>>
+
+    @Query("SELECT * FROM fuel_records WHERE vehicleId = :vehicleId AND date >= :startDateMillis AND date <= :endDateMillis ORDER BY date DESC")
+    fun getByVehicleIdAndDateRange(vehicleId: Long, startDateMillis: Long, endDateMillis: Long): Flow<List<FuelRecordEntity>>
 }

@@ -23,4 +23,14 @@ class FuelRecordRepositoryImpl @Inject constructor(
 
     override suspend fun delete(record: FuelRecordEntity) =
         dao.delete(record)
+
+    override fun getByDateRange(startDateMillis: Long, endDateMillis: Long): Flow<List<FuelRecordEntity>> =
+        dao.getByDateRange(startDateMillis, endDateMillis)
+
+    override fun getByVehicleIdAndDateRange(
+        vehicleId: Long,
+        startDateMillis: Long,
+        endDateMillis: Long
+    ): Flow<List<FuelRecordEntity>> =
+        dao.getByVehicleIdAndDateRange(vehicleId, startDateMillis, endDateMillis)
 }
