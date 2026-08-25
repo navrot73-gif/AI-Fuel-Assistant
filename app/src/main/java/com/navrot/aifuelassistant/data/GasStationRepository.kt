@@ -310,18 +310,28 @@ class GasStationRepository constructor(
         val overrides = userPrices.getAll()
         if (overrides.isEmpty()) return stations
         return stations.map { station ->
+            var userReported = false
             val newFuelTypes = station.fuelTypes.map { fuel ->
                 val override = overrides[Pair(station.id, fuel.type)]
                 if (override != null && override > 0) {
+                    userReported = true
                     fuel.copy(
                         price = override,
+                        source = FuelDataSource.USER_REPORT,
                         updatedAt = System.currentTimeMillis()
                     )
                 } else {
                     fuel
                 }
             }
-            station.copy(fuelTypes = newFuelTypes)
+            if (userReported) {
+                station.copy(
+                    fuelTypes = newFuelTypes,
+                    dataSources = station.dataSources + FuelDataSource.USER_REPORT
+                )
+            } else {
+                station.copy(fuelTypes = newFuelTypes)
+            }
         }
     }
 
