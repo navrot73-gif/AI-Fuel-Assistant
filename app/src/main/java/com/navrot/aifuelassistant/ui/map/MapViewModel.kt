@@ -136,9 +136,17 @@ class MapViewModel @Inject constructor(
 
     init {
         // Warmup: pre-fetch prices for default city (chelyabinsk) so cache is hot
-        // when user location is resolved. Fire-and-forget, errors ignored.
+        // when user location is resolved.
         viewModelScope.launch {
-            try { benzonavtProvider.fetchCityPrices() } catch (_: Exception) { /* ignore */ }
+            try {
+                benzonavtProvider.fetchCityPrices()
+            } catch (e: java.io.IOException) {
+                Log.w(TAG, "Benzonavt fetch failed during warmup: ${e.message}")
+            } catch (e: org.json.JSONException) {
+                Log.e(TAG, "Benzonavt parse error during warmup: ${e.message}", e)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to pre-fetch city prices: ${e.message}")
+            }
         }
 
         // Warmup: pre-fetch map tiles for Chelyabinsk (fire-and-forget, low priority)
@@ -209,7 +217,11 @@ class MapViewModel @Inject constructor(
                 val slug = GeoUtils.toCitySlug(cityName)
                 benzonavtProvider.setCity(slug)
                 repository.refreshPrices()
-            } catch (_: Exception) {
+            } catch (e: java.io.IOException) {
+                Log.w(TAG, "Network error updating city and prices: ${e.message}")
+                benzonavtProvider.setCity(DEFAULT_CITY_SLUG)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to update city and prices: ${e.message}")
                 benzonavtProvider.setCity(DEFAULT_CITY_SLUG)
             }
         }

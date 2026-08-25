@@ -92,6 +92,10 @@ class CsvBackupManager @Inject constructor(
         CsvImportResult(importedFills, skipped)
     }
 
+    companion object {
+        private const val TAG = "CsvBackupManager"
+    }
+
     private fun parseVehicle(line: String): VehicleEntity? = try {
         val p = splitLine(line)
         if (p.size < 8) null else VehicleEntity(
@@ -104,7 +108,13 @@ class CsvBackupManager @Inject constructor(
             tankCapacity = p[6].toDoubleOrNull() ?: 0.0,
             currentMileage = p[7].toDoubleOrNull() ?: 0.0
         )
-    } catch (_: Exception) { null }
+    } catch (e: NumberFormatException) {
+        android.util.Log.w(TAG, "Failed to parse numeric value in vehicle CSV line: ${e.message}")
+        null
+    } catch (e: Exception) {
+        android.util.Log.w(TAG, "Failed to parse vehicle CSV line: ${e.message}")
+        null
+    }
 
     private fun parseFill(line: String): FuelRecordEntity? = try {
         val p = splitLine(line)
@@ -118,7 +128,13 @@ class CsvBackupManager @Inject constructor(
             fuelType = p[6],
             stationName = p[7]
         )
-    } catch (_: Exception) { null }
+    } catch (e: NumberFormatException) {
+        android.util.Log.w(TAG, "Failed to parse numeric value in fill CSV line: ${e.message}")
+        null
+    } catch (e: Exception) {
+        android.util.Log.w(TAG, "Failed to parse fill CSV line: ${e.message}")
+        null
+    }
 
     /** Парсит строку CSV с учётом кавычек. */
     private fun splitLine(line: String): List<String> {

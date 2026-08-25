@@ -357,7 +357,9 @@ fun OsmMapView(
                                 )
                                 mapView.zoomToBoundingBox(expanded, true)
                                 mapView.invalidate()
-                            } catch (_: Exception) { }
+                            } catch (e: Exception) {
+                                android.util.Log.w("OsmMapView", "Failed to zoom to route bounding box: ${e.message}")
+                            }
                         }
                         mapView.post { fitRoute() }
                         mapView.postDelayed({ fitRoute() }, 300)
@@ -397,6 +399,7 @@ private fun cartoDarkNoLabelsTileSource(): org.osmdroid.tileprovider.tilesource.
             ),
             "© OpenStreetMap contributors © CARTO"
         )
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        android.util.Log.w("OsmMapView", "Failed to create CartoDB dark tile source, using MAPNIK fallback: ${e.message}")
         TileSourceFactory.MAPNIK
     }
