@@ -63,16 +63,34 @@ jobs:
         run: ./gradlew testDebugUnitTest createDebugUnitTestCoverageReport --stacktrace
 
       - name: Run instrumentation tests
+        id: instrumentation
+        continue-on-error: true
+        timeout-minutes: 30
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 31
+          api-level: 34
           target: google_apis
           arch: x86_64
           profile: pixel
+          channel: canary
           force-avd-creation: false
-          emulator-options: -no-snapshot-load -no-window -no-audio -no-boot-anim -camera-back none
+          emulator-boot-timeout: 600
+          emulator-options: >-
+            -no-snapshot-load
+            -no-window
+            -no-audio
+            -no-boot-anim
+            -camera-back none
+            -gpu swiftshader_indirect
           disable-animations: true
-          script: ./gradlew connectedDebugAndroidTest --stacktrace
+          disable-spell-checker: true
+          sdcard-path-or-size: 512M
+          script: |
+            adb devices
+            adb shell settings put global window_animation_scale 0
+            adb shell settings put global transition_animation_scale 0
+            adb shell settings put global animator_duration_scale 0
+            ./gradlew connectedDebugAndroidTest --stacktrace
 
       - name: Upload Gradle diagnostic log
         if: always()

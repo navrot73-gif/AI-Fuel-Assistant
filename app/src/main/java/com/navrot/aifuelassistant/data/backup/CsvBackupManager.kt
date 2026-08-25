@@ -65,9 +65,11 @@ class CsvBackupManager @Inject constructor(
         var importedFills = 0
         var skipped = 0
 
-        val lines = context.contentResolver.openInputStream(uri)?.use { input ->
-            BufferedReader(InputStreamReader(input, Charsets.UTF_8)).readLines()
-        } ?: emptyList()
+        val content = context.contentResolver.openInputStream(uri)?.use { input ->
+            InputStreamReader(input, Charsets.UTF_8).readText()
+        } ?: ""
+
+        val lines = splitCsvRecords(content)
 
         for (raw in lines) {
             val line = raw.trim()
@@ -76,6 +78,7 @@ class CsvBackupManager @Inject constructor(
                 line.startsWith("# VEHICLES") -> section = "V"
                 line.startsWith("# FILLS") -> section = "F"
                 line.startsWith("#") -> { }
+                line.startsWith("id;name;") || line.startsWith("id;vehicleId;") -> { }
                 section == "V" -> {
                     val v = parseVehicle(line)
                     if (v == null) skipped++ else vehicleRepository.insertVehicle(v)
@@ -92,14 +95,61 @@ class CsvBackupManager @Inject constructor(
         CsvImportResult(importedFills, skipped)
     }
 
+    private fun splitCsvRecords(text: String): List<String> {
+        val records = mutableListOf<String>()
+        val cur = StringBuilder()
+        var inQuotes = false
+        var i = 0
+        while (i < text.length) {
+            val c = text[i]
+            when (c) {
+                '"' -> {
+                    if (inQuotes && i + 1 < text.length && text[i + 1] == '"') {
+                        cur.append("\"\"")
+                        i++
+                    } else {
+                        inQuotes = !inQuotes
+                        cur.append(c)
+                    }
+                }
+                '\n' -> {
+                    if (inQuotes) {
+                        cur.append(c)
+                    } else {
+                        records.add(cur.toString())
+                        cur.clear()
+                    }
+                }
+                '\r' -> {
+                    if (inQuotes) {
+                        cur.append(c)
+                    } else {
+                        if (i + 1 < text.length && text[i + 1] == '\n') {
+                            i++
+                        }
+                        records.add(cur.toString())
+                        cur.clear()
+                    }
+                }
+                else -> cur.append(c)
+            }
+            i++
+        }
+        if (cur.isNotEmpty()) {
+            records.add(cur.toString())
+        }
+        return records
+    }
+
     companion object {
         private const val TAG = "CsvBackupManager"
     }
 
     private fun parseVehicle(line: String): VehicleEntity? = try {
         val p = splitLine(line)
-        if (p.size < 8) null else VehicleEntity(
-            id = p[0].toLongOrNull() ?: 0L,
+        val id = p.getOrNull(0)?.toLongOrNull()
+        if (p.size < 8 || id == null) null else VehicleEntity(
+            id = id,
             name = p[1],
             brand = p[2],
             model = p[3],
@@ -118,9 +168,11 @@ class CsvBackupManager @Inject constructor(
 
     private fun parseFill(line: String): FuelRecordEntity? = try {
         val p = splitLine(line)
-        if (p.size < 8) null else FuelRecordEntity(
-            id = p[0].toLongOrNull() ?: 0L,
-            vehicleId = p[1].toLongOrNull() ?: 0L,
+        val id = p.getOrNull(0)?.toLongOrNull()
+        val vehicleId = p.getOrNull(1)?.toLongOrNull()
+        if (p.size < 8 || id == null || vehicleId == null) null else FuelRecordEntity(
+            id = id,
+            vehicleId = vehicleId,
             date = p[2].toLongOrNull() ?: 0L,
             mileage = p[3].toDoubleOrNull() ?: 0.0,
             fuelAmount = p[4].toDoubleOrNull() ?: 0.0,

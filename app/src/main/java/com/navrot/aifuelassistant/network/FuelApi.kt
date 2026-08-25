@@ -61,9 +61,16 @@ interface FuelApi {
  * Реализация FuelApi через OkHttpClient с таймаутом 15 секунд.
  */
 @Singleton
-class FuelApiImpl @Inject constructor(
-    private val httpClient: OkHttpClient
+class FuelApiImpl internal constructor(
+    private val httpClient: OkHttpClient,
+    private val baseUrl: String
 ) : FuelApi {
+
+    @Inject
+    constructor(httpClient: OkHttpClient) : this(
+        httpClient,
+        "https://ai-fuel-proxy.navrot73.workers.dev/route"
+    )
 
     companion object {
         private const val BASE_URL = "https://ai-fuel-proxy.navrot73.workers.dev/route"
@@ -86,7 +93,7 @@ class FuelApiImpl @Inject constructor(
         alternatives: Boolean
     ): Result<RouteResponse> = withContext(Dispatchers.IO) {
         runCatching {
-            val url = BASE_URL.toHttpUrl().newBuilder()
+            val url = baseUrl.toHttpUrl().newBuilder()
                 .addQueryParameter("from", "$fromLon,$fromLat")
                 .addQueryParameter("to", "$toLon,$toLat")
                 .addQueryParameter("alternatives", alternatives.toString())
