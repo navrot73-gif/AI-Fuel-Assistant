@@ -112,13 +112,21 @@ class DashboardViewModel @Inject constructor(
         _userLocation.value = lat to lon
     }
 
+    companion object {
+        private const val TAG = "DashboardViewModel"
+    }
+
     private fun loadChatHistory() {
         try {
             val json = chatPrefs.getString("messages", "[]") ?: "[]"
             val type = object : TypeToken<List<ChatMessage>>() {}.type
             val loaded: List<ChatMessage>? = gson.fromJson(json, type)
             _chatMessages.value = loaded?.filterNotNull() ?: emptyList()
-        } catch (_: Exception) {
+        } catch (e: com.google.gson.JsonSyntaxException) {
+            Log.e(TAG, "Failed to parse chat history JSON: ${e.message}", e)
+            _chatMessages.value = emptyList()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to load chat history: ${e.message}", e)
             _chatMessages.value = emptyList()
         }
     }
@@ -127,7 +135,9 @@ class DashboardViewModel @Inject constructor(
         try {
             val json = gson.toJson(messages)
             chatPrefs.edit().putString("messages", json).apply()
-        } catch (_: Exception) {}
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to save chat history: ${e.message}", e)
+        }
     }
 
     fun addChatMessage(message: ChatMessage) {
@@ -163,7 +173,7 @@ class DashboardViewModel @Inject constructor(
     private fun loadVehicles() {
         viewModelScope.launch {
             vehicleRepository.getAllVehicles()
-                .catch { }
+                .catch { e -> Log.e(TAG, "Error collecting vehicles", e) }
                 .collect { list ->
                     _vehicles.value = list
                     if (_selectedVehicleId.value == null && list.isNotEmpty()) {
@@ -178,7 +188,8 @@ class DashboardViewModel @Inject constructor(
             try {
                 _stations.value = gasStationRepository.getAllStations()
                 updateBestStation()
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load stations: ${e.message}", e)
                 // Если не удалось загрузить — оставляем пустой список
             }
         }
@@ -356,10 +367,12 @@ class DashboardViewModel @Inject constructor(
             fusedClient.lastLocation.addOnSuccessListener { location ->
                 cont.resume(location)
             }.addOnFailureListener { e ->
+                Log.w(TAG, "Location provider failed: ${e.message}")
                 cont.resume(null)
             }
         }
-    } catch (_: Exception) {
+    } catch (e: Exception) {
+        Log.w(TAG, "Failed to get last location: ${e.message}")
         null
     }
 
@@ -379,7 +392,8 @@ class DashboardViewModel @Inject constructor(
         val nearbyStations = try {
             gasStationRepository.getNearbyStations(lat, lon, 50.0)
                 .sortedBy { GeoUtils.calculateDistance(lat, lon, it.latitude, it.longitude) }
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to fetch nearby stations for user context: ${e.message}")
             emptyList<GasStation>()
         }
 
@@ -514,11 +528,22 @@ class DashboardViewModel @Inject constructor(
                 val stationsList = if (loc != null) {
                     try {
                         gasStationRepository.getNearbyStations(loc.first, loc.second, 50.0)
-                    } catch (_: Exception) {
-                        try { gasStationRepository.getAllStations() } catch (_: Exception) { emptyList() }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to fetch nearby stations in detectIntent: ${e.message}")
+                        try {
+                            gasStationRepository.getAllStations()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to fetch all stations fallback in detectIntent", e)
+                            emptyList()
+                        }
                     }
                 } else {
-                    try { gasStationRepository.getAllStations() } catch (_: Exception) { emptyList() }
+                    try {
+                        gasStationRepository.getAllStations()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Failed to fetch all stations in detectIntent", e)
+                        emptyList()
+                    }
                 }
                 _stations.value = stationsList
                 updateBestStation()

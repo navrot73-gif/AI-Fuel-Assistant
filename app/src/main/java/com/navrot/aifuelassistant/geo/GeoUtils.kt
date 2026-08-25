@@ -43,8 +43,10 @@ object GeoUtils {
                 // Извлекаем город из display_name (формат: "город, район, область, страна")
                 val city = result.displayName.split(",").firstOrNull()?.trim()
                 if (!city.isNullOrBlank()) return city
-            } catch (_: Exception) {
-                // Fallback на хардкод
+            } catch (e: GeoException) {
+                android.util.Log.w("GeoUtils", "Reverse geocoding error: ${e.message}")
+            } catch (e: Exception) {
+                android.util.Log.w("GeoUtils", "Failed reverse geocoding city detection: ${e.message}")
             }
         }
 
