@@ -144,7 +144,8 @@ Android-приложение для поиска АЗС, сравнения це
 ## 🧪 Тестирование
 - Unit: GeoUtils — уже есть
 - Unit: фильтрация/сортировка/scoring АЗС — следующий шаг
-- Migration: Room 2→3 — следующий шаг
+- Migration: Room 1→2→3 — файлы миграционных тестов находятся в `app/src/androidTest/java/com/navrot/aifuelassistant/data/database/DatabaseMigrationTest.kt`
+  - Как запускать миграционные тесты на подключённом устройстве / эмуляторе: `./gradlew connectedAndroidTest`
 - AI: fallback и ошибки провайдеров — следующий шаг
 - Ручное: сценарии карта → список → карточка → маршрут → гараж → AI
 
