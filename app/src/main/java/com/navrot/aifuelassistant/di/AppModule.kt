@@ -81,11 +81,6 @@ object AppModule {
                     Log.w("AppDatabase", "⚠️ Деструктивная миграция БД! Все данные пользователя удалены.")
                 }
             })
-            // Страховка при upgrade, если разработчик забыл написать миграцию
-            // (только для debug-сборок при разработке; в release лучше всегда иметь
-            // явные миграции, чтобы не терять данные пользователя молча).
-            .fallbackToDestructiveMigration()
-            .fallbackToDestructiveMigrationOnDowngrade()
             .build()
     }
 

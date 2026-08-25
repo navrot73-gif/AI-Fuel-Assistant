@@ -13,6 +13,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      PROXY_TOKEN: ${{ secrets.PROXY_TOKEN || 'ci-proxy-token-placeholder' }}
 
     steps:
       - name: Checkout
