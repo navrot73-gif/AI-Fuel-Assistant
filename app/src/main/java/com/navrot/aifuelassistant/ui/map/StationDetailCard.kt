@@ -38,8 +38,11 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.background
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
+import com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator
+import com.navrot.aifuelassistant.domain.reliability.PriceSource
 import com.navrot.aifuelassistant.ui.components.NetworkImage
 import com.navrot.aifuelassistant.ui.map.components.StationActionsBlock
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
@@ -209,10 +212,41 @@ fun StationDetailCard(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // ===== Очередь и надёжность =====
+            // ===== Очередь и индикатор надёжности =====
+            val primaryFuelType = selectedFuelTypes.firstOrNull() ?: station.fuelTypes.firstOrNull()?.type
+            val priceReliability = remember(station, primaryFuelType) {
+                PriceReliabilityCalculator.calculate(station, primaryFuelType)
+            }
+
+            val badgeBgColor = when {
+                priceReliability.percent >= 80 -> FueldeckColors.MintSoft
+                priceReliability.percent >= 50 -> FueldeckColors.AmberSoft
+                else -> FueldeckColors.CoralSoft
+            }
+            val badgeTextColor = when {
+                priceReliability.percent >= 80 -> FueldeckColors.Mint
+                priceReliability.percent >= 50 -> FueldeckColors.Amber
+                else -> FueldeckColors.Coral
+            }
+
+            val sourceText = when (priceReliability.source) {
+                PriceSource.USER_CONFIRMED -> "Проверено пользователем"
+                PriceSource.NETWORK -> "Сеть Benzonavt"
+                PriceSource.CACHE -> "Локальный кэш"
+                PriceSource.ASSETS -> "Базовые данные (офлайн)"
+            }
+
+            val ageText = when {
+                priceReliability.source == PriceSource.ASSETS -> ""
+                priceReliability.ageDays == 0 -> " · сегодня"
+                priceReliability.ageDays == 1 -> " · вчера"
+                else -> " · ${priceReliability.ageDays} дн. назад"
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 if (station.queueTime > 0) {
                     Text(
@@ -229,12 +263,30 @@ fun StationDetailCard(
                         fontWeight = FontWeight.SemiBold
                     )
                 }
-                Text(
-                    "Надёжность: ${station.reliability}%",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(badgeBgColor)
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "Надёжность: ${priceReliability.percent}%",
+                        fontSize = 12.sp,
+                        color = badgeTextColor,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            Text(
+                text = "$sourceText$ageText",
+                fontSize = 11.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.End)
+            )
 
             Spacer(modifier = Modifier.height(10.dp))
 
