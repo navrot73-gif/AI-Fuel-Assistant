@@ -345,9 +345,18 @@ fun MapScreen(
                         viewModel.reportPrice(stationId, fuelType, price)
                         selectedStation = selectedStation?.let { st ->
                             if (st.id == stationId) {
-                                st.copy(fuelTypes = st.fuelTypes.map { f ->
-                                    if (f.type == fuelType) f.copy(price = price) else f
-                                })
+                                st.copy(
+                                    fuelTypes = st.fuelTypes.map { f ->
+                                        if (f.type == fuelType) {
+                                            f.copy(
+                                                price = price,
+                                                source = com.navrot.aifuelassistant.data.model.FuelDataSource.USER_REPORT,
+                                                updatedAt = System.currentTimeMillis()
+                                            )
+                                        } else f
+                                    },
+                                    dataSources = st.dataSources + com.navrot.aifuelassistant.data.model.FuelDataSource.USER_REPORT
+                                )
                             } else st
                         }
                     }

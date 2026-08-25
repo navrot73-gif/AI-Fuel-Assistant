@@ -53,6 +53,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import com.navrot.aifuelassistant.BuildConfig
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.domain.validation.PriceValidator
 import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
 import com.navrot.aifuelassistant.util.Format
 import dagger.hilt.EntryPoint
@@ -287,8 +288,15 @@ private fun ReportPriceDialog(
         mutableStateOf(station.fuelTypes.firstOrNull()?.type ?: "")
     }
     var priceText by remember { mutableStateOf("") }
-    val parsedPrice = priceText.toDoubleOrNull()
-    val priceValid = parsedPrice != null && parsedPrice > 0 && parsedPrice <= 200
+    val validationResult = remember(priceText) { PriceValidator.validate(priceText) }
+    val isPriceValid = validationResult is PriceValidator.ValidationResult.Valid
+
+    val errorMessage = when (validationResult) {
+        PriceValidator.ValidationResult.TooLow -> "Минимальная цена: ${Format.price2(PriceValidator.MIN_PRICE)} ₽"
+        PriceValidator.ValidationResult.TooHigh -> "Максимальная цена: ${Format.price2(PriceValidator.MAX_PRICE)} ₽"
+        PriceValidator.ValidationResult.InvalidFormat -> "Неверный формат цены"
+        else -> null
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -327,24 +335,27 @@ private fun ReportPriceDialog(
                     placeholder = { Text("65.50") },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     singleLine = true,
-                    isError = priceText.isNotEmpty() && !priceValid,
+                    isError = errorMessage != null,
                     modifier = Modifier.fillMaxWidth()
                 )
-                if (priceText.isNotEmpty() && !priceValid) {
-                    Text("Цена должна быть от 0 до 200 ₽", fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.error)
+                if (errorMessage != null) {
+                    Text(
+                        text = errorMessage,
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
             }
         },
         confirmButton = {
             Button(
                 onClick = {
-                    val price = priceText.toDoubleOrNull()
-                    if (price != null && price > 0 && price <= 200 && selectedFuelType.isNotEmpty()) {
+                    val price = priceText.replace(',', '.').toDoubleOrNull()
+                    if (price != null && isPriceValid && selectedFuelType.isNotEmpty()) {
                         onConfirm(selectedFuelType, price)
                     }
                 },
-                enabled = priceValid && selectedFuelType.isNotEmpty()
+                enabled = isPriceValid && selectedFuelType.isNotEmpty()
             ) {
                 Text("Сохранить")
             }
