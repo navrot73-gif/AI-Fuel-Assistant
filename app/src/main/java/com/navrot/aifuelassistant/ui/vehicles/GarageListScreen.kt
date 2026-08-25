@@ -14,9 +14,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -41,6 +45,7 @@ fun GarageListScreen(
     onVehicleClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
     onEditClick: ((Long) -> Unit)? = null,
+    onReportsClick: (() -> Unit)? = null,
     viewModel: VehicleViewModel = hiltViewModel()
 ) {
     val vehicles by viewModel.vehiclesWithStats.collectAsStateWithLifecycle()
@@ -74,11 +79,25 @@ fun GarageListScreen(
                                 textAlign = TextAlign.Start,
                             )
                         }
-                        Text(
-                            text = "${vehicles.size} авто",
-                            fontSize = 14.sp,
-                            color = Color(0xFF8A949E),
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            if (onReportsClick != null) {
+                                IconButton(onClick = onReportsClick) {
+                                    Icon(
+                                        imageVector = Icons.Default.Assessment,
+                                        contentDescription = "Отчёты по заправкам",
+                                        tint = FueldeckColors.Amber
+                                    )
+                                }
+                            }
+                            Text(
+                                text = "${vehicles.size} авто",
+                                fontSize = 14.sp,
+                                color = Color(0xFF8A949E),
+                            )
+                        }
                     }
                 },
                 colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(

@@ -28,6 +28,7 @@ import com.navrot.aifuelassistant.features.dashboard.DashboardScreen
 import com.navrot.aifuelassistant.ui.fuel.AddFuelRecordScreen
 import com.navrot.aifuelassistant.ui.fuel.FuelRecordListScreen
 import com.navrot.aifuelassistant.ui.map.MapScreen
+import com.navrot.aifuelassistant.ui.reports.FuelReportsScreen
 import com.navrot.aifuelassistant.ui.vehicles.AddVehicleScreen
 import com.navrot.aifuelassistant.ui.vehicles.GarageListScreen
 import com.navrot.aifuelassistant.ui.vehicles.VehicleDetailScreen
@@ -95,6 +96,12 @@ data class FuelRecordListRoute(val vehicleId: Long, val vehicleName: String)
 @Serializable
 @SerialName("add_fuel_record")
 data class AddFuelRecordRoute(val vehicleId: Long, val vehicleName: String)
+
+@Serializable
+@SerialName("reports")
+data object ReportsRoute {
+    val route = "reports"
+}
 
 private data class Tab(val route: String, val iconRes: Int, val title: String)
 
@@ -269,6 +276,9 @@ fun AppNavigation() {
                         onEditClick = { vehicleId ->
                             navController.navigate(AddVehicleRoute(vehicleId = vehicleId))
                         },
+                        onReportsClick = {
+                            navController.navigate(ReportsRoute)
+                        },
                         viewModel = garageViewModel
                     )
                 }
@@ -313,6 +323,12 @@ fun AppNavigation() {
                 AddFuelRecordScreen(
                     vehicleId = args.vehicleId,
                     defaultFuelType = "АИ-95",
+                    onBack = { navController.popBackStack() }
+                )
+            }
+
+            composable<ReportsRoute> {
+                FuelReportsScreen(
                     onBack = { navController.popBackStack() }
                 )
             }
