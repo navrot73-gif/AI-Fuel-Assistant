@@ -18,6 +18,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
+import org.mockito.ArgumentMatchers.any
 import org.mockito.ArgumentMatchers.anyLong
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
@@ -94,5 +95,23 @@ class ReportsViewModelTest {
         assertNotNull(state.report)
         assertEquals(0, state.report?.totalRefuels)
         assertEquals(0.0, state.report?.totalCost ?: 0.0, 0.001)
+    }
+
+    @Test
+    fun `getRecordsForPeriod delegates to repository getRecordsForPeriod`() = runTest {
+        val record = FuelRecordEntity(id = 1, vehicleId = 1)
+        whenever(repository.getRecordsForPeriod(ReportPeriod.LAST_30_DAYS)).thenReturn(flowOf(listOf(record)))
+
+        whenever(repository.getByDateRange(anyLong(), anyLong())).thenReturn(flowOf(listOf(record)))
+
+        val viewModel = ReportsViewModel(repository)
+        backgroundScope.launch { viewModel.uiState.collect {} }
+        advanceUntilIdle()
+
+        val recordsFlow = repository.getRecordsForPeriod(ReportPeriod.LAST_30_DAYS)
+        recordsFlow.collect { records ->
+            assertEquals(1, records.size)
+            assertEquals(1L, records[0].id)
+        }
     }
 }
