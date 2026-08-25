@@ -47,6 +47,7 @@ android {
 
     buildTypes {
         debug {
+            enableUnitTestCoverage = true
             buildConfigField("String", "DEEPSEEK_API_KEY", "\"${secret("DEEPSEEK_API_KEY")}\"")
             buildConfigField("String", "QWEN_API_KEY", "\"${secret("QWEN_API_KEY")}\"")
             buildConfigField("String", "HUGGINGFACE_TOKEN", "\"${secret("HUGGINGFACE_TOKEN")}\"")
