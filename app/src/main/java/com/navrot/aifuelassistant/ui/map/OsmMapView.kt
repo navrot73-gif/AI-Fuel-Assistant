@@ -19,6 +19,7 @@ import com.navrot.aifuelassistant.data.model.GasStation
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.MapTileProviderBasic
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
+import org.osmdroid.tileprovider.modules.SqliteArchiveTileWriter
 import org.osmdroid.tileprovider.tilesource.XYTileSource
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
@@ -219,7 +220,12 @@ fun OsmMapView(
             config.tileDownloadThreads = 8
             config.userAgentValue = ctx.packageName
 
-            MapView(ctx).apply {
+            val tileWriter = SqliteArchiveTileWriter(
+                File(ctx.filesDir, "tiles.sqlite").absolutePath
+            )
+            val tileProvider = MapTileProviderBasic(ctx, TileSourceFactory.MAPNIK, tileWriter)
+
+            MapView(ctx, tileProvider).apply {
                 setTilesScaledToDpi(true)
                 setMultiTouchControls(true)
                 setBuiltInZoomControls(false)
@@ -254,7 +260,10 @@ fun OsmMapView(
                         ),
                         "© OpenStreetMap contributors © CARTO"
                     )
-                    val labelsProvider = MapTileProviderBasic(context, labelsSource)
+                    val tileWriter = SqliteArchiveTileWriter(
+                        File(context.filesDir, "tiles.sqlite").absolutePath
+                    )
+                    val labelsProvider = MapTileProviderBasic(context, labelsSource, tileWriter)
                     val labelsOverlay = TilesOverlay(labelsProvider, context)
                     labelsOverlay.setLoadingBackgroundColor(android.graphics.Color.TRANSPARENT)
                     labelsOverlay.setColorFilter(ColorMatrixColorFilter(LABELS_LIGHTEN_MATRIX))
