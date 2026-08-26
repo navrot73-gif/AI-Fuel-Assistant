@@ -5,6 +5,11 @@ import timber.log.Timber
 import com.navrot.aifuelassistant.BuildConfig
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.osmdroid.tileprovider.modules.SqliteArchiveTileWriter
+import org.osmdroid.tileprovider.tilesource.XYTileSource
+import org.osmdroid.util.MapTileIndex
+import java.io.ByteArrayInputStream
+import java.io.File
 import java.util.concurrent.Executors
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -44,44 +49,72 @@ class TileWarmupService @Inject constructor(
     private fun prefetchTiles() {
         var totalPrefetched = 0
 
-        for (zoom in ZOOMS) {
-            // Calculate center tile at this zoom
-            val (centerX, centerY) = latLonToTile(CENTER_LAT, CENTER_LON, zoom)
+        val tileWriter = try {
+            SqliteArchiveTileWriter(File(context.filesDir, "tiles.sqlite").absolutePath)
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Failed to create SqliteArchiveTileWriter")
+            null
+        }
 
-            // 3x3 grid around center
-            for (dx in -GRID_RADIUS..GRID_RADIUS) {
-                for (dy in -GRID_RADIUS..GRID_RADIUS) {
-                    val x = centerX + dx
-                    val y = centerY + dy
+        val tileSource = XYTileSource(
+            "CartoDB_Dark_NoLabels",
+            1, 20, 256, ".png",
+            arrayOf(
+                "https://a.basemaps.cartocdn.com/dark_nolabels/",
+                "https://b.basemaps.cartocdn.com/dark_nolabels/",
+                "https://c.basemaps.cartocdn.com/dark_nolabels/",
+                "https://d.basemaps.cartocdn.com/dark_nolabels/"
+            ),
+            "© OpenStreetMap contributors © CARTO"
+        )
 
-                    // Valid tile range check
-                    val maxTile = (1 shl zoom) - 1
-                    if (x !in 0..maxTile || y !in 0..maxTile) continue
+        try {
+            for (zoom in ZOOMS) {
+                // Calculate center tile at this zoom
+                val (centerX, centerY) = latLonToTile(CENTER_LAT, CENTER_LON, zoom)
 
-                    // Rotate subdomain to distribute load
-                    val subdomain = SUBDOMAINS[(x + y + zoom) % SUBDOMAINS.size]
-                    val url = TILE_TEMPLATE
-                        .replace("{s}", subdomain)
-                        .replace("{z}", zoom.toString())
-                        .replace("{x}", x.toString())
-                        .replace("{y}", y.toString())
+                // 3x3 grid around center
+                for (dx in -GRID_RADIUS..GRID_RADIUS) {
+                    for (dy in -GRID_RADIUS..GRID_RADIUS) {
+                        val x = centerX + dx
+                        val y = centerY + dy
 
-                    try {
-                        val request = Request.Builder()
-                            .url(url)
-                            .header("User-Agent", context.packageName)
-                            .build()
-                        httpClient.newCall(request).execute().use { response ->
-                            response.body?.close()
-                            if (response.isSuccessful) {
-                                totalPrefetched++
+                        // Valid tile range check
+                        val maxTile = (1 shl zoom) - 1
+                        if (x !in 0..maxTile || y !in 0..maxTile) continue
+
+                        // Rotate subdomain to distribute load
+                        val subdomain = SUBDOMAINS[(x + y + zoom) % SUBDOMAINS.size]
+                        val url = TILE_TEMPLATE
+                            .replace("{s}", subdomain)
+                            .replace("{z}", zoom.toString())
+                            .replace("{x}", x.toString())
+                            .replace("{y}", y.toString())
+
+                        try {
+                            val request = Request.Builder()
+                                .url(url)
+                                .header("User-Agent", context.packageName)
+                                .build()
+                            httpClient.newCall(request).execute().use { response ->
+                                val body = response.body
+                                if (response.isSuccessful && body != null) {
+                                    val bytes = body.bytes()
+                                    if (tileWriter != null && bytes.isNotEmpty()) {
+                                        val tileIndex = MapTileIndex.getTileIndex(zoom, x, y)
+                                        tileWriter.saveFile(tileSource, tileIndex, ByteArrayInputStream(bytes), null)
+                                    }
+                                    totalPrefetched++
+                                }
                             }
+                        } catch (e: Exception) {
+                            // Ignore errors as per requirements
                         }
-                    } catch (e: Exception) {
-                        // Ignore errors as per requirements
                     }
                 }
             }
+        } finally {
+            tileWriter?.onDetach()
         }
 
         Timber.tag(TAG).d("TileWarmup: prefetched %d tiles for chelyabinsk", totalPrefetched)
