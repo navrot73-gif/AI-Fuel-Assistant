@@ -568,10 +568,7 @@ class MapViewModel @Inject constructor(
                 Triple(st, fuel, dist)
             }
             .minByOrNull { (st, fuel, dist) ->
-                fuel.price
-                        + st.queueTime * GetBestStationsUseCase.QUEUE_WEIGHT
-                        + (100 - st.reliability) * GetBestStationsUseCase.RELIABILITY_WEIGHT
-                        + (if (dist == Double.MAX_VALUE) 0.0 else dist * DISTANCE_WEIGHT)
+                getBestStationsUseCase.calculateScore(st, fuel.type, dist)
             }
 
         _aiRecommendation.value = best?.let { (st, fuel, dist) ->

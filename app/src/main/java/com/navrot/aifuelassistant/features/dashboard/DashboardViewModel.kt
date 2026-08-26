@@ -19,6 +19,7 @@ import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.geo.GeoUtils
 import com.navrot.aifuelassistant.util.Format
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -49,6 +50,7 @@ class DashboardViewModel @Inject constructor(
     private val gasStationRepository: GasStationRepositoryInterface,
     private val aiRouter: AiRouter,
     private val routeStateManager: RouteStateManager,
+    private val getBestStationsUseCase: GetBestStationsUseCase,
     @ApplicationContext private val applicationContext: Context,
 ) : ViewModel() {
 
@@ -200,8 +202,7 @@ class DashboardViewModel @Inject constructor(
         val best = _stations.value
             .filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
             .minByOrNull { s ->
-                val price = s.fuelTypes.find { it.type == fuelType }?.price ?: Double.MAX_VALUE
-                price + s.queueTime * 0.5 + (100 - s.reliability) * 0.2
+                getBestStationsUseCase.calculateScore(s, fuelType)
             }
         _bestStation.value = best
     }

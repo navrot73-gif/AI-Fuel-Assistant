@@ -49,6 +49,7 @@ class DashboardViewModelTest {
             gasStationRepository = mockStationRepo,
             aiRouter = mockAiRouter,
             routeStateManager = RouteStateManager(),
+            getBestStationsUseCase = com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase(),
             applicationContext = mockContext
         )
     }
