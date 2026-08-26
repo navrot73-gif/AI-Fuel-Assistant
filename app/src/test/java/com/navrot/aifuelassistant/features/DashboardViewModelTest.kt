@@ -275,8 +275,8 @@ class DashboardViewModelTest {
         assertEquals("user", messages[0].role)
         assertEquals("Построй маршрут на АЗС", messages[0].text)
         assertEquals("ai", messages[1].role)
-        assertEquals("AI не отвечает, попробую локально", messages[1].text)
-        assertEquals("401 Unauthorized", vm.error.value)
+        assertEquals("Что-то пошло не так. Попробуйте ещё раз.", messages[1].text)
+        assertEquals("Что-то пошло не так. Попробуйте ещё раз.", vm.error.value)
     }
 
     @Test
@@ -312,7 +312,7 @@ class DashboardViewModelTest {
         assertEquals("user", messages[0].role)
         assertEquals("Построй маршрут на Лукойл", messages[0].text)
         assertEquals("ai", messages[1].role)
-        assertEquals("AI не отвечает, попробую локально", messages[1].text)
+        assertEquals("AI-помощник временно недоступен. Попробуйте позже.", messages[1].text)
         assertEquals(99, vm.pendingRouteStationId.value)
         assertEquals(com.navrot.aifuelassistant.features.dashboard.DashboardViewModel.PendingRouteMode.ROUTE, vm.pendingRouteMode.value)
     }
