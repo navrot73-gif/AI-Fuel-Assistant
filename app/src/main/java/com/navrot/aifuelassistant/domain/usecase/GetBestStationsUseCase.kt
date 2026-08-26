@@ -17,7 +17,18 @@ import javax.inject.Inject
  * Чем меньше score — тем лучше АЗС для пользователя.
  * Штраф за ненадёжность: чем ниже reliability, тем больше score.
  */
-class GetBestStationsUseCase @Inject constructor() {
+data class ScoringWeights(
+    val price: Double = 1.0,
+    val queueTime: Double = 0.5,
+    val reliability: Double = 0.2,
+    val distance: Double = 1.2
+)
+
+class GetBestStationsUseCase(
+    private val weights: ScoringWeights = ScoringWeights()
+) {
+    @Inject
+    constructor() : this(ScoringWeights())
 
     /**
  * Фильтрует станции с нужным типом топлива и сортирует по composite score.
@@ -66,12 +77,19 @@ class GetBestStationsUseCase @Inject constructor() {
  * - queueTime * QUEUE_WEIGHT: штраф за очередь
  * - (100 - reliability) * RELIABILITY_WEIGHT: штраф за ненадёжность
  */
-    fun calculateScore(station: GasStation, fuelType: String): Double {
+    fun calculateScore(
+        station: GasStation,
+        fuelType: String,
+        distanceKm: Double? = null
+    ): Double {
         val fuel = station.fuelTypes.find { it.type == fuelType }
         if (fuel == null || !fuel.available) return Double.MAX_VALUE
-        val queuePenalty = station.queueTime * QUEUE_WEIGHT
-        val reliabilityPenalty = (100 - station.reliability) * RELIABILITY_WEIGHT
-        return fuel.price + queuePenalty + reliabilityPenalty
+        val queuePenalty = station.queueTime * weights.queueTime
+        val reliabilityPenalty = (100 - station.reliability) * weights.reliability
+        val distancePenalty = if (distanceKm != null && distanceKm != Double.MAX_VALUE) {
+            distanceKm * weights.distance
+        } else 0.0
+        return fuel.price * weights.price + queuePenalty + reliabilityPenalty + distancePenalty
     }
 
     companion object {
@@ -80,5 +98,8 @@ class GetBestStationsUseCase @Inject constructor() {
 
         /** Вес надёжности. 1 пункт ненадёжности = 0.2 руб. штрафа. */
         const val RELIABILITY_WEIGHT = 0.2
+
+        /** Вес расстояния в скоринге. 1 км = 1.2 руб. штрафа. */
+        const val DISTANCE_WEIGHT = 1.2
     }
 }

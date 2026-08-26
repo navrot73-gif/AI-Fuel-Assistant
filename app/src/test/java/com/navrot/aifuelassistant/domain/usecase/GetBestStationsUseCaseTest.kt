@@ -66,6 +66,17 @@ class GetBestStationsUseCaseTest {
     }
 
     @Test
+    fun `score penalizes distance when provided`() {
+        val s = station(price = 45.0, queueTime = 0, reliability = 100)
+        // Without distance: 45 + 0 + 0 = 45.0
+        // With 5 km distance: 45 + 5 * 1.2 = 51.0
+        val scoreWithoutDist = useCase.calculateScore(s, "АИ-95")
+        val scoreWithDist = useCase.calculateScore(s, "АИ-95", distanceKm = 5.0)
+        assertEquals(45.0, scoreWithoutDist, 0.001)
+        assertEquals(51.0, scoreWithDist, 0.001)
+    }
+
+    @Test
     fun `score returns MAX_VALUE for unavailable fuel`() {
         val s = station(available = false)
         assertEquals(Double.MAX_VALUE, useCase.calculateScore(s, "АИ-95"), 0.0)
