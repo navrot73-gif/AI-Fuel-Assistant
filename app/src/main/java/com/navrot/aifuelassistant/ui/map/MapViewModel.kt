@@ -18,6 +18,7 @@ import com.navrot.aifuelassistant.geo.GeoUtils
 import com.navrot.aifuelassistant.geo.GeocodingProvider
 import com.navrot.aifuelassistant.geo.GeoException
 import com.navrot.aifuelassistant.network.FuelApi
+import com.navrot.aifuelassistant.network.NetworkMonitor
 import com.navrot.aifuelassistant.util.Format
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +45,7 @@ class MapViewModel @Inject constructor(
     private val tileWarmupService: TileWarmupService,
     private val geocodingProvider: GeocodingProvider,
     private val routeStateManager: RouteStateManager,
+    private val networkMonitor: NetworkMonitor,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -57,6 +59,15 @@ class MapViewModel @Inject constructor(
 
     private val prefs: SharedPreferences by lazy {
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
+
+    val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
+
+    private val _lastCacheUpdateTime = MutableStateFlow<Long?>(repository.getLastCacheUpdateTime())
+    val lastCacheUpdateTime: StateFlow<Long?> = _lastCacheUpdateTime.asStateFlow()
+
+    fun refreshCacheUpdateTime() {
+        _lastCacheUpdateTime.value = repository.getLastCacheUpdateTime()
     }
 
     private val _isDarkMode = MutableStateFlow(prefs.getBoolean(KEY_IS_DARK_MODE, false))
@@ -235,6 +246,7 @@ class MapViewModel @Inject constructor(
                 _stations.value = repository.getNearbyStations(lat, lon, radiusKm)
                 updateBestAndCheapest(lat, lon, radiusKm)
                 updateAiRecommendation(lat, lon)
+                refreshCacheUpdateTime()
             } catch (e: Exception) {
                 _error.value = "Ошибка загрузки: ${e.message}"
             } finally {

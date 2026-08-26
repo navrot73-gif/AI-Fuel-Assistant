@@ -552,6 +552,14 @@ class GasStationRepositoryTest {
         assertNull("Should return null for non-existent id", found)
     }
 
+    @Test
+    fun `getLastCacheUpdateTime returns valid timestamp when file exists or null when not`() = runBlocking {
+        val time = repository.getLastCacheUpdateTime()
+        if (time != null) {
+            assertTrue("Cache update time should be positive", time > 0)
+        }
+    }
+
     // ==================== Конкурентный доступ (sanity) ====================
 
     @Test

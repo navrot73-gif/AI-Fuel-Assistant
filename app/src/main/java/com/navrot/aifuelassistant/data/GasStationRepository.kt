@@ -196,6 +196,11 @@ class GasStationRepository constructor(
         stations.find { it.id == stationId }
     }
 
+    override fun getLastCacheUpdateTime(): Long? {
+        val file = cacheFile()
+        return if (file.exists()) file.lastModified() else null
+    }
+
     /**
      * Сообщить пользовательскую цену. Цена немедленно применяется к кешу.
      */

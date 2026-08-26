@@ -14,6 +14,7 @@ import com.navrot.aifuelassistant.geo.GeocodingProvider
 import com.navrot.aifuelassistant.geo.GeocodingResult
 import com.navrot.aifuelassistant.geo.GeoPoint
 import com.navrot.aifuelassistant.network.FuelApi
+import com.navrot.aifuelassistant.network.NetworkMonitor
 import com.navrot.aifuelassistant.network.RouteOptionData
 import com.navrot.aifuelassistant.network.RouteResponse
 import com.navrot.aifuelassistant.ui.map.TileWarmupService
@@ -86,6 +87,9 @@ class MapViewModelSearchTest {
     @Mock
     private lateinit var sharedPreferencesEditor: SharedPreferences.Editor
 
+    @Mock
+    private lateinit var networkMonitor: NetworkMonitor
+
     private lateinit var routeStateManager: RouteStateManager
 
     private lateinit var viewModel: MapViewModel
@@ -106,6 +110,7 @@ class MapViewModelSearchTest {
         whenever(sharedPreferences.getBoolean(any(), any())).thenReturn(false)
         whenever(sharedPreferences.edit()).thenReturn(sharedPreferencesEditor)
         whenever(sharedPreferencesEditor.putBoolean(any(), any())).thenReturn(sharedPreferencesEditor)
+        whenever(networkMonitor.isOnline).thenReturn(kotlinx.coroutines.flow.MutableStateFlow(true))
 
         runBlocking {
             whenever(benzonavtProvider.fetchCityPrices(org.mockito.kotlin.any())).thenReturn(emptyMap())
@@ -119,6 +124,7 @@ class MapViewModelSearchTest {
             tileWarmupService = tileWarmupService,
             geocodingProvider = geocodingProvider,
             routeStateManager = routeStateManager,
+            networkMonitor = networkMonitor,
             context = context
         )
     }
