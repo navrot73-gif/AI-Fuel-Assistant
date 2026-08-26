@@ -1,7 +1,7 @@
 package com.navrot.aifuelassistant.di
 
 import android.content.Context
-import android.util.Log
+import timber.log.Timber
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
@@ -61,7 +61,7 @@ object AppModule {
     @ApplicationScope
     fun provideApplicationScope(): CoroutineScope {
         val handler = CoroutineExceptionHandler { _, throwable ->
-            Log.e("ApplicationScope", "Uncaught coroutine exception", throwable)
+            Timber.tag("ApplicationScope").e(throwable, "Uncaught coroutine exception")
         }
         return CoroutineScope(SupervisorJob() + Dispatchers.IO + handler)
     }
@@ -78,7 +78,7 @@ object AppModule {
             .addMigrations(*DatabaseMigrations.ALL)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
-                    Log.w("AppDatabase", "⚠️ Деструктивная миграция БД! Все данные пользователя удалены.")
+                    Timber.tag("AppDatabase").w("⚠️ Деструктивная миграция БД! Все данные пользователя удалены.")
                 }
             })
             .build()

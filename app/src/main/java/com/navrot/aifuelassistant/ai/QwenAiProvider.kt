@@ -1,6 +1,6 @@
 package com.navrot.aifuelassistant.ai
 
-import android.util.Log
+import timber.log.Timber
 import com.navrot.aifuelassistant.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -66,7 +66,7 @@ class QwenAiProvider(
             httpClient.newCall(request).execute().use { response ->
                 val responseBody = response.body?.string()
                 if (!response.isSuccessful) {
-                    Log.w(TAG, "Qwen API error: ${response.code} ${responseBody ?: response.message}")
+                    Timber.tag(TAG).w("Qwen API error: %d %s", response.code, responseBody ?: response.message)
                     throw httpError(response.code, responseBody ?: response.message)
                 }
 
@@ -83,7 +83,7 @@ class QwenAiProvider(
         } catch (e: AiException) {
             throw e
         } catch (e: Exception) {
-            Log.w(TAG, "Qwen network error: ${e.message}")
+            Timber.tag(TAG).w("Qwen network error: %s", e.message)
             throw AiException.NetworkError("Qwen error: ${e.message}", e)
         }
     }

@@ -1,6 +1,6 @@
 package com.navrot.aifuelassistant.ai.router
 
-import android.util.Log
+import timber.log.Timber
 import com.navrot.aifuelassistant.ai.AiProvider
 import com.navrot.aifuelassistant.ai.AiResponseCache
 import com.navrot.aifuelassistant.features.dashboard.ChatMessage
@@ -14,14 +14,14 @@ class AiRouter(
 ) {
 
     private fun log(tag: String, msg: String) {
-        logger?.invoke(tag, msg) ?: Log.d(tag, msg)
+        logger?.invoke(tag, msg) ?: Timber.tag(tag).d(msg)
     }
 
     private fun logError(tag: String, msg: String, e: Exception? = null) {
         if (logger != null) {
             logger?.invoke(tag, msg)
         } else {
-            if (e != null) Log.e(tag, msg, e) else Log.e(tag, msg)
+            if (e != null) Timber.tag(tag).e(e, msg) else Timber.tag(tag).e(msg)
         }
     }
 

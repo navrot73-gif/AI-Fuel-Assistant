@@ -26,7 +26,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import android.util.Log
+import timber.log.Timber
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -145,7 +145,7 @@ fun MapScreen(
             val loc = userLocation
             // Diagnostic log when stations list is not empty
             if (stations.isNotEmpty()) {
-                 Log.d("RouteHandoff", "want id=$id, have ids=${stations.take(10).map { it.id }}, names=${stations.take(5).map { it.name }}")
+                 Timber.tag("RouteHandoff").d("want id=%d, have ids=%s, names=%s", id, stations.take(10).map { it.id }, stations.take(5).map { it.name })
             }
 
             // Triple fallback logic for finding the station
@@ -161,7 +161,7 @@ fun MapScreen(
 
             // НОВОЕ: если станций нет — загрузи сам
             if (loc != null && stations.isEmpty() && waited == 0) {
-                Log.d("RouteHandoff", "loading stations near $loc")
+                Timber.tag("RouteHandoff").d("loading stations near %s", loc)
                 viewModel.loadNearbyStations(loc.latitude, loc.longitude, 50.0)
             }
 
@@ -174,13 +174,13 @@ fun MapScreen(
                 selectedStation = null
                 showStationList = false
                 foundStation = st // Assign the found station
-                Log.d("RouteHandoff", "route built to ${st.name} (id=${st.id}, wanted=$id)")
+                Timber.tag("RouteHandoff").d("route built to %s (id=%d, wanted=%d)", st.name, st.id, id)
                 break
             }
 
             // НОВОЕ: если прошло 2 сек и станций всё ещё нет — попробуй ещё раз
             if (waited > 2000 && stations.isEmpty() && waited % 2000 == 0) {
-                Log.d("RouteHandoff", "retry loading stations")
+                Timber.tag("RouteHandoff").d("retry loading stations")
                 userLocation?.let {
                     viewModel.loadNearbyStations(it.latitude, it.longitude, 50.0)
                 }
@@ -192,11 +192,11 @@ fun MapScreen(
         // fallback: если st всё ещё не найден после 6 сек —
         // всё равно закрой панель и покажи маркер
         if (foundStation == null) {
-            Log.w("RouteHandoff", "station $id NOT FOUND after 6s, closing panel")
+            Timber.tag("RouteHandoff").w("station %d NOT FOUND after 6s, closing panel", id)
             showStationList = false
         }
 
-        Log.d("RouteHandoff", "Consuming pending route request.")
+        Timber.tag("RouteHandoff").d("Consuming pending route request.")
         onConsumePendingRoute()
     }
 
@@ -240,7 +240,7 @@ fun MapScreen(
     LaunchedEffect(Unit) {
         delay(10_000)
         if (userLocation == null) {
-            Log.d("MapScreen", "Location: timeout 10s, fallback to Chelyabinsk center")
+            Timber.tag("MapScreen").d("Location: timeout 10s, fallback to Chelyabinsk center")
             locationStatus = "📍 Включите геолокацию для точности"
             // Center map on Chelyabinsk via recenter mechanism
             // Note: OsmMapView will use default center if userLocation is null

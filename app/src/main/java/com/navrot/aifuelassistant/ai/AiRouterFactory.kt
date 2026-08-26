@@ -1,6 +1,6 @@
 package com.navrot.aifuelassistant.ai
 
-import android.util.Log
+import timber.log.Timber
 import com.navrot.aifuelassistant.BuildConfig
 import com.navrot.aifuelassistant.ai.providers.AiProxyProvider
 import com.navrot.aifuelassistant.ai.router.AiRouter
@@ -61,9 +61,9 @@ object AiRouterFactory {
         // Диагностическое логирование: какие провайдеры активны.
         // Помогает при отладке «все AI провайдеры недоступны».
         val providerNames = providers.joinToString(", ") { it.name }
-        Log.i(TAG, "AI providers configured: $providerNames")
+        Timber.tag(TAG).i("AI providers configured: %s", providerNames)
         if (BuildConfig.PROXY_TOKEN.isBlank()) {
-            Log.w(TAG, "PROXY_TOKEN is empty — AiProxyProvider will get 401, falling back to direct providers")
+            Timber.tag(TAG).w("PROXY_TOKEN is empty — AiProxyProvider will get 401, falling back to direct providers")
         }
 
         return AiRouter(providers = providers)

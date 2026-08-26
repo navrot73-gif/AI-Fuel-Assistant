@@ -44,9 +44,9 @@ object GeoUtils {
                 val city = result.displayName.split(",").firstOrNull()?.trim()
                 if (!city.isNullOrBlank()) return city
             } catch (e: GeoException) {
-                android.util.Log.w("GeoUtils", "Reverse geocoding error: ${e.message}")
+                timber.log.Timber.tag("GeoUtils").w("Reverse geocoding error: %s", e.message)
             } catch (e: Exception) {
-                android.util.Log.w("GeoUtils", "Failed reverse geocoding city detection: ${e.message}")
+                timber.log.Timber.tag("GeoUtils").w("Failed reverse geocoding city detection: %s", e.message)
             }
         }
 

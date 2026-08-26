@@ -2,7 +2,7 @@ package com.navrot.aifuelassistant.ui.reports
 
 import android.content.Context
 import android.content.Intent
-import android.util.Log
+import timber.log.Timber
 import androidx.core.content.FileProvider
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -57,7 +57,7 @@ class ReportsViewModel @Inject constructor(
                     )
                 }
                 .catch { e ->
-                    Log.e("ReportsViewModel", "Error fetching fuel report for period $period", e)
+                    Timber.tag("ReportsViewModel").e(e, "Error fetching fuel report for period %s", period)
                     emit(
                         ReportsUiState(
                             selectedPeriod = period,
@@ -108,7 +108,7 @@ class ReportsViewModel @Inject constructor(
                     context.startActivity(chooser)
                 }
             } catch (e: Exception) {
-                Log.e("ReportsViewModel", "Failed to export/share CSV report", e)
+                Timber.tag("ReportsViewModel").e(e, "Failed to export/share CSV report")
             }
         }
     }
