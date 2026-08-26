@@ -42,4 +42,7 @@ interface GasStationRepositoryInterface {
 
     /** Получить заправку по ID. */
     suspend fun getStationById(stationId: Int): GasStation?
+
+    /** Получить время последнего обновления локального кэша АЗС (в мс) или null, если кэш отсутствует. */
+    fun getLastCacheUpdateTime(): Long?
 }

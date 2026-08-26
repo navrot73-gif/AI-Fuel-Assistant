@@ -49,6 +49,7 @@ import com.navrot.aifuelassistant.ui.map.components.MapFloatingActions
 import com.navrot.aifuelassistant.ui.map.components.MapSearchBar
 import com.navrot.aifuelassistant.ui.map.components.MapTopBar
 import com.navrot.aifuelassistant.ui.map.components.RouteOverlay
+import com.navrot.aifuelassistant.ui.components.OfflineBanner
 import com.navrot.aifuelassistant.ui.map.components.StationDetailOverlay
 import com.navrot.aifuelassistant.ui.map.components.StationListBottomSheet
 import com.navrot.aifuelassistant.geo.GeoPoint
@@ -87,6 +88,8 @@ fun MapScreen(
     val geocodedLocation by viewModel.geocodedLocation.collectAsStateWithLifecycle()
     val bestStationRanked by viewModel.bestStationRanked.collectAsStateWithLifecycle()
     val avgPrice by viewModel.avgPrice.collectAsStateWithLifecycle()
+    val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
+    val lastCacheUpdateMs by viewModel.lastCacheUpdateTime.collectAsStateWithLifecycle()
 
     val fuelTypes = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ", "Газ")
     val recommendationTriple = aiRecommendation?.let { Triple(it.station, it.fuel, it.distanceKm) }
@@ -257,6 +260,11 @@ fun MapScreen(
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
     ) { padding ->
         Column(modifier = Modifier.fillMaxSize().padding(padding)) {
+            OfflineBanner(
+                isOnline = isOnline,
+                lastCacheUpdateMs = lastCacheUpdateMs
+            )
+
             MapSearchBar(
                 visible = showSearch, query = searchQuery,
                 onQueryChange = { newValue ->

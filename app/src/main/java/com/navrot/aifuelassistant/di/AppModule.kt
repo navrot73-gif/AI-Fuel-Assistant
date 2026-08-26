@@ -22,6 +22,8 @@ import com.navrot.aifuelassistant.data.database.dao.VehicleDao
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.geo.GeocodingProvider
 import com.navrot.aifuelassistant.geo.NominatimGeocodingProvider
+import com.navrot.aifuelassistant.network.NetworkMonitor
+import com.navrot.aifuelassistant.network.NetworkMonitorImpl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -153,4 +155,9 @@ object AppModule {
     @Singleton
     fun provideFuelApi(okHttpClient: OkHttpClient): com.navrot.aifuelassistant.network.FuelApi =
         com.navrot.aifuelassistant.network.FuelApiImpl(okHttpClient)
+
+    @Provides
+    @Singleton
+    fun provideNetworkMonitor(@ApplicationContext context: Context): NetworkMonitor =
+        NetworkMonitorImpl(context)
 }
