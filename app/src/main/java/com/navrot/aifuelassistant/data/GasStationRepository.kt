@@ -1,7 +1,7 @@
 package com.navrot.aifuelassistant.data
 
 import android.content.Context
-import android.util.Log
+import timber.log.Timber
 import com.navrot.aifuelassistant.data.model.FuelDataSource
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
@@ -101,7 +101,7 @@ class GasStationRepository constructor(
         // СНАЧАЛА применяем user prices — НЕМЕДЛЕННО возвращаем станции на карту
         val withUser = applyUserPrices(stations)
         cachedStations = withUser
-        Log.d(TAG, "stations shown (${withUser.size}), prices pending")
+        Timber.tag(TAG).d("stations shown (%d), prices pending", withUser.size)
 
         // ЗАТЕМ фоновая coroutine: fetchCityPrices + graceful swap
         priceRefreshJob?.cancel()
@@ -113,11 +113,11 @@ class GasStationRepository constructor(
                     loadMutex.withLock {
                         val swapped = withUser.map { station -> applyBenzonavtToStation(station, benzonavt, city) }
                         cachedStations = swapped
-                        Log.d(TAG, "prices swapped from BENZONAVT")
+                        Timber.tag(TAG).d("prices swapped from BENZONAVT")
                     }
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Background price refresh failed: ${e.message}")
+                Timber.tag(TAG).w("Background price refresh failed: %s", e.message)
             }
         }
 
@@ -132,7 +132,7 @@ class GasStationRepository constructor(
         // СНАЧАЛА user prices — НЕМЕДЛЕННО возвращаем
         val withUser = applyUserPrices(stations)
         cachedStations = withUser
-        Log.d(TAG, "stations shown (${withUser.size}), prices pending")
+        Timber.tag(TAG).d("stations shown (%d), prices pending", withUser.size)
 
         // ЗАТЕМ фоновый Benzonavt swap
         priceRefreshJob?.cancel()
@@ -144,11 +144,11 @@ class GasStationRepository constructor(
                     loadMutex.withLock {
                         val swapped = withUser.map { station -> applyBenzonavtToStation(station, benzonavt, city) }
                         cachedStations = swapped
-                        Log.d(TAG, "prices swapped from BENZONAVT")
+                        Timber.tag(TAG).d("prices swapped from BENZONAVT")
                     }
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Background price refresh failed: ${e.message}")
+                Timber.tag(TAG).w("Background price refresh failed: %s", e.message)
             }
         }
 
@@ -166,7 +166,7 @@ class GasStationRepository constructor(
         // СНАЧАЛА user prices — НЕМЕДЛЕННО возвращаем
         val withUser = applyUserPrices(base)
         cachedStations = withUser
-        Log.d(TAG, "stations shown (${withUser.size}), prices pending")
+        Timber.tag(TAG).d("stations shown (%d), prices pending", withUser.size)
 
         // ЗАТЕМ фоновый Benzonavt swap с timeout 5 сек
         priceRefreshJob?.cancel()
@@ -180,11 +180,11 @@ class GasStationRepository constructor(
                     loadMutex.withLock {
                         val swapped = withUser.map { station -> applyBenzonavtToStation(station, benzonavt, city) }
                         cachedStations = swapped
-                        Log.d(TAG, "prices swapped from BENZONAVT")
+                        Timber.tag(TAG).d("prices swapped from BENZONAVT")
                     }
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Background price refresh failed: ${e.message}")
+                Timber.tag(TAG).w("Background price refresh failed: %s", e.message)
             }
         }
 
@@ -373,9 +373,11 @@ class GasStationRepository constructor(
             }
         }
         if (!changed) return station
-        Log.d(
-            TAG,
-            "station ${station.id} (${station.brand}): цены обновлены из BENZONAVT, город=$city"
+        Timber.tag(TAG).d(
+            "station %d (%s): цены обновлены из BENZONAVT, город=%s",
+            station.id,
+            station.brand,
+            city
         )
         return station.copy(
             fuelTypes = newFuelTypes,
@@ -410,7 +412,7 @@ class GasStationRepository constructor(
                 stations.takeIf { it.isNotEmpty() }
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Не удалось загрузить станции из сети: ${e.message}")
+            Timber.tag(TAG).w("Не удалось загрузить станции из сети: %s", e.message)
             null
         }
     }
@@ -421,7 +423,7 @@ class GasStationRepository constructor(
             if (!file.exists()) return@withContext null
             parseJson(file.readText()).takeIf { it.isNotEmpty() }
         } catch (e: Exception) {
-            Log.w(TAG, "Не удалось загрузить станции из кеша: ${e.message}")
+            Timber.tag(TAG).w("Не удалось загрузить станции из кеша: %s", e.message)
             null
         }
     }

@@ -3,7 +3,7 @@ package com.navrot.aifuelassistant.ui.map.components
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Looper
-import android.util.Log
+import timber.log.Timber
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -40,7 +40,7 @@ fun LocationPermissionHandler(
             location.latitude,
             location.longitude
         )
-        Log.d("LocationPermission", "Location: first fix lat=${location.latitude} lon=${location.longitude} accuracy=${location.accuracy}")
+        Timber.tag("LocationPermission").d("Location: first fix lat=%f lon=%f accuracy=%f", location.latitude, location.longitude, location.accuracy)
         onLocationUpdateState.value(
             UserLocationState(
                 latitude = smoothLat,
@@ -71,7 +71,7 @@ fun LocationPermissionHandler(
                 locationCallback,
                 Looper.getMainLooper()
             )
-            Log.d("LocationPermission", "Location: started requestLocationUpdates (HIGH_ACCURACY, 5s)")
+            Timber.tag("LocationPermission").d("Location: started requestLocationUpdates (HIGH_ACCURACY, 5s)")
         } catch (_: SecurityException) { }
     }
 
@@ -85,7 +85,7 @@ fun LocationPermissionHandler(
     ) { permissions ->
         val granted = permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) ||
                 permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false)
-        Log.d("LocationPermission", "Location: permission ${if (granted) "granted" else "denied"}")
+        Timber.tag("LocationPermission").d("Location: permission %s", if (granted) "granted" else "denied")
         if (granted) beginTracking() else onPermissionDenied()
     }
 
@@ -101,10 +101,10 @@ fun LocationPermissionHandler(
         val coarseGranted = context.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) ==
                 PackageManager.PERMISSION_GRANTED
         if (fineGranted || coarseGranted) {
-            Log.d("LocationPermission", "Location: permission already granted")
+            Timber.tag("LocationPermission").d("Location: permission already granted")
             beginTracking()
         } else {
-            Log.d("LocationPermission", "Location: requesting permission")
+            Timber.tag("LocationPermission").d("Location: requesting permission")
             permissionLauncher.launch(
                 arrayOf(
                     Manifest.permission.ACCESS_FINE_LOCATION,

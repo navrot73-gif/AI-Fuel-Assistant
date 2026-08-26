@@ -1,7 +1,7 @@
 package com.navrot.aifuelassistant.ui.map
 
 import android.content.Context
-import android.util.Log
+import timber.log.Timber
 import com.navrot.aifuelassistant.BuildConfig
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -84,7 +84,7 @@ class TileWarmupService @Inject constructor(
             }
         }
 
-        Log.d(TAG, "TileWarmup: prefetched $totalPrefetched tiles for chelyabinsk")
+        Timber.tag(TAG).d("TileWarmup: prefetched %d tiles for chelyabinsk", totalPrefetched)
     }
 
     /**

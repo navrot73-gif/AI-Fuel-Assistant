@@ -23,6 +23,7 @@ gson = "2.11.0"
 robolectric = "4.13"
 mockwebserver = "4.12.0"
 ksp = "2.0.21-1.0.25"
+timber = "5.0.1"
 
 [libraries]
 # Core
@@ -60,6 +61,9 @@ kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 
 # Serialization
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+
+# Logging
+timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" }
 
 # Network & Location
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }

@@ -1,6 +1,6 @@
 package com.navrot.aifuelassistant.data.providers
 
-import android.util.Log
+import timber.log.Timber
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -92,7 +92,7 @@ class BenzonavtProvider @Inject constructor(
 
             httpClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    Log.w(TAG, "HTTP ${response.code} для города $city")
+                    Timber.tag(TAG).w("HTTP %d для города %s", response.code, city)
                     return emptyMap()
                 }
                 val body = response.body?.string()
@@ -117,11 +117,11 @@ class BenzonavtProvider @Inject constructor(
                         updatedAt = updatedAt
                     )
                 }
-                Log.i(TAG, "loaded ${result.size} fuel types for $city")
+                Timber.tag(TAG).i("loaded %d fuel types for %s", result.size, city)
                 return result
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Не удалось загрузить цены: ${e.message}")
+            Timber.tag(TAG).w("Не удалось загрузить цены: %s", e.message)
             return emptyMap()
         }
     }

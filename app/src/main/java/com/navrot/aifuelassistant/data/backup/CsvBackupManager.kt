@@ -159,10 +159,10 @@ class CsvBackupManager @Inject constructor(
             currentMileage = p[7].toDoubleOrNull() ?: 0.0
         )
     } catch (e: NumberFormatException) {
-        android.util.Log.w(TAG, "Failed to parse numeric value in vehicle CSV line: ${e.message}")
+        timber.log.Timber.tag(TAG).w("Failed to parse numeric value in vehicle CSV line: %s", e.message)
         null
     } catch (e: Exception) {
-        android.util.Log.w(TAG, "Failed to parse vehicle CSV line: ${e.message}")
+        timber.log.Timber.tag(TAG).w("Failed to parse vehicle CSV line: %s", e.message)
         null
     }
 
@@ -181,10 +181,10 @@ class CsvBackupManager @Inject constructor(
             stationName = p[7]
         )
     } catch (e: NumberFormatException) {
-        android.util.Log.w(TAG, "Failed to parse numeric value in fill CSV line: ${e.message}")
+        timber.log.Timber.tag(TAG).w("Failed to parse numeric value in fill CSV line: %s", e.message)
         null
     } catch (e: Exception) {
-        android.util.Log.w(TAG, "Failed to parse fill CSV line: ${e.message}")
+        timber.log.Timber.tag(TAG).w("Failed to parse fill CSV line: %s", e.message)
         null
     }
 

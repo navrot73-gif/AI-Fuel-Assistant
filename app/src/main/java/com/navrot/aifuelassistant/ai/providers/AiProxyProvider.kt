@@ -1,6 +1,6 @@
 package com.navrot.aifuelassistant.ai.providers
 
-import android.util.Log
+import timber.log.Timber
 import com.navrot.aifuelassistant.BuildConfig
 import com.navrot.aifuelassistant.ai.AiException
 import com.navrot.aifuelassistant.ai.AiProvider
@@ -80,13 +80,13 @@ class AiProxyProvider(
                 }
                 val viaProvider = json.optString("provider", "unknown")
                 val ms = json.optLong("ms", 0L)
-                Log.i(TAG, "OK (${ms}ms) via $viaProvider")
+                Timber.tag(TAG).i("OK (%dms) via %s", ms, viaProvider)
                 text
             }
         } catch (e: AiException) {
             throw e
         } catch (e: Exception) {
-            Log.w(TAG, "network error: ${e.message}")
+            Timber.tag(TAG).w("network error: %s", e.message)
             throw AiException.NetworkError("AiProxy error: ${e.message}", e)
         }
     }

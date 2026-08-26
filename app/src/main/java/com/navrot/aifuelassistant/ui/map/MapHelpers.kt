@@ -74,7 +74,7 @@ fun openMapsRoute(context: Context, lat: Double, lon: Double, label: String) {
         }
         context.startActivity(webIntent)
     } catch (e: Exception) {
-        android.util.Log.e("MapRoute", "openMapsRoute failed", e)
+        timber.log.Timber.tag("MapRoute").e(e, "openMapsRoute failed")
         Toast.makeText(context, "Не удалось открыть навигатор: ${e.message}", Toast.LENGTH_LONG).show()
     }
 }

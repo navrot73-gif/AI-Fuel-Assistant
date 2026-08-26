@@ -155,6 +155,9 @@ dependencies {
     // Gson for JSON serialization
     implementation(libs.gson)
 
+    // Logging
+    implementation(libs.timber)
+
     // Network
     implementation(libs.okhttp)
 

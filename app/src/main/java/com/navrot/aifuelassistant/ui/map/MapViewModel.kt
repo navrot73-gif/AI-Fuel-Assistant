@@ -2,7 +2,7 @@ package com.navrot.aifuelassistant.ui.map
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
+import timber.log.Timber
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -141,11 +141,11 @@ class MapViewModel @Inject constructor(
             try {
                 benzonavtProvider.fetchCityPrices()
             } catch (e: java.io.IOException) {
-                Log.w(TAG, "Benzonavt fetch failed during warmup: ${e.message}")
+                Timber.tag(TAG).w("Benzonavt fetch failed during warmup: %s", e.message)
             } catch (e: org.json.JSONException) {
-                Log.e(TAG, "Benzonavt parse error during warmup: ${e.message}", e)
+                Timber.tag(TAG).e(e, "Benzonavt parse error during warmup: %s", e.message)
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to pre-fetch city prices: ${e.message}")
+                Timber.tag(TAG).w("Failed to pre-fetch city prices: %s", e.message)
             }
         }
 
@@ -218,10 +218,10 @@ class MapViewModel @Inject constructor(
                 benzonavtProvider.setCity(slug)
                 repository.refreshPrices()
             } catch (e: java.io.IOException) {
-                Log.w(TAG, "Network error updating city and prices: ${e.message}")
+                Timber.tag(TAG).w("Network error updating city and prices: %s", e.message)
                 benzonavtProvider.setCity(DEFAULT_CITY_SLUG)
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to update city and prices: ${e.message}")
+                Timber.tag(TAG).w("Failed to update city and prices: %s", e.message)
                 benzonavtProvider.setCity(DEFAULT_CITY_SLUG)
             }
         }
@@ -316,7 +316,7 @@ class MapViewModel @Inject constructor(
                 }
             } catch (e: GeoException.NetworkError) {
                 // Ошибка сети — логируем, оставляем последнюю локацию
-                Log.w(TAG, "Geocoding network error: ${e.message}")
+                Timber.tag(TAG).w("Geocoding network error: %s", e.message)
                 if (currentRequestId == searchRequestId.get()) {
                     _stations.value = emptyList()
                     _error.value = "Нет сети для геокодинга"
@@ -484,7 +484,7 @@ class MapViewModel @Inject constructor(
                 if (response == null) {
                     val errMsg = routeResult.exceptionOrNull()?.message ?: "неизвестная ошибка"
                     _error.value = "Маршрут недоступен: $errMsg"
-                    Log.w(TAG, "Worker routing failed: $errMsg, fallback to straight line")
+                    Timber.tag(TAG).w("Worker routing failed: %s, fallback to straight line", errMsg)
                     _route.value = fallbackState
                 } else {
                     val rawOptions = response.getRouteOptions()
@@ -515,7 +515,7 @@ class MapViewModel @Inject constructor(
             } catch (e: Exception) {
                 val errMsg = e.message ?: "неизвестная ошибка"
                 _error.value = "Маршрут недоступен: $errMsg"
-                Log.w(TAG, "Worker routing failed: $errMsg, fallback to straight line")
+                Timber.tag(TAG).w("Worker routing failed: %s, fallback to straight line", errMsg)
                 _route.value = fallbackState
             } finally {
                 _isRouting.value = false

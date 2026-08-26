@@ -4,7 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.location.Location
-import android.util.Log
+import timber.log.Timber
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.android.gms.location.LocationServices
@@ -123,10 +123,10 @@ class DashboardViewModel @Inject constructor(
             val loaded: List<ChatMessage>? = gson.fromJson(json, type)
             _chatMessages.value = loaded?.filterNotNull() ?: emptyList()
         } catch (e: com.google.gson.JsonSyntaxException) {
-            Log.e(TAG, "Failed to parse chat history JSON: ${e.message}", e)
+            Timber.tag(TAG).e(e, "Failed to parse chat history JSON: %s", e.message)
             _chatMessages.value = emptyList()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to load chat history: ${e.message}", e)
+            Timber.tag(TAG).e(e, "Failed to load chat history: %s", e.message)
             _chatMessages.value = emptyList()
         }
     }
@@ -136,7 +136,7 @@ class DashboardViewModel @Inject constructor(
             val json = gson.toJson(messages)
             chatPrefs.edit().putString("messages", json).apply()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to save chat history: ${e.message}", e)
+            Timber.tag(TAG).e(e, "Failed to save chat history: %s", e.message)
         }
     }
 
@@ -173,7 +173,7 @@ class DashboardViewModel @Inject constructor(
     private fun loadVehicles() {
         viewModelScope.launch {
             vehicleRepository.getAllVehicles()
-                .catch { e -> Log.e(TAG, "Error collecting vehicles", e) }
+                .catch { e -> Timber.tag(TAG).e(e, "Error collecting vehicles") }
                 .collect { list ->
                     _vehicles.value = list
                     if (_selectedVehicleId.value == null && list.isNotEmpty()) {
@@ -189,7 +189,7 @@ class DashboardViewModel @Inject constructor(
                 _stations.value = gasStationRepository.getAllStations()
                 updateBestStation()
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to load stations: ${e.message}", e)
+                Timber.tag(TAG).e(e, "Failed to load stations: %s", e.message)
                 // Если не удалось загрузить — оставляем пустой список
             }
         }
@@ -217,7 +217,7 @@ class DashboardViewModel @Inject constructor(
                 }
                 flow
                     .catch { e ->
-                        Log.e("Metrics", "Error loading fuel records", e)
+                        Timber.tag("Metrics").e(e, "Error loading fuel records")
                         _metrics.value = DashboardMetrics()
                         _weeklyConsumption.value = emptyList()
                     }
@@ -226,13 +226,13 @@ class DashboardViewModel @Inject constructor(
                             _metrics.value = computeMetrics(records)
                             _weeklyConsumption.value = computeWeeklyConsumption(records)
                         } catch (e: Exception) {
-                            Log.e("Metrics", "Error computing metrics", e)
+                            Timber.tag("Metrics").e(e, "Error computing metrics")
                             _metrics.value = DashboardMetrics()
                             _weeklyConsumption.value = emptyList()
                         }
                     }
             } catch (e: Exception) {
-                Log.e("Metrics", "Error in loadMetrics", e)
+                Timber.tag("Metrics").e(e, "Error in loadMetrics")
                 _metrics.value = DashboardMetrics()
                 _weeklyConsumption.value = emptyList()
             }
@@ -367,12 +367,12 @@ class DashboardViewModel @Inject constructor(
             fusedClient.lastLocation.addOnSuccessListener { location ->
                 cont.resume(location)
             }.addOnFailureListener { e ->
-                Log.w(TAG, "Location provider failed: ${e.message}")
+                Timber.tag(TAG).w("Location provider failed: %s", e.message)
                 cont.resume(null)
             }
         }
     } catch (e: Exception) {
-        Log.w(TAG, "Failed to get last location: ${e.message}")
+        Timber.tag(TAG).w("Failed to get last location: %s", e.message)
         null
     }
 
@@ -393,7 +393,7 @@ class DashboardViewModel @Inject constructor(
             gasStationRepository.getNearbyStations(lat, lon, 50.0)
                 .sortedBy { GeoUtils.calculateDistance(lat, lon, it.latitude, it.longitude) }
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to fetch nearby stations for user context: ${e.message}")
+            Timber.tag(TAG).w("Failed to fetch nearby stations for user context: %s", e.message)
             emptyList<GasStation>()
         }
 
@@ -498,7 +498,7 @@ class DashboardViewModel @Inject constructor(
                     detectIntent(question)
                 }
             } catch (topLevelError: Exception) {
-                Log.e("DashboardViewModel", "Unhandled error in askUserQuestion", topLevelError)
+                Timber.tag("DashboardViewModel").e(topLevelError, "Unhandled error in askUserQuestion")
                 addChatMessage(
                     ChatMessage(
                         role = "ai",
@@ -529,11 +529,11 @@ class DashboardViewModel @Inject constructor(
                     try {
                         gasStationRepository.getNearbyStations(loc.first, loc.second, 50.0)
                     } catch (e: Exception) {
-                        Log.w(TAG, "Failed to fetch nearby stations in detectIntent: ${e.message}")
+                        Timber.tag(TAG).w("Failed to fetch nearby stations in detectIntent: %s", e.message)
                         try {
                             gasStationRepository.getAllStations()
                         } catch (e: Exception) {
-                            Log.e(TAG, "Failed to fetch all stations fallback in detectIntent", e)
+                            Timber.tag(TAG).e(e, "Failed to fetch all stations fallback in detectIntent")
                             emptyList()
                         }
                     }
@@ -541,7 +541,7 @@ class DashboardViewModel @Inject constructor(
                     try {
                         gasStationRepository.getAllStations()
                     } catch (e: Exception) {
-                        Log.e(TAG, "Failed to fetch all stations in detectIntent", e)
+                        Timber.tag(TAG).e(e, "Failed to fetch all stations in detectIntent")
                         emptyList()
                     }
                 }
