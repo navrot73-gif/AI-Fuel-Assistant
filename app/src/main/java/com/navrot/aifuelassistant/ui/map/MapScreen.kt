@@ -225,9 +225,7 @@ fun MapScreen(
     }
     LaunchedEffect(error, snackbarHostState) {
         error?.let { errMsg ->
-            if (errMsg.startsWith("Маршрут недоступен")) {
-                snackbarHostState.showSnackbar(message = errMsg)
-            }
+            snackbarHostState.showSnackbar(message = errMsg)
         }
     }
 

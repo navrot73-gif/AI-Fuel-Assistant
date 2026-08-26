@@ -19,6 +19,8 @@ import com.navrot.aifuelassistant.geo.GeocodingProvider
 import com.navrot.aifuelassistant.geo.GeoException
 import com.navrot.aifuelassistant.network.FuelApi
 import com.navrot.aifuelassistant.network.NetworkMonitor
+import com.navrot.aifuelassistant.ui.common.ErrorContext
+import com.navrot.aifuelassistant.ui.common.ErrorMessageMapper
 import com.navrot.aifuelassistant.util.Format
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -248,7 +250,7 @@ class MapViewModel @Inject constructor(
                 updateAiRecommendation(lat, lon)
                 refreshCacheUpdateTime()
             } catch (e: Exception) {
-                _error.value = "Ошибка загрузки: ${e.message}"
+                _error.value = ErrorMessageMapper.mapToUserMessage(e, ErrorContext.PRICES)
             } finally {
                 _isLoading.value = false
             }
@@ -262,7 +264,7 @@ class MapViewModel @Inject constructor(
             try {
                 _stations.value = repository.getStationsByCity(city)
             } catch (e: Exception) {
-                _error.value = "Ошибка загрузки: ${e.message}"
+                _error.value = ErrorMessageMapper.mapToUserMessage(e, ErrorContext.PRICES)
             } finally {
                 _isLoading.value = false
             }
@@ -331,11 +333,11 @@ class MapViewModel @Inject constructor(
                 Timber.tag(TAG).w("Geocoding network error: %s", e.message)
                 if (currentRequestId == searchRequestId.get()) {
                     _stations.value = emptyList()
-                    _error.value = "Нет сети для геокодинга"
+                    _error.value = ErrorMessageMapper.mapToUserMessage(e, ErrorContext.GENERAL)
                 }
             } catch (e: Exception) {
                 if (currentRequestId == searchRequestId.get()) {
-                    _error.value = "Ошибка поиска: ${e.message}"
+                    _error.value = ErrorMessageMapper.mapToUserMessage(e, ErrorContext.GENERAL)
                 }
             } finally {
                 if (currentRequestId == searchRequestId.get()) {
@@ -401,7 +403,7 @@ class MapViewModel @Inject constructor(
                     updateAiRecommendation(lat, lon)
                 }
             } catch (e: Exception) {
-                _error.value = "Не удалось сохранить цену: ${e.message}"
+                _error.value = ErrorMessageMapper.mapToUserMessage(e, ErrorContext.PRICES)
             }
         }
     }
@@ -430,7 +432,7 @@ class MapViewModel @Inject constructor(
                 }
                 updateAiRecommendation(lat, lon)
             } catch (e: Exception) {
-                _error.value = "Ошибка сортировки: ${e.message}"
+                _error.value = ErrorMessageMapper.mapToUserMessage(e, ErrorContext.PRICES)
             } finally {
                 _isLoading.value = false
             }
@@ -445,7 +447,7 @@ class MapViewModel @Inject constructor(
                     _selectedFuelTypes.value.first(), lat, lon, radiusKm
                 )
             } catch (e: Exception) {
-                _error.value = "Ошибка: ${e.message}"
+                _error.value = ErrorMessageMapper.mapToUserMessage(e, ErrorContext.PRICES)
             } finally {
                 _isLoading.value = false
             }
@@ -494,14 +496,14 @@ class MapViewModel @Inject constructor(
 
                 val response = routeResult.getOrNull()
                 if (response == null) {
-                    val errMsg = routeResult.exceptionOrNull()?.message ?: "неизвестная ошибка"
-                    _error.value = "Маршрут недоступен: $errMsg"
-                    Timber.tag(TAG).w("Worker routing failed: %s, fallback to straight line", errMsg)
+                    val exception = routeResult.exceptionOrNull() ?: java.io.IOException("Worker routing failed")
+                    _error.value = ErrorMessageMapper.mapToUserMessage(exception, ErrorContext.ROUTE)
+                    Timber.tag(TAG).w("Worker routing failed: %s, fallback to straight line", exception.message)
                     _route.value = fallbackState
                 } else {
                     val rawOptions = response.getRouteOptions()
                     if (rawOptions.isEmpty()) {
-                        _error.value = "Маршрут недоступен: пустой ответ от сервера"
+                        _error.value = ErrorMessageMapper.mapToUserMessage(java.io.IOException("Empty route response"), ErrorContext.ROUTE)
                         _route.value = fallbackState
                     } else {
                         val optionData = rawOptions.first()
@@ -526,7 +528,7 @@ class MapViewModel @Inject constructor(
                 }
             } catch (e: Exception) {
                 val errMsg = e.message ?: "неизвестная ошибка"
-                _error.value = "Маршрут недоступен: $errMsg"
+                _error.value = ErrorMessageMapper.mapToUserMessage(e, ErrorContext.ROUTE)
                 Timber.tag(TAG).w("Worker routing failed: %s, fallback to straight line", errMsg)
                 _route.value = fallbackState
             } finally {

@@ -21,6 +21,8 @@ import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.geo.GeoUtils
+import com.navrot.aifuelassistant.ui.common.ErrorContext
+import com.navrot.aifuelassistant.ui.common.ErrorMessageMapper
 import com.navrot.aifuelassistant.util.Format
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -478,21 +480,26 @@ class DashboardViewModel @Inject constructor(
                         detectIntent(question)
                     }
                 } catch (e: TimeoutCancellationException) {
-                    _error.value = "Таймаут запроса к AI"
+                    val userMsg = ErrorMessageMapper.mapToUserMessage(
+                        java.net.SocketTimeoutException("AI timeout"),
+                        ErrorContext.AI
+                    )
+                    _error.value = userMsg
                     addChatMessage(
                         ChatMessage(
                             role = "ai",
-                            text = "AI не отвечает, попробую локально",
+                            text = userMsg,
                             ts = System.currentTimeMillis()
                         )
                     )
                     detectIntent(question)
                 } catch (e: Exception) {
-                    _error.value = e.message ?: "Ошибка при обработке запроса"
+                    val userMsg = ErrorMessageMapper.mapToUserMessage(e, ErrorContext.AI)
+                    _error.value = userMsg
                     addChatMessage(
                         ChatMessage(
                             role = "ai",
-                            text = "AI не отвечает, попробую локально",
+                            text = userMsg,
                             ts = System.currentTimeMillis()
                         )
                     )
@@ -500,10 +507,11 @@ class DashboardViewModel @Inject constructor(
                 }
             } catch (topLevelError: Exception) {
                 Timber.tag("DashboardViewModel").e(topLevelError, "Unhandled error in askUserQuestion")
+                val userMsg = ErrorMessageMapper.mapToUserMessage(topLevelError, ErrorContext.AI)
                 addChatMessage(
                     ChatMessage(
                         role = "ai",
-                        text = "Произошла ошибка: ${topLevelError.message ?: "неизвестно"}",
+                        text = userMsg,
                         ts = System.currentTimeMillis()
                     )
                 )

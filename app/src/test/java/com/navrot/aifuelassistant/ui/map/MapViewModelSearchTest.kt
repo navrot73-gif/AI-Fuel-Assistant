@@ -250,7 +250,7 @@ class MapViewModelSearchTest {
         // Then: пустой список, ошибка в UI, фокус не меняется
         println("ERROR_VAL: '${viewModel.error.value}'")
         assertTrue(viewModel.stations.value.isEmpty())
-        assertEquals("Нет сети для геокодинга", viewModel.error.value)
+        assertEquals("Проблема с соединением. Проверьте интернет.", viewModel.error.value)
     }
 
     @Test
@@ -367,7 +367,7 @@ class MapViewModelSearchTest {
         assertEquals("по прямой", route.durationText)
         assertEquals(true, route.isDirect)
         assertEquals(true, route.isStraightLine)
-        assertEquals("Маршрут недоступен: Network error", viewModel.error.value)
+        assertEquals("Что-то пошло не так. Попробуйте ещё раз.", viewModel.error.value)
     }
 
     @Test
