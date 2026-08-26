@@ -4,6 +4,7 @@ import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.SocketPolicy
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -171,5 +172,17 @@ class FuelApiImplTest {
         val result = fuelApi.getRoute(37.61, 55.75, 37.62, 55.76)
 
         assertTrue("Expected result to be failure", result.isFailure)
+    }
+
+    @Test
+    fun getRoute_networkTimeout_returnsFailureResult() = runTest {
+        mockServer.enqueue(
+            MockResponse()
+                .setSocketPolicy(SocketPolicy.NO_RESPONSE)
+        )
+
+        val result = fuelApi.getRoute(37.61, 55.75, 37.62, 55.76)
+
+        assertTrue("Expected result to be failure due to timeout/network failure", result.isFailure)
     }
 }

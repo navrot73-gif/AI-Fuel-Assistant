@@ -122,7 +122,7 @@ class CsvBackupManagerTest {
 
         val vehicleWithSpecial = VehicleEntity(
             id = 5L,
-            name = "Машина; \"Супер\"",
+            name = "Машина; \"Супер\"\nВторая строка",
             brand = "Бренд; с точки запятой",
             model = "Модель \"Кавычки\"",
             year = 2022,
@@ -139,7 +139,7 @@ class CsvBackupManagerTest {
             pricePerLiter = 0.0,
             totalCost = 3600.0,
             fuelType = "ДТ Premium",
-            stationName = "АЗС \"Лукойл; №99\""
+            stationName = "АЗС \"Лукойл; №99\"\nУлица Ленина"
         )
 
         vehiclesList.add(vehicleWithSpecial)
