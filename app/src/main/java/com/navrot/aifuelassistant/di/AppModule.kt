@@ -14,6 +14,16 @@ import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.UserPriceRepository
 import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.data.VehicleRepositoryImpl
+import com.navrot.aifuelassistant.data.datasource.StationCache
+import com.navrot.aifuelassistant.data.datasource.StationCacheImpl
+import com.navrot.aifuelassistant.data.datasource.StationFilterAndSorter
+import com.navrot.aifuelassistant.data.datasource.StationFilterAndSorterImpl
+import com.navrot.aifuelassistant.data.datasource.StationJsonParser
+import com.navrot.aifuelassistant.data.datasource.StationJsonParserImpl
+import com.navrot.aifuelassistant.data.datasource.StationLoader
+import com.navrot.aifuelassistant.data.datasource.StationLoaderImpl
+import com.navrot.aifuelassistant.data.datasource.StationPriceApplier
+import com.navrot.aifuelassistant.data.datasource.StationPriceApplierImpl
 import com.navrot.aifuelassistant.data.providers.BenzonavtProvider
 import com.navrot.aifuelassistant.data.database.AppDatabase
 import com.navrot.aifuelassistant.data.database.DatabaseMigrations
@@ -121,17 +131,66 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideGasStationRepository(
+    fun provideStationJsonParser(): StationJsonParser {
+        return StationJsonParserImpl()
+    }
+
+    @Provides
+    @Singleton
+    fun provideStationCache(
         @ApplicationContext context: Context,
+        jsonParser: StationJsonParser
+    ): StationCache {
+        return StationCacheImpl(context, jsonParser)
+    }
+
+    @Provides
+    @Singleton
+    fun provideStationLoader(
         okHttpClient: OkHttpClient,
+        stationCache: StationCache,
+        jsonParser: StationJsonParser,
+        @ApplicationContext context: Context
+    ): StationLoader {
+        return StationLoaderImpl(okHttpClient, stationCache, jsonParser, context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideStationPriceApplier(
         userPriceRepository: UserPriceRepository,
-        getBestStationsUseCase: GetBestStationsUseCase,
+        benzonavtProvider: BenzonavtProvider
+    ): StationPriceApplier {
+        return StationPriceApplierImpl(userPriceRepository, benzonavtProvider)
+    }
+
+    @Provides
+    @Singleton
+    fun provideStationFilterAndSorter(): StationFilterAndSorter {
+        return StationFilterAndSorterImpl()
+    }
+
+    @Provides
+    @Singleton
+    fun provideGasStationRepository(
+        stationLoader: StationLoader,
+        stationCache: StationCache,
+        stationPriceApplier: StationPriceApplier,
+        stationFilterAndSorter: StationFilterAndSorter,
+        userPriceRepository: UserPriceRepository,
         benzonavtProvider: BenzonavtProvider,
+        getBestStationsUseCase: GetBestStationsUseCase,
         @ApplicationScope appScope: CoroutineScope
     ): GasStationRepositoryInterface {
         return GasStationRepository(
-            context, okHttpClient, userPriceRepository, getBestStationsUseCase,
-            benzonavtProvider, appScope
+            stationLoader = stationLoader,
+            stationCache = stationCache,
+            stationPriceApplier = stationPriceApplier,
+            stationFilterAndSorter = stationFilterAndSorter,
+            userPrices = userPriceRepository,
+            benzonavtProvider = benzonavtProvider,
+            getBestStationsUseCase = getBestStationsUseCase,
+            appScope = appScope
         )
     }
 
