@@ -47,7 +47,8 @@ class GarageListScreenTest {
         year = 2020,
         fuelType = "АИ-95",
         tankCapacity = 50.0,
-        currentMileage = 50000.0
+        currentMileage = 50000.0,
+        photoUrl = "https://example.com/toyota.jpg"
     )
 
     private val vehicle2 = VehicleEntity(
@@ -58,7 +59,8 @@ class GarageListScreenTest {
         year = 2019,
         fuelType = "АИ-92",
         tankCapacity = 47.0,
-        currentMileage = 80000.0
+        currentMileage = 80000.0,
+        photoUrl = null
     )
 
     @Before
@@ -122,7 +124,9 @@ class GarageListScreenTest {
         
         assertEquals(2, vehicles.size)
         assertEquals("Моя Тойота", vehicles[0].name)
+        assertEquals("https://example.com/toyota.jpg", vehicles[0].photoUrl)
         assertEquals("Хонда Сивик", vehicles[1].name)
+        assertNull(vehicles[1].photoUrl)
     }
 
     @Test
