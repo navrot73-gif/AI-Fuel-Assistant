@@ -60,7 +60,8 @@ open class VehicleViewModel @Inject constructor(
         year: Int,
         fuelType: String,
         tankCapacity: Double,
-        currentMileage: Double
+        currentMileage: Double,
+        photoUrl: String? = null
     ) {
         viewModelScope.launch {
             val newVehicle = VehicleEntity(
@@ -70,7 +71,8 @@ open class VehicleViewModel @Inject constructor(
                 year = year,
                 fuelType = fuelType,
                 tankCapacity = tankCapacity,
-                currentMileage = currentMileage
+                currentMileage = currentMileage,
+                photoUrl = photoUrl
             )
             vehicleRepository.insertVehicle(newVehicle)
         }
@@ -84,7 +86,8 @@ open class VehicleViewModel @Inject constructor(
         year: Int,
         fuelType: String,
         tankCapacity: Double,
-        currentMileage: Double
+        currentMileage: Double,
+        photoUrl: String? = null
     ) {
         viewModelScope.launch {
             val updatedVehicle = VehicleEntity(
@@ -95,7 +98,8 @@ open class VehicleViewModel @Inject constructor(
                 year = year,
                 fuelType = fuelType,
                 tankCapacity = tankCapacity,
-                currentMileage = currentMileage
+                currentMileage = currentMileage,
+                photoUrl = photoUrl
             )
             vehicleRepository.updateVehicle(updatedVehicle)
         }
