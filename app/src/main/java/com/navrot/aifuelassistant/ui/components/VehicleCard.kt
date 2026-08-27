@@ -12,9 +12,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.Speed
@@ -27,12 +27,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.navrot.aifuelassistant.ui.garage.BrandPhotoMapper
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
 
@@ -86,19 +89,16 @@ fun VehicleCard(
                                 .clip(RoundedCornerShape(12.dp))
                         )
                     } else {
-                        Box(
+                        val stockRes = BrandPhotoMapper.getStockPhotoResource(state.brand)
+                        Image(
+                            painter = painterResource(id = stockRes),
+                            contentDescription = "Стоковое фото ${state.brand}",
+                            contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .size(48.dp)
-                                .background(carIconBgColor, RoundedCornerShape(12.dp)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.DirectionsCar,
-                                contentDescription = "Автомобиль",
-                                tint = carIconColor,
-                                modifier = Modifier.size(24.dp),
-                            )
-                        }
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(carIconBgColor)
+                        )
                     }
                     
                     Column(
@@ -301,6 +301,7 @@ fun VehicleCard(
 data class VehicleCardUiState(
     val id: Long = 0L,
     val name: String,
+    val brand: String = "",
     val modelLine: String,
     val fuelGrade: String,
     val tankLiters: Int,

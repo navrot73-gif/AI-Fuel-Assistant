@@ -156,6 +156,7 @@ private fun VehicleEntity.toUiState(records: List<FuelRecordEntity>): VehicleCar
     return VehicleCardUiState(
         id = id,
         name = name.ifBlank { "Без названия" },
+        brand = brand,
         modelLine = modelLine,
         fuelGrade = fuelType.ifBlank { "—" },
         tankLiters = tankCapacity.toInt(),
