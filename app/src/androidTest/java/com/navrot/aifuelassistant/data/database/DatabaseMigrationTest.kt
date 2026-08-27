@@ -7,13 +7,14 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Интеграционные тесты миграций БД Room (версии 1 → 2 → 3).
+ * Интеграционные тесты миграций БД Room (версии 1 → 2 → 3 → 4).
  *
  * Зачем нужны эти тесты:
  * После удаления `fallbackToDestructiveMigration()` из AppModule миграции стали критически
@@ -23,7 +24,8 @@ import org.junit.runner.RunWith
  * Данный класс проверяет:
  * 1. [testMigrationFrom1To2]: корректность миграции с версии 1 на 2 (удаление FK, сохранение данных).
  * 2. [testMigrationFrom2To3]: корректность миграции с версии 2 на 3 (добавление FK, создание индекса, сохранение данных).
- * 3. [testAllMigrations]: сквозную миграцию 1 → 2 → 3 (*DatabaseMigrations.ALL), гарантируя соответствие итоговой схемы v3.
+ * 3. [testMigrationFrom3To4]: корректность миграции с версии 3 на 4 (добавление столбца photo_url в vehicles, сохранение данных).
+ * 4. [testAllMigrations]: сквозную миграцию 1 → 2 → 3 → 4 (*DatabaseMigrations.ALL), гарантируя соответствие итоговой схемы v4.
  */
 @RunWith(AndroidJUnit4::class)
 class DatabaseMigrationTest {
@@ -242,8 +244,55 @@ class DatabaseMigrationTest {
     }
 
     /**
-     * Тест 3: Сквозная миграция 1 → 2 → 3 через DatabaseMigrations.ALL.
-     * Создаёт БД версии 1, заполняет её данными, выполняет все миграции до v3 и валидирует схему v3.
+     * Тест 3: Миграция 3 → 4.
+     * В v4 добавляется столбец photo_url в таблицу vehicles со значением по умолчанию NULL.
+     * Проверяем сохранение данных vehicles и fuel_records, и наличие столбца photo_url.
+     */
+    @Test
+    fun testMigrationFrom3To4() {
+        val vehicleId: Long
+
+        helper.createDatabase(testDbName, 3).apply {
+            val vehicle = ContentValues().apply {
+                put("name", "v3 car")
+                put("brand", "Mazda")
+                put("model", "CX-5")
+                put("year", 2021)
+                put("fuelType", "АИ-95")
+                put("tankCapacity", 56.0)
+                put("currentMileage", 25000.0)
+            }
+            vehicleId = insert("vehicles", 0, vehicle)
+            assertTrue(vehicleId > 0)
+            close()
+        }
+
+        helper.runMigrationsAndValidate(
+            testDbName,
+            4,
+            true,
+            DatabaseMigrations.MIGRATION_3_4
+        ).use { db ->
+            db.query(
+                "SELECT name, brand, model, year, fuelType, tankCapacity, currentMileage, photo_url FROM vehicles WHERE id = ?",
+                arrayOf(vehicleId.toString())
+            ).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals("v3 car", cursor.getString(0))
+                assertEquals("Mazda", cursor.getString(1))
+                assertEquals("CX-5", cursor.getString(2))
+                assertEquals(2021, cursor.getInt(3))
+                assertEquals("АИ-95", cursor.getString(4))
+                assertEquals(56.0, cursor.getDouble(5), 0.001)
+                assertEquals(25000.0, cursor.getDouble(6), 0.001)
+                assertNull(cursor.getString(7))
+            }
+        }
+    }
+
+    /**
+     * Тест 4: Сквозная миграция 1 → 2 → 3 → 4 через DatabaseMigrations.ALL.
+     * Создаёт БД версии 1, заполняет её данными, выполняет все миграции до v4 и валидирует схему v4.
      */
     @Test
     fun testAllMigrations() {
@@ -281,16 +330,16 @@ class DatabaseMigrationTest {
             close()
         }
 
-        // Запуск всех миграций 1->2->3 и автоматическая валидация соответствия v3.json
+        // Запуск всех миграций 1->2->3->4 и автоматическая валидация соответствия v4.json
         helper.runMigrationsAndValidate(
             testDbName,
-            3,
+            4,
             true,
             *DatabaseMigrations.ALL
         ).use { db ->
             // Проверка сохранности данных vehicles
             db.query(
-                "SELECT name, brand, model, year, fuelType, tankCapacity, currentMileage FROM vehicles WHERE id = ?",
+                "SELECT name, brand, model, year, fuelType, tankCapacity, currentMileage, photo_url FROM vehicles WHERE id = ?",
                 arrayOf(vehicleId.toString())
             ).use { cursor ->
                 assertTrue(cursor.moveToFirst())
@@ -301,6 +350,7 @@ class DatabaseMigrationTest {
                 assertEquals("АИ-95", cursor.getString(4))
                 assertEquals(43.0, cursor.getDouble(5), 0.001)
                 assertEquals(50000.0, cursor.getDouble(6), 0.001)
+                assertNull(cursor.getString(7))
             }
 
             // Проверка сохранности данных fuel_records

@@ -171,5 +171,6 @@ private fun VehicleEntity.toUiState(records: List<FuelRecordEntity>): VehicleCar
         lastFillLiters = if (lastFill != null) Format.number(lastFill.fuelAmount, 1) else "—",
         lastFillBrand = lastFill?.stationName?.ifBlank { "—" } ?: "—",
         lastFillPrice = if (lastFill != null) Format.price(lastFill.totalCost) else "—",
+        photoUrl = photoUrl,
     )
 }

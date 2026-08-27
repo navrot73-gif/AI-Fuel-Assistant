@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -76,18 +77,28 @@ fun VehicleCard(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .background(carIconBgColor, RoundedCornerShape(12.dp)),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            imageVector = Icons.Filled.DirectionsCar,
-                            contentDescription = "Автомобиль",
-                            tint = carIconColor,
-                            modifier = Modifier.size(24.dp),
+                    if (!state.photoUrl.isNullOrBlank()) {
+                        NetworkImage(
+                            url = state.photoUrl,
+                            contentDescription = "Фото автомобиля",
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(RoundedCornerShape(12.dp))
                         )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .size(48.dp)
+                                .background(carIconBgColor, RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.DirectionsCar,
+                                contentDescription = "Автомобиль",
+                                tint = carIconColor,
+                                modifier = Modifier.size(24.dp),
+                            )
+                        }
                     }
                     
                     Column(
@@ -305,4 +316,5 @@ data class VehicleCardUiState(
     val lastFillLiters: String,
     val lastFillBrand: String,
     val lastFillPrice: String,
+    val photoUrl: String? = null
 )

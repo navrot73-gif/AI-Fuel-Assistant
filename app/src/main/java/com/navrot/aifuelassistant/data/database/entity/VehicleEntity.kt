@@ -1,5 +1,6 @@
 package com.navrot.aifuelassistant.data.database.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -13,5 +14,7 @@ data class VehicleEntity(
     val year: Int = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR),
     val fuelType: String = "АИ-95",
     val tankCapacity: Double = 50.0,
-    val currentMileage: Double = 0.0
+    val currentMileage: Double = 0.0,
+    @ColumnInfo(name = "photo_url")
+    val photoUrl: String? = null
 )

@@ -9,7 +9,7 @@ import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 
 @Database(
     entities = [VehicleEntity::class, FuelRecordEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
