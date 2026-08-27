@@ -164,4 +164,49 @@ class GarageListScreenTest {
         viewModel.setActiveVehicle(2L)
         assertEquals(2L, viewModel.activeVehicleId.value)
     }
+
+    @Test
+    fun `test addVehicle passes photoUrl to repository`() = runTest {
+        viewModel.addVehicle(
+            name = "Lada",
+            brand = "Vesta",
+            model = "Sedan",
+            year = 2021,
+            fuelType = "АИ-95",
+            tankCapacity = 55.0,
+            currentMileage = 10000.0,
+            photoUrl = "/data/user/0/com.navrot.aifuelassistant/files/vehicle_photos/photo1.jpg"
+        )
+
+        verify(mockVehicleRepository).insertVehicle(
+            org.mockito.kotlin.argThat {
+                name == "Lada" &&
+                brand == "Vesta" &&
+                photoUrl == "/data/user/0/com.navrot.aifuelassistant/files/vehicle_photos/photo1.jpg"
+            }
+        )
+    }
+
+    @Test
+    fun `test updateVehicle passes photoUrl to repository`() = runTest {
+        viewModel.updateVehicle(
+            id = 1L,
+            name = "Моя Тойота Обновленная",
+            brand = "Toyota",
+            model = "Camry",
+            year = 2020,
+            fuelType = "АИ-95",
+            tankCapacity = 50.0,
+            currentMileage = 55000.0,
+            photoUrl = "/data/user/0/com.navrot.aifuelassistant/files/vehicle_photos/photo2.jpg"
+        )
+
+        verify(mockVehicleRepository).updateVehicle(
+            org.mockito.kotlin.argThat {
+                id == 1L &&
+                name == "Моя Тойота Обновленная" &&
+                photoUrl == "/data/user/0/com.navrot.aifuelassistant/files/vehicle_photos/photo2.jpg"
+            }
+        )
+    }
 }
