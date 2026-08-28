@@ -1,4 +1,4 @@
-# 📘 AI FUEL ASSISTANT — ПАСПОРТ ПРОЕКТА (28.08.2026)
+# 📘 AI FUEL ASSISTANT — ПАСПОРТ ПРОЕКТА (текущая дата)
 
 ## 🏗 Что это
 Android-приложение «Где бензин?» (Челябинск): карта АЗС (osmdroid), цены из 4 источников, 
@@ -24,14 +24,20 @@ AI-помощник (голос+чат), маршруты OSRM, гараж с з
 **Бэклог №5 (Гараж):** фото авто (поле + миграция, стоковые по бренду, 
   загрузка через системный пикер)
 
-## ✅ ЧТО ЗАКРЫТО ЗА СЕССИИ 27-28.08.2026 (22 задачи)
-**Этап 0 (Безопасность):** удаление токена, деструктивной миграции, защита ключей
-**Этап 1 (Стабильность):** миграционные тесты Room, типизированные `catch`, 
-  покрытие JaCoCo
-**Все 5 бэклогов** (см. выше)
-**Фикс CI:** эмулятор стабилизирован, добавлен non-blocking quality gate
-**Техдолг:** тесты на CsvBackup + FuelApi, переход на Timber, 
-  убрано дублирование скоринга
+## 🔨 РЕФАКТОРИНГ GOD-ОБЪЕКТОВ ЗАКРЫТ ✅
+**Часть 1:** `GasStationRepository` (461 стр.) → 4 компонента + фасад
+  - `StationLoader` — загрузка из сети/кэша/assets
+  - `StationCache` — управление кэшем
+  - `StationFilter` — фильтрация и сортировка
+  - `PriceMerger` — применение цен
+**Часть 2:** `MapViewModel` (571 стр.) → 3 делегата + фасад
+  - `MapSearchDelegate` — поиск и геокодирование
+  - `MapRouteDelegate` — маршрутизация
+  - `MapFilterDelegate` — фильтрация и сортировка
+**Часть 3:** `DashboardViewModel` (571 стр.) → 3 делегата + фасад
+  - `AiChatDelegate` — AI-чат, история, интент-детекция
+  - `AiVoiceDelegate` — голосовой ввод
+  - `StationCardDelegate` — AI-рекомендации, карточки АЗС
 
 ## 🤖 Агенты (ВАЖНО!)
 - **Jules (jules.google)** — ЕДИНСТВЕННЫЙ, кто реально пушит в GitHub и открывает PR
@@ -39,19 +45,19 @@ AI-помощник (голос+чат), маршруты OSRM, гараж с з
 
 ## 📋 ОСТАЛОСЬ ИЗ АУДИТОВ (не блокирует релиз)
 **Этап 2 (Тесты и CI):** 2.4 Hilt-тесты, 2.5 покрытие detectIntent(), 
-  2.6 lint quality gate
+  2.6 lint quality gate, 2.7 instrumentation test quality gate
 **Этап 3 (Качество):** 3.5 перегенерировать lint-baseline, 
-  3.6 разбить GasStationRepository, 3.7 удалить DemoFuelStations
+  3.7 удалить DemoFuelStations
 **Этап 4 (Архитектура):** WorkManager для фонового обновления, 
   убрать "chelyabinsk", DataStore вместо SharedPreferences
 **Этап 5 (Долгосрочно):** AI Router Race (параллельный запрос провайдерам)
-**Этап 6 (Зависимости):** обновление зависимостей, compileSdk 35
+**Этап 6 (Зависимости):** обновление зависимостей, compileSdk 35, Dependabot
 
 ## 📒 СЛЕДУЮЩИЕ ШАГИ (приоритет)
-1. 🔧 Рефакторинг: разбить GasStationRepository, MapViewModel, DashboardViewModel
+1. 🗺 Убрать "chelyabinsk", подключить NominatimGeocodingProvider
 2. 📡 WorkManager для фонового обновления цен
-3. 🗺 Убрать "chelyabinsk", подключить NominatimGeocodingProvider
-4. 📦 Обновить зависимости (Compose, Kotlin, Room)
+3. 📦 Обновить зависимости (Compose, Kotlin, Room)
+4. 🧪 Дополнительные тесты (Hilt-тесты, покрытие detectIntent())
 
 ## ⚙️ Команды
 ```powershell
