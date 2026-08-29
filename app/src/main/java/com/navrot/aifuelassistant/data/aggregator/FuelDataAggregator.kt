@@ -6,7 +6,7 @@ import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.PhotoEvidence
 
 /**
- * Normalizes facts from different sources before they reach FuelDispatcher.
+ * Normalizes facts from different sources before merging and calculating station confidence.
  * Network connectors are intentionally kept out of this class for now.
  */
 object FuelDataAggregator {

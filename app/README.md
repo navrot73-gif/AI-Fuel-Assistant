@@ -69,7 +69,7 @@ ORS_API_KEY=your_ors_key
 ```
 app/
 ├── data/           # Репозитории, DAO, сущности БД
-├── domain/         # Бизнес-логика (FuelDispatcher, модели)
+├── domain/         # Бизнес-логика (Use Cases, валидация, надежность)
 ├── ai/             # AI-провайдеры и роутер
 ├── geo/            # Геосервисы (ORS, Nominatim)
 ├── features/       # Экраны и ViewModel'и
