@@ -1,8 +1,8 @@
 package com.navrot.aifuelassistant.ui.map
 
 import android.content.Context
-import android.content.SharedPreferences
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
+import com.navrot.aifuelassistant.data.UserPreferencesRepository
 import com.navrot.aifuelassistant.data.RouteStateManager
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
@@ -82,10 +82,7 @@ class MapViewModelSearchTest {
     private lateinit var context: Context
 
     @Mock
-    private lateinit var sharedPreferences: SharedPreferences
-
-    @Mock
-    private lateinit var sharedPreferencesEditor: SharedPreferences.Editor
+    private lateinit var userPreferencesRepository: UserPreferencesRepository
 
     @Mock
     private lateinit var networkMonitor: NetworkMonitor
@@ -106,10 +103,7 @@ class MapViewModelSearchTest {
 
         geocodingProvider = FakeGeocodingProvider()
         routeStateManager = RouteStateManager()
-        whenever(context.getSharedPreferences(any(), any())).thenReturn(sharedPreferences)
-        whenever(sharedPreferences.getBoolean(any(), any())).thenReturn(false)
-        whenever(sharedPreferences.edit()).thenReturn(sharedPreferencesEditor)
-        whenever(sharedPreferencesEditor.putBoolean(any(), any())).thenReturn(sharedPreferencesEditor)
+        whenever(userPreferencesRepository.isDarkMode).thenReturn(kotlinx.coroutines.flow.MutableStateFlow(false))
         whenever(networkMonitor.isOnline).thenReturn(kotlinx.coroutines.flow.MutableStateFlow(true))
 
         runBlocking {
@@ -125,7 +119,8 @@ class MapViewModelSearchTest {
             geocodingProvider = geocodingProvider,
             routeStateManager = routeStateManager,
             networkMonitor = networkMonitor,
-            context = context
+            context = context,
+            userPreferencesRepository = userPreferencesRepository
         )
     }
 
@@ -417,17 +412,11 @@ class MapViewModelSearchTest {
     }
 
     @Test
-    fun `toggleDarkMode toggles state and persists choice to SharedPreferences`() = runTest {
+    fun `toggleDarkMode toggles state and persists choice to DataStore`() = runTest {
         assertFalse(viewModel.isDarkMode.value)
 
         viewModel.toggleDarkMode()
 
-        assertTrue(viewModel.isDarkMode.value)
-        verify(sharedPreferencesEditor).putBoolean("is_dark_mode", true)
-
-        viewModel.toggleDarkMode()
-
-        assertFalse(viewModel.isDarkMode.value)
-        verify(sharedPreferencesEditor).putBoolean("is_dark_mode", false)
+        verify(userPreferencesRepository).setDarkMode(true)
     }
 }

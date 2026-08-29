@@ -1,8 +1,9 @@
 package com.navrot.aifuelassistant.data
 
 import android.content.Context
-import android.content.SharedPreferences
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.runBlocking
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -10,60 +11,47 @@ import javax.inject.Singleton
  * Хранилище пользовательских цен на топливо.
  *
  * Формат ключа: "price:{stationId}:{fuelType}" → String (цена Double.toString())
- * Переживает перезапуск приложения (SharedPreferences).
+ * Переживает перезапуск приложения (Jetpack DataStore Preferences).
  *
  * Приоритет: эти цены перекрывают данные из GitHub json / кеша / assets.
  */
 @Singleton
 class UserPriceRepository @Inject constructor(
-    @ApplicationContext private val context: Context
+    private val userPreferencesRepository: UserPreferencesRepository
 ) {
 
-    private val prefs: SharedPreferences =
-        context.getSharedPreferences("user_prices", Context.MODE_PRIVATE)
+    constructor(@ApplicationContext context: Context) : this(UserPreferencesRepository(context))
+
+    /**
+     * Flow пользовательских цен.
+     */
+    val userPricesFlow: Flow<Map<Pair<Int, String>, Double>> = userPreferencesRepository.userPrices
 
     /**
      * Получить все пользовательские цены в виде Map: Pair(stationId, fuelType) → price
      */
-    fun getAll(): Map<Pair<Int, String>, Double> {
-        val result = mutableMapOf<Pair<Int, String>, Double>()
-        for ((key, value) in prefs.all) {
-            if (!key.startsWith(PREFIX)) continue
-            val raw = key.removePrefix(PREFIX)
-            val sep = raw.indexOf(':')
-            if (sep <= 0) continue
-            val stationId = raw.substring(0, sep).toIntOrNull() ?: continue
-            val fuelType = raw.substring(sep + 1)
-            val price = (value as? String)?.toDoubleOrNull() ?: continue
-            result[Pair(stationId, fuelType)] = price
-        }
-        return result
+    suspend fun getAll(): Map<Pair<Int, String>, Double> {
+        return userPreferencesRepository.getAllUserPrices()
     }
 
     /**
      * Сохранить пользовательскую цену.
      */
-    fun report(stationId: Int, fuelType: String, price: Double) {
-        prefs.edit()
-            .putString("$PREFIX$stationId:$fuelType", price.toString())
-            .apply()
+    suspend fun report(stationId: Int, fuelType: String, price: Double) {
+        userPreferencesRepository.reportUserPrice(stationId, fuelType, price)
     }
 
     /**
      * Удалить пользовательскую цену (когда, например, пришёл новый json с актуальной ценой).
      */
-    fun clear(stationId: Int, fuelType: String) {
-        prefs.edit().remove("$PREFIX$stationId:$fuelType").apply()
+    suspend fun clear(stationId: Int, fuelType: String) {
+        userPreferencesRepository.clearUserPrice(stationId, fuelType)
     }
 
     /**
      * Очистить все пользовательские цены (для отладки).
      */
-    fun clearAll() {
-        prefs.edit().clear().apply()
-    }
-
-    companion object {
-        private const val PREFIX = "price:"
+    suspend fun clearAll() {
+        userPreferencesRepository.clearAllUserPrices()
     }
 }

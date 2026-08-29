@@ -159,6 +159,9 @@ dependencies {
     // Gson for JSON serialization
     implementation(libs.gson)
 
+    // DataStore
+    implementation(libs.androidx.datastore.preferences)
+
     // Logging
     implementation(libs.timber)
 

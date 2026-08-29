@@ -7,8 +7,12 @@ import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.navrot.aifuelassistant.ai.AiRouterFactory
 import com.navrot.aifuelassistant.ai.router.AiRouter
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
 import com.navrot.aifuelassistant.data.FuelRecordRepository
 import com.navrot.aifuelassistant.data.FuelRecordRepositoryImpl
+import com.navrot.aifuelassistant.data.UserPreferencesRepository
+import com.navrot.aifuelassistant.data.userPreferencesDataStore
 import com.navrot.aifuelassistant.data.GasStationRepository
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.UserPriceRepository
@@ -126,8 +130,13 @@ object AppModule {
             .build()
     }
 
-    // UserPriceRepository не нуждается в отдельном @Provides — у неё уже есть
-    // @Inject constructor, Hilt резолвит её автоматически.
+    @Provides
+    @Singleton
+    fun provideDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
+        return context.userPreferencesDataStore
+    }
+
+    // UserPreferencesRepository и UserPriceRepository имеют @Inject constructors
 
     @Provides
     @Singleton

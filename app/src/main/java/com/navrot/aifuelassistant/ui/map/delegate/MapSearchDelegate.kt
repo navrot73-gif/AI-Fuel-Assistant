@@ -19,13 +19,15 @@ import timber.log.Timber
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
+import com.navrot.aifuelassistant.data.UserPreferencesRepository
 import com.navrot.aifuelassistant.ui.map.TileWarmupService
 
 class MapSearchDelegate @Inject constructor(
     private val geocodingProvider: GeocodingProvider,
     private val benzonavtProvider: BenzonavtProvider,
     private val repository: GasStationRepositoryInterface,
-    private val tileWarmupService: TileWarmupService
+    private val tileWarmupService: TileWarmupService,
+    private val userPreferencesRepository: UserPreferencesRepository? = null
 ) {
 
     companion object {
@@ -53,6 +55,7 @@ class MapSearchDelegate @Inject constructor(
             try {
                 val cityName = GeoUtils.detectCity(lat, lon, geocodingProvider)
                 _currentCity.value = cityName
+                userPreferencesRepository?.setCachedCity(cityName)
                 val slug = GeoUtils.toCitySlug(cityName)
                 benzonavtProvider.setCity(slug)
                 repository.refreshPrices()
@@ -71,6 +74,7 @@ class MapSearchDelegate @Inject constructor(
     fun setManualCity(scope: CoroutineScope, cityName: String) {
         scope.launch {
             _currentCity.value = cityName
+            userPreferencesRepository?.setCachedCity(cityName)
             val slug = GeoUtils.toCitySlug(cityName)
             benzonavtProvider.setCity(slug)
             repository.refreshPrices()

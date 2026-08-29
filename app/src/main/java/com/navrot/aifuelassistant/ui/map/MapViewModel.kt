@@ -1,11 +1,11 @@
 package com.navrot.aifuelassistant.ui.map
 
 import android.content.Context
-import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.RouteStateManager
+import com.navrot.aifuelassistant.data.UserPreferencesRepository
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.providers.BenzonavtProvider
@@ -39,6 +39,7 @@ class MapViewModel @Inject constructor(
     private val benzonavtProvider: BenzonavtProvider,
     private val tileWarmupService: TileWarmupService,
     private val networkMonitor: NetworkMonitor,
+    private val userPreferencesRepository: UserPreferencesRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -52,26 +53,22 @@ class MapViewModel @Inject constructor(
         geocodingProvider: GeocodingProvider,
         routeStateManager: RouteStateManager,
         networkMonitor: NetworkMonitor,
-        context: Context
+        context: Context,
+        userPreferencesRepository: UserPreferencesRepository = UserPreferencesRepository(context)
     ) : this(
-        searchDelegate = MapSearchDelegate(geocodingProvider, benzonavtProvider, repository, tileWarmupService),
+        searchDelegate = MapSearchDelegate(geocodingProvider, benzonavtProvider, repository, tileWarmupService, userPreferencesRepository),
         routeDelegate = MapRouteDelegate(fuelApi, routeStateManager),
         filterDelegate = MapFilterDelegate(repository, getBestStationsUseCase),
         repository = repository,
         benzonavtProvider = benzonavtProvider,
         tileWarmupService = tileWarmupService,
         networkMonitor = networkMonitor,
+        userPreferencesRepository = userPreferencesRepository,
         context = context
     )
 
     companion object {
         private const val TAG = "MapViewModel"
-        private const val PREFS_NAME = "map_prefs"
-        private const val KEY_IS_DARK_MODE = "is_dark_mode"
-    }
-
-    private val prefs: SharedPreferences by lazy {
-        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     }
 
     val isOnline: StateFlow<Boolean> = networkMonitor.isOnline
@@ -83,13 +80,14 @@ class MapViewModel @Inject constructor(
         _lastCacheUpdateTime.value = repository.getLastCacheUpdateTime()
     }
 
-    private val _isDarkMode = MutableStateFlow(prefs.getBoolean(KEY_IS_DARK_MODE, false))
-    val isDarkMode: StateFlow<Boolean> = _isDarkMode.asStateFlow()
+    val isDarkMode: StateFlow<Boolean> = userPreferencesRepository.isDarkMode
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     fun toggleDarkMode() {
-        val newMode = !_isDarkMode.value
-        _isDarkMode.value = newMode
-        prefs.edit().putBoolean(KEY_IS_DARK_MODE, newMode).apply()
+        val newMode = !isDarkMode.value
+        viewModelScope.launch {
+            userPreferencesRepository.setDarkMode(newMode)
+        }
     }
 
     // Делегированные свойства
