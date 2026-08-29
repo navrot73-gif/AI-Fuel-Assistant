@@ -19,15 +19,17 @@ import timber.log.Timber
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
+import com.navrot.aifuelassistant.ui.map.TileWarmupService
+
 class MapSearchDelegate @Inject constructor(
     private val geocodingProvider: GeocodingProvider,
     private val benzonavtProvider: BenzonavtProvider,
-    private val repository: GasStationRepositoryInterface
+    private val repository: GasStationRepositoryInterface,
+    private val tileWarmupService: TileWarmupService
 ) {
 
     companion object {
         private const val TAG = "MapSearchDelegate"
-        private const val DEFAULT_CITY_SLUG = "chelyabinsk"
     }
 
     private val searchRequestId = AtomicInteger(0)
@@ -54,13 +56,24 @@ class MapSearchDelegate @Inject constructor(
                 val slug = GeoUtils.toCitySlug(cityName)
                 benzonavtProvider.setCity(slug)
                 repository.refreshPrices()
+                tileWarmupService.startPrefetch(lat, lon)
             } catch (e: java.io.IOException) {
                 Timber.tag(TAG).w("Network error updating city and prices: %s", e.message)
-                benzonavtProvider.setCity(DEFAULT_CITY_SLUG)
             } catch (e: Exception) {
                 Timber.tag(TAG).w("Failed to update city and prices: %s", e.message)
-                benzonavtProvider.setCity(DEFAULT_CITY_SLUG)
             }
+        }
+    }
+
+    /**
+     * Устанавливает город вручную пользователем.
+     */
+    fun setManualCity(scope: CoroutineScope, cityName: String) {
+        scope.launch {
+            _currentCity.value = cityName
+            val slug = GeoUtils.toCitySlug(cityName)
+            benzonavtProvider.setCity(slug)
+            repository.refreshPrices()
         }
     }
 

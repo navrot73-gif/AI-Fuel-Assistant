@@ -54,7 +54,7 @@ class MapViewModel @Inject constructor(
         networkMonitor: NetworkMonitor,
         context: Context
     ) : this(
-        searchDelegate = MapSearchDelegate(geocodingProvider, benzonavtProvider, repository),
+        searchDelegate = MapSearchDelegate(geocodingProvider, benzonavtProvider, repository, tileWarmupService),
         routeDelegate = MapRouteDelegate(fuelApi, routeStateManager),
         filterDelegate = MapFilterDelegate(repository, getBestStationsUseCase),
         repository = repository,
@@ -191,6 +191,11 @@ class MapViewModel @Inject constructor(
 
     fun updateCityAndPrices(lat: Double, lon: Double) {
         searchDelegate.updateCityAndPrices(viewModelScope, lat, lon)
+    }
+
+    fun setManualCity(cityName: String) {
+        searchDelegate.setManualCity(viewModelScope, cityName)
+        loadStationsByCity(cityName)
     }
 
     fun loadNearbyStations(lat: Double, lon: Double, radiusKm: Double = 50.0) {

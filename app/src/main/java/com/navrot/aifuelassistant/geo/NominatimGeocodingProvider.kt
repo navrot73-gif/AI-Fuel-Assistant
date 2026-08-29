@@ -20,12 +20,26 @@ import org.json.JSONObject
  * чтобы повысить релевантность и снизить число ложных совпадений с
  * одноимёнными объектами в других регионах.
  */
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.math.roundToInt
+
 class NominatimGeocodingProvider(
     private val userAgent: String = "AIFuelAssistant/1.0 (Android; contact: navrot73-gif)",
     private val httpClient: OkHttpClient = OkHttpClient(),
     // Приблизительный bounding box Челябинской области (lon_min, lat_min, lon_max, lat_max)
     private val regionViewbox: String = "57.0,52.9,63.5,56.4"
 ) : GeocodingProvider {
+
+    private data class CacheEntry(
+        val result: GeocodingResult,
+        val timestamp: Long
+    )
+
+    private val reverseCache = ConcurrentHashMap<String, CacheEntry>()
+
+    companion object {
+        private const val CACHE_TTL_MS = 30 * 60 * 1000L // 30 mins
+    }
 
     override suspend fun geocode(query: String): GeocodingResult = withContext(Dispatchers.IO) {
         require(query.isNotBlank()) { "Query must not be blank" }
@@ -67,6 +81,18 @@ class NominatimGeocodingProvider(
     }
 
     override suspend fun reverseGeocode(lat: Double, lon: Double): GeocodingResult = withContext(Dispatchers.IO) {
+        // Округляем до ~1км (2 знака после запятой) для кэш-ключа
+        val roundedLat = (lat * 100).roundToInt() / 100.0
+        val roundedLon = (lon * 100).roundToInt() / 100.0
+        val cacheKey = "$roundedLat,$roundedLon"
+
+        val now = System.currentTimeMillis()
+        reverseCache[cacheKey]?.let { entry ->
+            if (now - entry.timestamp < CACHE_TTL_MS) {
+                return@withContext entry.result
+            }
+        }
+
         val url = "https://nominatim.openstreetmap.org/reverse".toHttpUrl().newBuilder()
             .addQueryParameter("lat", lat.toString())
             .addQueryParameter("lon", lon.toString())
@@ -87,13 +113,23 @@ class NominatimGeocodingProvider(
                 ?: throw GeoException.InvalidResponse("Пустой ответ от Nominatim reverse")
 
             val json = JSONObject(body)
-            GeocodingResult(
+            val addressObj = json.optJSONObject("address")
+            val cityName = addressObj?.optString("city")
+                ?.takeIf { it.isNotBlank() }
+                ?: addressObj?.optString("town")?.takeIf { it.isNotBlank() }
+                ?: addressObj?.optString("village")?.takeIf { it.isNotBlank() }
+                ?: addressObj?.optString("county")?.takeIf { it.isNotBlank() }
+                ?: json.optString("display_name", "Неизвестная локация")
+
+            val result = GeocodingResult(
                 point = GeoPoint(
                     latitude = json.getString("lat").toDouble(),
                     longitude = json.getString("lon").toDouble()
                 ),
-                displayName = json.optString("display_name", "Неизвестная локация")
+                displayName = cityName
             )
+            reverseCache[cacheKey] = CacheEntry(result, now)
+            result
         }
     }
 }

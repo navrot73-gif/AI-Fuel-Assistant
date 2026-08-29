@@ -42,6 +42,12 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.navrot.aifuelassistant.data.model.GasStation
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.fillMaxWidth
 import com.navrot.aifuelassistant.ui.map.components.LocationPermissionHandler
 import com.navrot.aifuelassistant.ui.map.components.LocationStatusIndicator
 import com.navrot.aifuelassistant.ui.map.components.MapErrorDialog
@@ -105,7 +111,25 @@ fun MapScreen(
     var zoomInTick by remember { mutableIntStateOf(0) }
     var zoomOutTick by remember { mutableIntStateOf(0) }
     var hasInitialCentered by remember { mutableStateOf(false) }
+    var showCityPicker by remember { mutableStateOf(false) }
     val yellowRouteVisible = selectedStation != null || (route != null && routeStation != null)
+
+    val supportedCities = listOf(
+        "Челябинск",
+        "Троицк",
+        "Миасс",
+        "Златоуст",
+        "Магнитогорск",
+        "Копейск",
+        "Снежинск",
+        "Озёрск",
+        "Южноуральск",
+        "Аша",
+        "Москва",
+        "Екатеринбург",
+        "Тюмень",
+        "Пермь"
+    )
 
     val bottomPadding = when {
         showStationList -> 452.dp
@@ -252,7 +276,8 @@ fun MapScreen(
         topBar = {
             MapTopBar(
                 vehicleId = vehicleId, vehicleName = vehicleName, currentCity = currentCity,
-                onBack = onBack, onSearchClick = { showSearch = !showSearch }, onVehiclesClick = onVehiclesClick
+                onBack = onBack, onSearchClick = { showSearch = !showSearch }, onVehiclesClick = onVehiclesClick,
+                onCityClick = { showCityPicker = true }
             )
         },
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) }
@@ -457,6 +482,36 @@ fun MapScreen(
 
             }
         }
+    }
+
+    if (showCityPicker) {
+        AlertDialog(
+            onDismissRequest = { showCityPicker = false },
+            title = { Text("Выберите город") },
+            text = {
+                LazyColumn {
+                    items(supportedCities) { city ->
+                        Text(
+                            text = city,
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.setManualCity(city)
+                                    showCityPicker = false
+                                }
+                                .padding(vertical = 12.dp, horizontal = 16.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showCityPicker = false }) {
+                    Text("Отмена")
+                }
+            }
+        )
     }
 
     MapErrorDialog(error = error, onDismiss = { viewModel.clearError() })
