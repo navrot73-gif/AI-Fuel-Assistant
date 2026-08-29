@@ -17,7 +17,7 @@ class StationPriceApplierImpl @Inject constructor(
         private const val TAG = "StationPriceApplier"
     }
 
-    override fun applyUserPrices(stations: List<GasStation>): List<GasStation> {
+    override suspend fun applyUserPrices(stations: List<GasStation>): List<GasStation> {
         val overrides = userPrices.getAll()
         if (overrides.isEmpty()) return stations
         return stations.map { station ->

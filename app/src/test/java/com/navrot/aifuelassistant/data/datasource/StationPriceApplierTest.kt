@@ -43,7 +43,7 @@ class StationPriceApplierTest {
     }
 
     @Test
-    fun `applyUserPrices overrides fuel price when user report exists`() {
+    fun `applyUserPrices overrides fuel price when user report exists`() = runBlocking {
         val base = listOf(createBaseStation(id = 1, price = 50.0))
         whenever(userPrices.getAll()).doReturn(mapOf(Pair(1, "AI-95") to 58.0))
 
