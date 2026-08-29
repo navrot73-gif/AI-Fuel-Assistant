@@ -4,6 +4,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.location.Location
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import com.google.android.gms.location.LocationServices
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
@@ -64,7 +66,42 @@ class AiChatDelegate @Inject constructor(
     val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
 
     private val chatPrefs: SharedPreferences by lazy {
-        applicationContext.getSharedPreferences("chat_history", Context.MODE_PRIVATE)
+        createEncryptedOrFallbackPrefs()
+    }
+
+    private fun createEncryptedOrFallbackPrefs(): SharedPreferences {
+        val legacyPrefs = applicationContext.getSharedPreferences("chat_history", Context.MODE_PRIVATE)
+        val encryptedPrefs = try {
+            val masterKey = MasterKey.Builder(applicationContext)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            EncryptedSharedPreferences.create(
+                applicationContext,
+                "chat_history_encrypted",
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "Failed to initialize EncryptedSharedPreferences, falling back to unencrypted storage")
+            null
+        }
+
+        if (encryptedPrefs != null) {
+            val legacyMessages = legacyPrefs.getString("messages", null)
+            if (legacyMessages != null) {
+                try {
+                    encryptedPrefs.edit().putString("messages", legacyMessages).commit()
+                    legacyPrefs.edit().clear().commit()
+                    Timber.tag(TAG).i("Successfully migrated chat history to EncryptedSharedPreferences")
+                } catch (e: Exception) {
+                    Timber.tag(TAG).e(e, "Failed to migrate legacy chat history to EncryptedSharedPreferences")
+                }
+            }
+            return encryptedPrefs
+        }
+
+        return legacyPrefs
     }
     private val gson = Gson()
 

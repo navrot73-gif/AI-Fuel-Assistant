@@ -159,7 +159,8 @@ dependencies {
     // Gson for JSON serialization
     implementation(libs.gson)
 
-    // DataStore
+    // Security & DataStore
+    implementation(libs.androidx.security.crypto)
     implementation(libs.androidx.datastore.preferences)
 
     // Logging
