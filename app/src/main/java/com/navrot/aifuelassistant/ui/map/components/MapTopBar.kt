@@ -1,5 +1,6 @@
 package com.navrot.aifuelassistant.ui.map.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -28,20 +29,23 @@ fun MapTopBar(
     currentCity: String,
     onBack: () -> Unit,
     onSearchClick: () -> Unit,
-    onVehiclesClick: () -> Unit
+    onVehiclesClick: () -> Unit,
+    onCityClick: () -> Unit = {}
 ) {
     TopAppBar(
         title = {
-            Column {
+            Column(
+                modifier = Modifier.clickable { onCityClick() }
+            ) {
                 Text(
                     if (vehicleId == 0L) "Где бензин?" else "Карта: $vehicleName",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    "Топливо в $currentCity",
+                    "Топливо в $currentCity ▾",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         },

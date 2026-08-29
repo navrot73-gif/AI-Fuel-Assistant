@@ -22,9 +22,6 @@ class TileWarmupService @Inject constructor(
 
     companion object {
         private const val TAG = "TileWarmup"
-        // Chelyabinsk center
-        private const val CENTER_LAT = 55.164
-        private const val CENTER_LON = 61.436
         // Zoom levels to prefetch
         private val ZOOMS = intArrayOf(11, 12, 13, 14)
         // 3x3 grid around center
@@ -35,18 +32,18 @@ class TileWarmupService @Inject constructor(
     }
 
     /**
-     * Start background prefetch of Chelyabinsk tiles.
+     * Start background prefetch of map tiles around given coordinates.
      * Fire-and-forget, errors ignored, runs on IO dispatcher with low priority.
      */
-    fun startPrefetch() {
+    fun startPrefetch(centerLat: Double = 55.164, centerLon: Double = 61.436) {
         Executors.newSingleThreadExecutor { r ->
             Thread(r, "TileWarmup-Prefetch").apply { priority = Thread.MIN_PRIORITY }
         }.execute {
-            prefetchTiles()
+            prefetchTiles(centerLat, centerLon)
         }
     }
 
-    private fun prefetchTiles() {
+    private fun prefetchTiles(centerLat: Double, centerLon: Double) {
         var totalPrefetched = 0
 
         val tileWriter = try {
@@ -71,7 +68,7 @@ class TileWarmupService @Inject constructor(
         try {
             for (zoom in ZOOMS) {
                 // Calculate center tile at this zoom
-                val (centerX, centerY) = latLonToTile(CENTER_LAT, CENTER_LON, zoom)
+                val (centerX, centerY) = latLonToTile(centerLat, centerLon, zoom)
 
                 // 3x3 grid around center
                 for (dx in -GRID_RADIUS..GRID_RADIUS) {
@@ -117,7 +114,7 @@ class TileWarmupService @Inject constructor(
             tileWriter?.onDetach()
         }
 
-        Timber.tag(TAG).d("TileWarmup: prefetched %d tiles for chelyabinsk", totalPrefetched)
+        Timber.tag(TAG).d("TileWarmup: prefetched %d tiles for location (%.3f, %.3f)", totalPrefetched, centerLat, centerLon)
     }
 
     /**
