@@ -178,6 +178,8 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.hilt.android.testing)
+    kspTest(libs.hilt.compiler)
     // Robolectric позволяет запускать Android-зависимый код (Context, SharedPreferences,
     // assets) в unit-тестах на JVM без эмулятора. Используется в GasStationRepositoryTest.
     testImplementation(libs.robolectric)
