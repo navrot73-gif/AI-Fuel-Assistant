@@ -100,6 +100,10 @@ android {
         unitTests {
             isIncludeAndroidResources = true
             isReturnDefaultValues = true
+            all {
+                // Добавить ЭТУ строку для исправления проблемы с кириллицей
+                it.systemProperty("file.encoding", "UTF-8")
+            }
         }
     }
 
