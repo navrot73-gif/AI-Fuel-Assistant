@@ -8,11 +8,15 @@ import com.navrot.aifuelassistant.data.model.GasStation
  * Позволяет мокать в тестах и заменять реализацию
  * (например, на Room-кэш или backend API).
  */
+import kotlinx.coroutines.flow.Flow
+
 interface GasStationRepositoryInterface {
 
     suspend fun getAllStations(): List<GasStation>
 
     suspend fun getNearbyStations(lat: Double, lon: Double, radiusKm: Double): List<GasStation>
+
+    fun getNearbyStationsFlow(lat: Double, lon: Double, radiusKm: Double): Flow<List<GasStation>>
 
     suspend fun getStationsByCity(city: String): List<GasStation>
 

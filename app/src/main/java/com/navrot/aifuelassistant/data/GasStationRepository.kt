@@ -18,6 +18,10 @@ import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.geo.GeoUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -117,18 +121,23 @@ class GasStationRepository constructor(
         if (overpassStations.isEmpty()) return baseStations
         if (baseStations.isEmpty()) return overpassStations
 
-        val merged = ArrayList<GasStation>(baseStations.size + overpassStations.size)
-        merged.addAll(baseStations)
+        return try {
+            val merged = ArrayList<GasStation>(baseStations.size + overpassStations.size)
+            merged.addAll(baseStations)
 
-        for (overpass in overpassStations) {
-            val isDuplicate = baseStations.any { base ->
-                GeoUtils.calculateDistance(base.latitude, base.longitude, overpass.latitude, overpass.longitude) <= DEDUPLICATION_RADIUS_KM
+            for (overpass in overpassStations) {
+                val isDuplicate = baseStations.any { base ->
+                    GeoUtils.calculateDistance(base.latitude, base.longitude, overpass.latitude, overpass.longitude) <= DEDUPLICATION_RADIUS_KM
+                }
+                if (!isDuplicate) {
+                    merged.add(overpass)
+                }
             }
-            if (!isDuplicate) {
-                merged.add(overpass)
-            }
+            merged
+        } catch (e: Exception) {
+            Timber.tag(TAG).w(e, "Error merging stations, returning base list")
+            baseStations
         }
-        return merged
     }
 
     private suspend fun ensureLoaded(): List<GasStation> = loadMutex.withLock {
@@ -261,17 +270,32 @@ class GasStationRepository constructor(
         ensureLoaded()
     }
 
-    override suspend fun getNearbyStations(lat: Double, lon: Double, radiusKm: Double): List<GasStation> = withContext(Dispatchers.IO) {
+    override fun getNearbyStationsFlow(lat: Double, lon: Double, radiusKm: Double): Flow<List<GasStation>> = flow {
         val baseStations = ensureLoaded()
+        val baseNearby = stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, baseStations)
+        emit(baseNearby)
+
         val overpassStations = try {
-            overpassFuelProvider.fetchStations(lat, lon, radiusKm * 1000.0)
+            withTimeoutOrNull(10_000L) {
+                overpassFuelProvider.fetchStations(lat, lon, radiusKm * 1000.0)
+            } ?: emptyList()
         } catch (e: Exception) {
-            Timber.tag(TAG).w("Overpass fetch failed in getNearbyStations: %s", e.message)
+            Timber.tag(TAG).w("Overpass fetch failed in getNearbyStationsFlow: %s", e.message)
             emptyList()
         }
-        val merged = mergeStations(baseStations, overpassStations)
-        val withPrices = stationPriceApplier.applyUserPrices(merged)
-        stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, withPrices)
+
+        if (overpassStations.isNotEmpty()) {
+            val merged = mergeStations(baseStations, overpassStations)
+            val withPrices = stationPriceApplier.applyUserPrices(merged)
+            val nearbyEnriched = stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, withPrices)
+            if (nearbyEnriched != baseNearby) {
+                emit(nearbyEnriched)
+            }
+        }
+    }.flowOn(Dispatchers.IO)
+
+    override suspend fun getNearbyStations(lat: Double, lon: Double, radiusKm: Double): List<GasStation> = withContext(Dispatchers.IO) {
+        getNearbyStationsFlow(lat, lon, radiusKm).first()
     }
 
     override suspend fun getStationsByCity(city: String): List<GasStation> = withContext(Dispatchers.IO) {

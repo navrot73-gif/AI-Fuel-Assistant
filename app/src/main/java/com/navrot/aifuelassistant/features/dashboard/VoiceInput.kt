@@ -36,8 +36,8 @@ fun createSpeechRecognizer(
         override fun onResults(results: Bundle?) {
             onListening(false)
             val matches = results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
-            if (!matches.isNullOrEmpty()) {
-                val text = matches.joinToString(" ")
+            val text = matches?.firstOrNull()?.trim()
+            if (!text.isNullOrEmpty()) {
                 onResult(text)
             }
         }
