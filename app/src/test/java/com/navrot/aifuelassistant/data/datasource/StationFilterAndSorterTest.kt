@@ -2,6 +2,8 @@ package com.navrot.aifuelassistant.data.datasource
 
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
+import com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -25,7 +27,9 @@ class StationFilterAndSorterTest {
         lat: Double,
         lon: Double,
         price: Double,
-        queueTime: Int
+        queueTime: Int,
+        available: Boolean = true,
+        updatedAt: Long = System.currentTimeMillis()
     ): GasStation {
         return GasStation(
             id = id,
@@ -34,9 +38,44 @@ class StationFilterAndSorterTest {
             address = address,
             latitude = lat,
             longitude = lon,
-            fuelTypes = listOf(FuelPrice(type = "AI-95", price = price, available = true)),
+            fuelTypes = listOf(FuelPrice(type = "AI-95", price = price, available = available, updatedAt = updatedAt)),
             queueTime = queueTime,
             reliability = 100
+        )
+    }
+
+    @Test
+    fun `stations with NO_FUEL are NOT excluded from sorting and cheapest`() {
+        val now = System.currentTimeMillis()
+        val s1 = createStation(1, "No Fuel Cheap", "B1", "A1", 55.0, 60.0, 40.0, 1, available = false, updatedAt = now)
+        val s2 = createStation(2, "Available Expensive", "B2", "A2", 55.0, 60.0, 50.0, 1, available = true, updatedAt = now)
+
+        val cheapest = filterAndSorter.getCheapestStation(listOf(s1, s2), "AI-95")
+        assertEquals(1, cheapest?.id)
+
+        val asc = filterAndSorter.sortPriceAscending(listOf(s1, s2), "AI-95")
+        assertEquals(2, asc.size)
+        assertEquals(1, asc[0].id)
+    }
+
+    @Test
+    fun `calculateFuelAvailability calculates status correctly for fresh and old marks`() {
+        val now = System.currentTimeMillis()
+        val freshAvailable = createStation(1, "S1", "B1", "A1", 55.0, 60.0, 50.0, 1, available = true, updatedAt = now)
+        val freshNoFuel = createStation(2, "S2", "B2", "A2", 55.0, 60.0, 50.0, 1, available = false, updatedAt = now)
+        val oldMark = createStation(3, "S3", "B3", "A3", 55.0, 60.0, 50.0, 1, available = true, updatedAt = now - (9 * 60 * 60 * 1000L))
+
+        assertEquals(
+            FuelAvailabilityStatus.AVAILABLE,
+            PriceReliabilityCalculator.calculateFuelAvailability(freshAvailable, "AI-95", now)
+        )
+        assertEquals(
+            FuelAvailabilityStatus.NO_FUEL,
+            PriceReliabilityCalculator.calculateFuelAvailability(freshNoFuel, "AI-95", now)
+        )
+        assertEquals(
+            FuelAvailabilityStatus.UNKNOWN,
+            PriceReliabilityCalculator.calculateFuelAvailability(oldMark, "AI-95", now)
         )
     }
 

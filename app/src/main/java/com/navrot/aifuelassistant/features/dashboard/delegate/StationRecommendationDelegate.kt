@@ -81,7 +81,7 @@ class StationRecommendationDelegate @Inject constructor(
     fun updateBestStation() {
         val fuelType = _selectedFuelType.value
         val best = _stations.value
-            .filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
+            .filter { s -> s.fuelTypes.any { it.type == fuelType } }
             .minByOrNull { s ->
                 getBestStationsUseCase.calculateScore(s, fuelType)
             }

@@ -16,6 +16,8 @@ import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
+import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
+import com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.util.Format
 
@@ -80,22 +82,25 @@ fun openMapsRoute(context: Context, lat: Double, lon: Double, label: String) {
 }
 
 fun getMarkerColor(station: GasStation, selectedFuelTypes: Set<String>): Color {
-    val relevant = station.fuelTypes.filter { selectedFuelTypes.contains(it.type) }
-    val available = relevant.filter { it.available }
-    return when {
-        relevant.isEmpty() -> FueldeckColors.InkFaint
-        available.isEmpty() -> FueldeckColors.Coral
-        station.queueTime > 15 -> FueldeckColors.Amber
-        else -> FueldeckColors.Mint
+    val selectedFuelType = selectedFuelTypes.firstOrNull()
+    return when (PriceReliabilityCalculator.calculateFuelAvailability(station, selectedFuelType)) {
+        FuelAvailabilityStatus.AVAILABLE -> FueldeckColors.Mint // 🟢 зелёный
+        FuelAvailabilityStatus.NO_FUEL -> FueldeckColors.Coral  // 🔴 красный
+        FuelAvailabilityStatus.UNKNOWN -> FueldeckColors.InkFaint // ⚪ серый
     }
 }
 
 fun buildStationSnippet(station: GasStation, selectedFuelTypes: Set<String>): String {
     val fuels = station.fuelTypes
-        .filter { selectedFuelTypes.contains(it.type) && it.available }
+        .filter { selectedFuelTypes.contains(it.type) }
         .joinToString(" | ") {
             val tilde = if (it.isMedianFromNetwork) "~" else ""
-            "${it.type}: $tilde${Format.price(it.price)}₽"
+            val statusStr = when (PriceReliabilityCalculator.calculateFuelAvailability(station, it.type)) {
+                FuelAvailabilityStatus.AVAILABLE -> "🟢"
+                FuelAvailabilityStatus.NO_FUEL -> "🔴"
+                FuelAvailabilityStatus.UNKNOWN -> "⚪"
+            }
+            "${it.type}: $statusStr $tilde${Format.price(it.price)}₽"
         }
     return if (fuels.isNotEmpty()) {
         "$fuels | Очередь: ${station.queueTime} мин"

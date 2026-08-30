@@ -20,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
+import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
+import com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator
 import com.navrot.aifuelassistant.geo.GeoUtils
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.util.Format
@@ -33,7 +35,10 @@ fun StationListItem(
     userLocation: GeoPoint?,
     onClick: () -> Unit
 ) {
-    val primaryFuel = station.fuelTypes.find { selectedFuelTypes.contains(it.type) && it.available }
+    val selectedFuel = selectedFuelTypes.firstOrNull() ?: "АИ-95"
+    val fuelObj = station.fuelTypes.find { it.type == selectedFuel } ?: station.fuelTypes.firstOrNull()
+    val availabilityStatus = PriceReliabilityCalculator.calculateFuelAvailability(station, selectedFuel)
+
     val distance = userLocation?.let {
         GeoUtils.calculateDistance(it.latitude, it.longitude, station.latitude, station.longitude)
     }
@@ -43,6 +48,38 @@ fun StationListItem(
         Color(0xFF2F7FD1), Color(0xFF7A6BD1), Color(0xFF2FAA55)
     )
     val brandColor = brandColors[Math.floorMod(station.brand.hashCode(), brandColors.size)]
+
+    val statusBadgeText = when (availabilityStatus) {
+        FuelAvailabilityStatus.AVAILABLE -> "🟢 Есть топливо"
+        FuelAvailabilityStatus.NO_FUEL -> "🔴 Нет топлива"
+        FuelAvailabilityStatus.UNKNOWN -> "⚪ Нет данных"
+    }
+
+    val statusBadgeBg = when (availabilityStatus) {
+        FuelAvailabilityStatus.AVAILABLE -> FueldeckColors.MintSoft
+        FuelAvailabilityStatus.NO_FUEL -> FueldeckColors.CoralSoft
+        FuelAvailabilityStatus.UNKNOWN -> Color(0x0AFFFFFF)
+    }
+
+    val statusBadgeTextColor = when (availabilityStatus) {
+        FuelAvailabilityStatus.AVAILABLE -> FueldeckColors.Mint
+        FuelAvailabilityStatus.NO_FUEL -> FueldeckColors.Coral
+        FuelAvailabilityStatus.UNKNOWN -> FueldeckColors.InkFaint
+    }
+
+    val timestamp = fuelObj?.updatedAt?.takeIf { it > 0L } ?: station.updatedAt
+    val updatedText = if (timestamp > 0L) {
+        val diffMs = maxOf(0L, System.currentTimeMillis() - timestamp)
+        val hours = (diffMs / (1000 * 60 * 60)).toInt()
+        val days = hours / 24
+        when {
+            hours < 1 -> "обновлено только что"
+            hours < 24 -> "обновлено ${hours}ч назад"
+            else -> "обновлено ${days}дн назад"
+        }
+    } else {
+        "обновлено давно"
+    }
 
     Card(
         modifier = Modifier
@@ -90,85 +127,34 @@ fun StationListItem(
                     maxLines = 1
                 )
 
-                val matchingFuels = station.fuelTypes.filter { selectedFuelTypes.contains(it.type) }
-                if (matchingFuels.isNotEmpty()) {
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier.padding(top = 6.dp)
-                    ) {
-                        matchingFuels.forEach { fuel ->
-                            val hot = fuel.available
-                            val isPrimary = primaryFuel != null && fuel.type == primaryFuel.type
-                            Surface(
-                                shape = RoundedCornerShape(6.dp),
-                                color = if (hot) FueldeckColors.MintSoft else Color(0x0AFFFFFF),
-                                border = BorderStroke(
-                                    1.dp,
-                                    if (hot) FueldeckColors.Mint.copy(alpha = 0.35f) else FueldeckColors.Line
-                                )
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = if (hot) {
-                                            val tilde = if (fuel.isMedianFromNetwork) "~" else ""
-                                            "${fuel.type} $tilde${Format.price(fuel.price)}"
-                                        } else "${fuel.type} нет",
-                                        fontSize = 10.sp,
-                                        color = if (hot) FueldeckColors.Mint else FueldeckColors.InkFaint,
-                                        fontWeight = FontWeight.Medium,
-                                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                    )
-                                    // Show queue + reliability icons only for selected fuel type
-                                    if (isPrimary && hot) {
-                                        if (station.queueTime > 0) {
-                                            Text(
-                                                text = " 👥${station.queueTime}мин",
-                                                fontSize = 10.sp,
-                                                color = FueldeckColors.Danger,
-                                                fontWeight = FontWeight.Medium,
-                                                modifier = Modifier.padding(start = 2.dp, top = 2.dp, end = 0.dp, bottom = 2.dp)
-                                            )
-                                        }
-                                        if (station.reliability > 0) {
-                                            Text(
-                                                text = " ⭐${station.reliability}",
-                                                fontSize = 10.sp,
-                                                color = FueldeckColors.Amber,
-                                                fontWeight = FontWeight.Medium,
-                                                modifier = Modifier.padding(start = 2.dp, top = 2.dp, end = 0.dp, bottom = 2.dp)
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
+                Surface(
+                    shape = RoundedCornerShape(6.dp),
+                    color = statusBadgeBg,
+                    modifier = Modifier.padding(top = 4.dp)
+                ) {
+                    Text(
+                        text = "$statusBadgeText • $updatedText",
+                        fontSize = 10.sp,
+                        color = statusBadgeTextColor,
+                        fontWeight = FontWeight.Medium,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
+                    )
                 }
             }
 
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                primaryFuel?.let { fuel ->
+                fuelObj?.let { fuel ->
                     val tilde = if (fuel.isMedianFromNetwork) "~" else ""
                     Text(
                         text = "$tilde${Format.price(fuel.price)} ₽",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        color = FueldeckColors.Mint
+                        color = if (availabilityStatus == FuelAvailabilityStatus.NO_FUEL) FueldeckColors.Coral else FueldeckColors.Mint
                     )
-                    if (fuel.isMedianFromNetwork && fuel.sourceCount > 0) {
-                        Text(
-                            text = "🔄 из ${fuel.sourceCount} источников",
-                            fontSize = 9.sp,
-                            color = FueldeckColors.Mint
-                        )
-                    }
                 } ?: Text(
-                    text = "Нет топлива",
+                    text = "Нет данных",
                     fontSize = 12.sp,
-                    color = FueldeckColors.Coral
+                    color = FueldeckColors.InkFaint
                 )
 
                 distance?.let { dist ->

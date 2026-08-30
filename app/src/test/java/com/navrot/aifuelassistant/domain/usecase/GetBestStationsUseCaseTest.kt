@@ -8,7 +8,7 @@ import org.junit.Test
 /**
  * Тесты скоринга и ранжирования АЗС.
  *
- * Формула: score = fuelPrice + queueTime * 0.5 + (100 - reliability) * 0.2
+ * Формула: score = fuelPrice + queueTime * 0.5 + (100 - reliability) * 0.2 + noFuelPenalty
  * Чем меньше score — тем лучше.
  */
 class GetBestStationsUseCaseTest {
@@ -22,7 +22,8 @@ class GetBestStationsUseCaseTest {
         price: Double = 45.0,
         queueTime: Int = 5,
         reliability: Int = 80,
-        available: Boolean = true
+        available: Boolean = true,
+        updatedAt: Long = System.currentTimeMillis()
     ): GasStation = GasStation(
         id = id,
         name = "АЗС $id",
@@ -31,7 +32,7 @@ class GetBestStationsUseCaseTest {
         latitude = 55.0 + id * 0.01,
         longitude = 61.0 + id * 0.01,
         fuelTypes = listOf(
-            FuelPrice(type = "АИ-95", price = price, available = available)
+            FuelPrice(type = "АИ-95", price = price, available = available, updatedAt = updatedAt)
         ),
         queueTime = queueTime,
         reliability = reliability
@@ -77,9 +78,18 @@ class GetBestStationsUseCaseTest {
     }
 
     @Test
-    fun `score returns MAX_VALUE for unavailable fuel`() {
-        val s = station(available = false)
-        assertEquals(Double.MAX_VALUE, useCase.calculateScore(s, "АИ-95"), 0.0)
+    fun `score applies penalty for fresh NO_FUEL status but does not exclude station`() {
+        val now = System.currentTimeMillis()
+        val sAvailable = station(id = 1, price = 50.0, available = true, updatedAt = now)
+        val sNoFuel = station(id = 2, price = 40.0, available = false, updatedAt = now)
+
+        val scoreAvailable = useCase.calculateScore(sAvailable, "АИ-95", currentTimeMs = now)
+        val scoreNoFuel = useCase.calculateScore(sNoFuel, "АИ-95", currentTimeMs = now)
+
+        // scoreNoFuel = 40.0 + 5.0*0.5 + (100-80)*0.2 + 1000.0 = 1046.5
+        assertEquals(1046.5, scoreNoFuel, 0.001)
+        assertTrue("NO_FUEL station is penalized", scoreNoFuel > scoreAvailable)
+        assertTrue("NO_FUEL station is not MAX_VALUE", scoreNoFuel < Double.MAX_VALUE)
     }
 
     @Test
@@ -96,10 +106,11 @@ class GetBestStationsUseCaseTest {
     // ==================== execute (simple) ====================
 
     @Test
-    fun `execute filters by fuel type and availability`() {
+    fun `execute includes NO_FUEL stations but ranks them lower due to penalty`() {
+        val now = System.currentTimeMillis()
         val stations = listOf(
-            station(id = 1, price = 44.0, available = true),  // АИ-95 available
-            station(id = 2, price = 42.0, available = false), // unavailable — excluded
+            station(id = 1, price = 44.0, available = false, updatedAt = now), // NO_FUEL penalty +1000
+            station(id = 2, price = 50.0, available = true, updatedAt = now),  // Available cheaper score
             GasStation(
                 id = 3, name = "", brand = "", address = "",
                 latitude = 0.0, longitude = 0.0,
@@ -108,8 +119,9 @@ class GetBestStationsUseCaseTest {
             )
         )
         val result = useCase.execute(stations, "АИ-95")
-        assertEquals(1, result.size)
-        assertEquals(1, result[0].id)
+        assertEquals(2, result.size)
+        assertEquals(2, result[0].id)
+        assertEquals(1, result[1].id)
     }
 
     @Test
