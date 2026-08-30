@@ -220,10 +220,7 @@ fun OsmMapView(
             config.tileDownloadThreads = 8
             config.userAgentValue = ctx.packageName
 
-            val tileWriter = SqliteArchiveTileWriter(
-                File(ctx.filesDir, "tiles.sqlite").absolutePath
-            )
-            val tileProvider = MapTileProviderBasic(ctx, TileSourceFactory.MAPNIK, tileWriter)
+            val tileProvider = MapTileProviderBasic(ctx, TileSourceFactory.MAPNIK)
 
             MapView(ctx, tileProvider).apply {
                 setTilesScaledToDpi(true)
@@ -260,10 +257,7 @@ fun OsmMapView(
                         ),
                         "© OpenStreetMap contributors © CARTO"
                     )
-                    val tileWriter = SqliteArchiveTileWriter(
-                        File(context.filesDir, "tiles.sqlite").absolutePath
-                    )
-                    val labelsProvider = MapTileProviderBasic(context, labelsSource, tileWriter)
+                    val labelsProvider = MapTileProviderBasic(context, labelsSource)
                     val labelsOverlay = TilesOverlay(labelsProvider, context)
                     labelsOverlay.setLoadingBackgroundColor(android.graphics.Color.TRANSPARENT)
                     labelsOverlay.setColorFilter(ColorMatrixColorFilter(LABELS_LIGHTEN_MATRIX))

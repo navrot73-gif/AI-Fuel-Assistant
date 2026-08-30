@@ -198,7 +198,7 @@ fun MapScreen(
                 viewModel.buildRouteTo(st)
                 onConsumePendingRoute()
                 routeStation = st
-                selectedStation = null
+                selectedStation = st
                 showStationList = false
                 foundStation = st // Assign the found station
                 Timber.tag("RouteHandoff").d("route built to %s (id=%d, wanted=%d)", st.name, st.id, id)
