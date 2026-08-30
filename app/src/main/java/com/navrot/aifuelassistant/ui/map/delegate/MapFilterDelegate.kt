@@ -105,12 +105,30 @@ class MapFilterDelegate @Inject constructor(
             onLoading(true)
             onError("")
             try {
-                _stations.value = repository.getNearbyStations(lat, lon, radiusKm)
+                val nearby = repository.getNearbyStations(lat, lon, radiusKm)
+                val stationsToUse = if (nearby.isNotEmpty()) {
+                    nearby
+                } else {
+                    repository.getAllStations()
+                }
+                _stations.value = stationsToUse
                 updateBestAndCheapest(scope, lat, lon, radiusKm)
                 updateAiRecommendation(lat, lon)
                 onSuccess()
             } catch (e: Exception) {
-                onError(ErrorMessageMapper.mapToUserMessage(e, ErrorContext.PRICES))
+                try {
+                    val fallback = repository.getAllStations()
+                    if (fallback.isNotEmpty()) {
+                        _stations.value = fallback
+                        updateBestAndCheapest(scope, lat, lon, radiusKm)
+                        updateAiRecommendation(lat, lon)
+                        onSuccess()
+                    } else {
+                        onError(ErrorMessageMapper.mapToUserMessage(e, ErrorContext.PRICES))
+                    }
+                } catch (fallbackEx: Exception) {
+                    onError(ErrorMessageMapper.mapToUserMessage(e, ErrorContext.PRICES))
+                }
             } finally {
                 onLoading(false)
             }
@@ -127,9 +145,19 @@ class MapFilterDelegate @Inject constructor(
             onLoading(true)
             onError("")
             try {
-                _stations.value = repository.getStationsByCity(city)
+                val cityStations = repository.getStationsByCity(city)
+                _stations.value = if (cityStations.isNotEmpty()) cityStations else repository.getAllStations()
             } catch (e: Exception) {
-                onError(ErrorMessageMapper.mapToUserMessage(e, ErrorContext.PRICES))
+                try {
+                    val fallback = repository.getAllStations()
+                    if (fallback.isNotEmpty()) {
+                        _stations.value = fallback
+                    } else {
+                        onError(ErrorMessageMapper.mapToUserMessage(e, ErrorContext.PRICES))
+                    }
+                } catch (fallbackEx: Exception) {
+                    onError(ErrorMessageMapper.mapToUserMessage(e, ErrorContext.PRICES))
+                }
             } finally {
                 onLoading(false)
             }

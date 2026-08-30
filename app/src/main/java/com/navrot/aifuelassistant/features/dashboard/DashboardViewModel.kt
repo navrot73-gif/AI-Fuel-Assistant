@@ -113,8 +113,8 @@ class DashboardViewModel @Inject constructor(
         aiChatDelegate.setUserQuestion(text)
     }
 
-    fun askUserQuestion() {
-        aiChatDelegate.askUserQuestion(viewModelScope, recommendationDelegate)
+    fun askUserQuestion(text: String? = null) {
+        aiChatDelegate.askUserQuestion(viewModelScope, recommendationDelegate, text)
     }
 
     fun onRouteHandoffConsumed() {
