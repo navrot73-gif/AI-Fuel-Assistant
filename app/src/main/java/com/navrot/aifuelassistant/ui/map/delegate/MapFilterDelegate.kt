@@ -264,7 +264,7 @@ class MapFilterDelegate @Inject constructor(
         val best = stationList
             .mapNotNull { st ->
                 val fuel = st.fuelTypes.firstOrNull {
-                    (fuelFilter.isEmpty() || fuelFilter.contains(it.type)) && it.available
+                    fuelFilter.isEmpty() || fuelFilter.contains(it.type)
                 } ?: return@mapNotNull null
                 val dist = if (lat != null && lon != null) {
                     GeoUtils.calculateDistance(lat, lon, st.latitude, st.longitude)

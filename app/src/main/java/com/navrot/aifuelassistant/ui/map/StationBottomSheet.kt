@@ -114,6 +114,34 @@ fun StationBottomSheet(
                         onFuelTypeToggled = onToggleFuelType
                     )
 
+                    // ===== Легенда статусов ("светофор") =====
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "🟢 есть",
+                            fontSize = 11.sp,
+                            color = FueldeckColors.Mint,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "🔴 нет",
+                            fontSize = 11.sp,
+                            color = FueldeckColors.Coral,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = "⚪ нет данных",
+                            fontSize = 11.sp,
+                            color = FueldeckColors.InkDim,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
                     // ===== Бренды (горизонтальный скролл) =====
                     if (brands.isNotEmpty()) {
                         Row(

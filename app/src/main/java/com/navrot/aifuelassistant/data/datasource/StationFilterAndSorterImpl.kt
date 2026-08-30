@@ -35,22 +35,22 @@ class StationFilterAndSorterImpl @Inject constructor() : StationFilterAndSorter 
 
     override fun getCheapestStation(stations: List<GasStation>, fuelType: String): GasStation? {
         return stations
-            .filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
+            .filter { s -> s.fuelTypes.any { it.type == fuelType } }
             .minByOrNull { s -> s.fuelTypes.find { it.type == fuelType }?.price ?: Double.MAX_VALUE }
     }
 
     override fun sortPriceAscending(stations: List<GasStation>, fuelType: String): List<GasStation> {
-        return stations.filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
+        return stations.filter { s -> s.fuelTypes.any { it.type == fuelType } }
             .sortedBy { s -> s.fuelTypes.find { it.type == fuelType }?.price ?: Double.MAX_VALUE }
     }
 
     override fun sortPriceDescending(stations: List<GasStation>, fuelType: String): List<GasStation> {
-        return stations.filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
+        return stations.filter { s -> s.fuelTypes.any { it.type == fuelType } }
             .sortedByDescending { s -> s.fuelTypes.find { it.type == fuelType }?.price ?: Double.MAX_VALUE }
     }
 
     override fun sortByQueue(stations: List<GasStation>, fuelType: String): List<GasStation> {
-        return stations.filter { s -> s.fuelTypes.any { it.type == fuelType && it.available } }
+        return stations.filter { s -> s.fuelTypes.any { it.type == fuelType } }
             .sortedBy { it.queueTime }
     }
 }

@@ -13,6 +13,8 @@ import com.navrot.aifuelassistant.ai.router.AiRouter
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.RouteStateManager
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
+import com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator
 import com.navrot.aifuelassistant.features.dashboard.ChatMessage
 import com.navrot.aifuelassistant.features.dashboard.DashboardViewModel.PendingRouteMode
 import com.navrot.aifuelassistant.geo.GeoUtils
@@ -203,15 +205,19 @@ class AiChatDelegate @Inject constructor(
                 val stationsList = if (nearbyStations.isNotEmpty()) nearbyStations else stationsFallback
                 val stationsInfo = if (stationsList.isNotEmpty()) {
                     stationsList.joinToString("\n") { station ->
-                        val price = station.fuelTypes
-                            .filter { it.available }
-                            .minByOrNull { it.price }?.price
-                            ?: 0.0
-                        "[${station.id}] ${station.brand} (${station.name}), ${station.address}, ${Format.price(price)}₽"
+                        val fuel = station.fuelTypes.firstOrNull()
+                        val price = fuel?.price ?: 0.0
+                        val status = PriceReliabilityCalculator.calculateFuelAvailability(station, fuel?.type)
+                        val statusStr = when (status) {
+                            FuelAvailabilityStatus.AVAILABLE -> "🟢 есть топливо"
+                            FuelAvailabilityStatus.NO_FUEL -> "🔴 нет топлива"
+                            FuelAvailabilityStatus.UNKNOWN -> "⚪ нет данных"
+                        }
+                        "[${station.id}] ${station.brand} (${station.name}), ${station.address}, ${Format.price(price)}₽ ($statusStr)"
                     }
                 } else "нет доступных АЗС"
 
-                val text = "Пользователь: $lat, $lon, город: $city.\nСписок АЗС:\n$stationsInfo"
+                val text = "Пользователь: $lat, $lon, город: $city.\nПравило для AI: При вопросе о ближайшей АЗС определи РЕАЛЬНО ближайшую станцию (по расстоянию). Назови её бренд, адрес и статус топлива. Если у неё статус NO_FUEL (🔴 нет топлива), обязательно напиши \"⚠️ по меткам нет топлива\" и предложи ближайшую альтернативную АЗС С ТОПЛИВОМ (укажи её бренд, адрес, цену и расстояние).\nСписок АЗС:\n$stationsInfo"
                 UserContext(text, stationsList.firstOrNull()?.id)
             } ?: UserContext("", null)
         } catch (e: Exception) {
@@ -388,7 +394,7 @@ class AiChatDelegate @Inject constructor(
                 if (selectedStation == null) {
                     selectedStation = recommendationDelegate.bestStation.value
                         ?: currentStations.minByOrNull { GeoUtils.calculateDistance(userLat, userLon, it.latitude, it.longitude) }
-                        ?: currentStations.minByOrNull { it.fuelTypes.filter { ft -> ft.available }.minByOrNull { ft -> ft.price }?.price ?: Double.MAX_VALUE }
+                        ?: currentStations.minByOrNull { it.fuelTypes.minByOrNull { ft -> ft.price }?.price ?: Double.MAX_VALUE }
                 }
 
                 selectedStation?.let { station ->

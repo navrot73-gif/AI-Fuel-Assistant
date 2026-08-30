@@ -23,6 +23,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -33,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -41,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.background
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
+import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
 import com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator
 import com.navrot.aifuelassistant.domain.reliability.PriceSource
 import com.navrot.aifuelassistant.ui.components.NetworkImage
@@ -64,6 +67,26 @@ fun StationDetailCard(
     onReportPrice: (stationId: Int, fuelType: String, price: Double) -> Unit = { _, _, _ -> }
 ) {
     val context = LocalContext.current
+    val primaryFuelType = selectedFuelTypes.firstOrNull() ?: station.fuelTypes.firstOrNull()?.type ?: "АИ-95"
+    val availabilityStatus = PriceReliabilityCalculator.calculateFuelAvailability(station, primaryFuelType)
+
+    val statusBadgeText = when (availabilityStatus) {
+        FuelAvailabilityStatus.AVAILABLE -> "🟢 Есть топливо"
+        FuelAvailabilityStatus.NO_FUEL -> "🔴 Нет топлива"
+        FuelAvailabilityStatus.UNKNOWN -> "⚪ Нет данных"
+    }
+
+    val statusBadgeBg = when (availabilityStatus) {
+        FuelAvailabilityStatus.AVAILABLE -> FueldeckColors.MintSoft
+        FuelAvailabilityStatus.NO_FUEL -> FueldeckColors.CoralSoft
+        FuelAvailabilityStatus.UNKNOWN -> Color(0x0AFFFFFF)
+    }
+
+    val statusBadgeTextColor = when (availabilityStatus) {
+        FuelAvailabilityStatus.AVAILABLE -> FueldeckColors.Mint
+        FuelAvailabilityStatus.NO_FUEL -> FueldeckColors.Coral
+        FuelAvailabilityStatus.UNKNOWN -> FueldeckColors.InkFaint
+    }
 
     Card(
         modifier = Modifier
@@ -93,6 +116,19 @@ fun StationDetailCard(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Surface(
+                        shape = RoundedCornerShape(6.dp),
+                        color = statusBadgeBg
+                    ) {
+                        Text(
+                            text = statusBadgeText,
+                            fontSize = 11.sp,
+                            color = statusBadgeTextColor,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
                 }
                 IconButton(onClick = onClose) {
                     Icon(Icons.Default.Close, contentDescription = "Закрыть")
@@ -213,7 +249,6 @@ fun StationDetailCard(
             Spacer(modifier = Modifier.height(8.dp))
 
             // ===== Очередь и индикатор надёжности =====
-            val primaryFuelType = selectedFuelTypes.firstOrNull() ?: station.fuelTypes.firstOrNull()?.type
             val priceReliability = remember(station, primaryFuelType) {
                 PriceReliabilityCalculator.calculate(station, primaryFuelType)
             }

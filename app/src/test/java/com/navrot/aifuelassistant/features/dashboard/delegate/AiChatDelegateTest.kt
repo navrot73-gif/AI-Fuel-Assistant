@@ -5,6 +5,8 @@ import androidx.test.core.app.ApplicationProvider
 import com.navrot.aifuelassistant.ai.router.AiRouter
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.RouteStateManager
+import com.navrot.aifuelassistant.data.model.FuelPrice
+import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.features.dashboard.ChatMessage
 import org.junit.Assert.*
 import org.junit.Before
@@ -91,7 +93,7 @@ class AiChatDelegateTest {
         )
 
         val mockRecommendationDelegate = mock<StationRecommendationDelegate>()
-        val testStation = com.navrot.aifuelassistant.data.model.GasStation(
+        val testStation = GasStation(
             id = 7,
             name = "Газпромнефть",
             brand = "Газпромнефть",
@@ -115,5 +117,55 @@ class AiChatDelegateTest {
             com.navrot.aifuelassistant.features.dashboard.DashboardViewModel.PendingRouteMode.ROUTE,
             delegate.pendingRouteMode.value
         )
+    }
+
+    @Test
+    fun `detectIntent routes to nearest brand station even if NO_FUEL`() = kotlinx.coroutines.test.runTest {
+        val mockContext = mock<Context>()
+        val mockPrefs = mock<android.content.SharedPreferences>()
+        org.mockito.kotlin.whenever(mockContext.getSharedPreferences(org.mockito.kotlin.any(), org.mockito.kotlin.any())).thenReturn(mockPrefs)
+        org.mockito.kotlin.whenever(mockPrefs.getString(org.mockito.kotlin.any(), org.mockito.kotlin.any())).thenReturn("[]")
+
+        val delegate = AiChatDelegate(
+            aiRouter = mockAiRouter,
+            routeStateManager = mockRouteStateManager,
+            gasStationRepository = mockGasStationRepository,
+            applicationContext = mockContext
+        )
+
+        val mockRecommendationDelegate = mock<StationRecommendationDelegate>()
+        val now = System.currentTimeMillis()
+        val nearestNoFuel = GasStation(
+            id = 1,
+            name = "Лукойл Ближняя",
+            brand = "Лукойл",
+            address = "ул. Ближняя 1",
+            latitude = 55.01,
+            longitude = 61.01,
+            fuelTypes = listOf(FuelPrice("АИ-95", 50.0, available = false, updatedAt = now)),
+            queueTime = 0,
+            reliability = 90
+        )
+        val farAvailable = GasStation(
+            id = 2,
+            name = "Лукойл Дальняя",
+            brand = "Лукойл",
+            address = "ул. Дальняя 10",
+            latitude = 55.10,
+            longitude = 61.10,
+            fuelTypes = listOf(FuelPrice("АИ-95", 52.0, available = true, updatedAt = now)),
+            queueTime = 0,
+            reliability = 90
+        )
+        org.mockito.kotlin.whenever(mockRecommendationDelegate.stations).thenReturn(kotlinx.coroutines.flow.MutableStateFlow(listOf(nearestNoFuel, farAvailable)))
+        org.mockito.kotlin.whenever(mockAiRouter.ask(org.mockito.kotlin.any(), org.mockito.kotlin.anyOrNull(), org.mockito.kotlin.anyOrNull(), org.mockito.kotlin.any(), org.mockito.kotlin.any()))
+            .thenReturn("Ближайшая Лукойл: ул. Ближняя 1, ⚠️ по меткам нет топлива. Альтернатива с топливом: Лукойл на ул. Дальняя 10 (52.0 ₽).")
+
+        delegate.updateUserLocation(55.0, 61.0)
+        delegate.setUserQuestion("где ближайшая Лукойл")
+        delegate.askUserQuestion(this, mockRecommendationDelegate)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(1, delegate.pendingRouteStationId.value)
     }
 }

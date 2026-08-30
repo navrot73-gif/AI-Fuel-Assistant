@@ -6,6 +6,35 @@ import com.navrot.aifuelassistant.data.model.GasStation
 
 object PriceReliabilityCalculator {
 
+    const val FRESHNESS_THRESHOLD_MS = 8 * 60 * 60 * 1000L // 8 часов
+
+    fun calculateFuelAvailability(
+        station: GasStation,
+        fuelType: String? = null,
+        currentTimeMs: Long = System.currentTimeMillis()
+    ): FuelAvailabilityStatus {
+        val fuelPrice = if (fuelType != null) {
+            station.fuelTypes.find { it.type == fuelType }
+        } else {
+            station.fuelTypes.firstOrNull()
+        } ?: return FuelAvailabilityStatus.UNKNOWN
+
+        val timestamp = when {
+            fuelPrice.updatedAt > 0L -> fuelPrice.updatedAt
+            station.updatedAt > 0L -> station.updatedAt
+            else -> 0L
+        }
+
+        if (timestamp <= 0L) return FuelAvailabilityStatus.UNKNOWN
+
+        val diffMs = maxOf(0L, currentTimeMs - timestamp)
+        return if (diffMs <= FRESHNESS_THRESHOLD_MS) {
+            if (fuelPrice.available) FuelAvailabilityStatus.AVAILABLE else FuelAvailabilityStatus.NO_FUEL
+        } else {
+            FuelAvailabilityStatus.UNKNOWN
+        }
+    }
+
     fun calculate(
         station: GasStation,
         fuelType: String? = null,

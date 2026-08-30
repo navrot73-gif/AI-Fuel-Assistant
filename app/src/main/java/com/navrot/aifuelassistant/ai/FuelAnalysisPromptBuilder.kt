@@ -3,6 +3,8 @@ package com.navrot.aifuelassistant.ai
 import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
+import com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator
 import com.navrot.aifuelassistant.geo.GeoUtils
 import com.navrot.aifuelassistant.util.Format
 
@@ -48,11 +50,16 @@ object FuelAnalysisPromptBuilder {
 
         val stationsContext = if (nearbyStations.isNotEmpty() && lat != null && lon != null) {
             val list = nearbyStations.joinToString("\n") { st ->
-                val fuel = st.fuelTypes.firstOrNull { it.available }
+                val fuel = st.fuelTypes.firstOrNull()
                 val price = fuel?.price?.let { "~${it.toInt()}₽" } ?: "нет данных"
                 val distKm = GeoUtils.calculateDistance(lat, lon, st.latitude, st.longitude)
                 val dist = "${Format.km(distKm)} км"
-                "- ${st.brand} (${st.name}): $price, $dist"
+                val statusStr = when (PriceReliabilityCalculator.calculateFuelAvailability(st, vehicle?.fuelType)) {
+                    FuelAvailabilityStatus.AVAILABLE -> "🟢 есть топливо"
+                    FuelAvailabilityStatus.NO_FUEL -> "🔴 нет топлива"
+                    FuelAvailabilityStatus.UNKNOWN -> "⚪ нет данных"
+                }
+                "- [${st.id}] ${st.brand} (${st.name}): $price, $dist ($statusStr)"
             }
             "\nБлижайшие АЗС:\n$list"
         } else ""
