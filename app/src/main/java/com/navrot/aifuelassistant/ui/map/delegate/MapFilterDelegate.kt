@@ -104,17 +104,24 @@ class MapFilterDelegate @Inject constructor(
         scope.launch {
             onLoading(true)
             onError("")
+            var isFirstEmit = true
             try {
-                val nearby = repository.getNearbyStations(lat, lon, radiusKm)
-                val stationsToUse = if (nearby.isNotEmpty()) {
-                    nearby
-                } else {
-                    repository.getAllStations()
+                repository.getNearbyStationsFlow(lat, lon, radiusKm).collect { nearby ->
+                    val stationsToUse = if (nearby.isNotEmpty()) {
+                        nearby
+                    } else {
+                        repository.getAllStations()
+                    }
+                    _stations.value = stationsToUse
+                    updateBestAndCheapest(scope, lat, lon, radiusKm)
+                    updateAiRecommendation(lat, lon)
+                    onSuccess()
+
+                    if (isFirstEmit) {
+                        isFirstEmit = false
+                        onLoading(false)
+                    }
                 }
-                _stations.value = stationsToUse
-                updateBestAndCheapest(scope, lat, lon, radiusKm)
-                updateAiRecommendation(lat, lon)
-                onSuccess()
             } catch (e: Exception) {
                 try {
                     val fallback = repository.getAllStations()

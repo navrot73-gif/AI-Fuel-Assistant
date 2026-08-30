@@ -195,8 +195,10 @@ class AiChatDelegate @Inject constructor(
                 val city = GeoUtils.hardcodedDetectCity(lat, lon)
 
                 val nearbyStations = try {
-                    gasStationRepository.getNearbyStations(lat, lon, 50.0)
-                        .sortedBy { GeoUtils.calculateDistance(lat, lon, it.latitude, it.longitude) }
+                    withTimeoutOrNull(5000L) {
+                        gasStationRepository.getNearbyStations(lat, lon, 50.0)
+                            .sortedBy { GeoUtils.calculateDistance(lat, lon, it.latitude, it.longitude) }
+                    } ?: emptyList()
                 } catch (e: Exception) {
                     Timber.tag(TAG).w("Failed to fetch nearby stations for user context: %s", e.message)
                     emptyList<GasStation>()
@@ -351,11 +353,15 @@ class AiChatDelegate @Inject constructor(
                 val loc = _userLocation.value ?: getLastLocation()?.let { it.latitude to it.longitude }
                 val stationsList = if (loc != null) {
                     try {
-                        gasStationRepository.getNearbyStations(loc.first, loc.second, 50.0)
+                        withTimeoutOrNull(5000L) {
+                            gasStationRepository.getNearbyStations(loc.first, loc.second, 50.0)
+                        } ?: withTimeoutOrNull(5000L) {
+                            gasStationRepository.getAllStations()
+                        } ?: emptyList()
                     } catch (e: Exception) {
                         Timber.tag(TAG).w("Failed to fetch nearby stations in detectIntent: %s", e.message)
                         try {
-                            gasStationRepository.getAllStations()
+                            withTimeoutOrNull(5000L) { gasStationRepository.getAllStations() } ?: emptyList()
                         } catch (e: Exception) {
                             Timber.tag(TAG).e(e, "Failed to fetch all stations fallback in detectIntent")
                             emptyList()
@@ -363,7 +369,7 @@ class AiChatDelegate @Inject constructor(
                     }
                 } else {
                     try {
-                        gasStationRepository.getAllStations()
+                        withTimeoutOrNull(5000L) { gasStationRepository.getAllStations() } ?: emptyList()
                     } catch (e: Exception) {
                         Timber.tag(TAG).e(e, "Failed to fetch all stations in detectIntent")
                         emptyList()

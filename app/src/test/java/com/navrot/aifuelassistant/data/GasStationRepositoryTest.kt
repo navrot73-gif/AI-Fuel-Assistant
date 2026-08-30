@@ -2,6 +2,7 @@ package com.navrot.aifuelassistant.data
 
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
+import com.navrot.aifuelassistant.data.datasource.OverpassFuelProvider
 import com.navrot.aifuelassistant.data.model.FuelDataSource
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
@@ -11,6 +12,7 @@ import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import okhttp3.OkHttpClient
@@ -611,6 +613,119 @@ class GasStationRepositoryTest {
         assertTrue("Base station should be retained", merged.any { it.id == 1 })
         assertTrue("Distinct overpass station should be added", merged.any { it.id == -11 })
         assertFalse("Duplicate overpass station should be dropped", merged.any { it.id == -10 })
+    }
+
+    @Test
+    fun `getNearbyStationsFlow emits base stations immediately without waiting for hanging Overpass`() = runBlocking {
+        val fakeHangingOverpassProvider = object : OverpassFuelProvider {
+            override suspend fun fetchStations(lat: Double, lon: Double, radiusMeters: Double): List<GasStation> {
+                kotlinx.coroutines.delay(100_000L) // hangs longer than timeout
+                return emptyList()
+            }
+        }
+
+        val testRepo = GasStationRepository(
+            context = context,
+            httpClient = httpClient,
+            userPrices = userPrices,
+            getBestStationsUseCase = getBestStationsUseCase,
+            benzonavtProvider = benzonavtProvider,
+            appScope = appScope,
+            overpassFuelProvider = fakeHangingOverpassProvider
+        )
+
+        testRepo.getAllStations() // warm up cache to avoid network timeout
+
+        val emissions = mutableListOf<List<GasStation>>()
+        val job = launch {
+            testRepo.getNearbyStationsFlow(55.1600, 61.4000, 10.0).collect {
+                emissions.add(it)
+            }
+        }
+
+        kotlinx.coroutines.delay(100L)
+        assertTrue("Flow should emit base stations immediately", emissions.isNotEmpty())
+        job.cancel()
+    }
+
+    @Test
+    fun `getNearbyStationsFlow emits base then enriched list when Overpass succeeds`() = runBlocking {
+        val distinctOverpass = GasStation(
+            id = -99,
+            name = "Overpass New",
+            brand = "OSM",
+            address = "Chelyabinsk, OSM Street",
+            latitude = 55.5000,
+            longitude = 61.5000,
+            fuelTypes = listOf(FuelPrice("АИ-95", 55.0, true, FuelDataSource.OVERPASS, 0L)),
+            queueTime = 0,
+            reliability = 0,
+            dataSources = setOf(FuelDataSource.OVERPASS)
+        )
+
+        val fakeOverpassProvider = object : OverpassFuelProvider {
+            override suspend fun fetchStations(lat: Double, lon: Double, radiusMeters: Double): List<GasStation> {
+                return listOf(distinctOverpass)
+            }
+        }
+
+        val testRepo = GasStationRepository(
+            context = context,
+            httpClient = httpClient,
+            userPrices = userPrices,
+            getBestStationsUseCase = getBestStationsUseCase,
+            benzonavtProvider = benzonavtProvider,
+            appScope = appScope,
+            overpassFuelProvider = fakeOverpassProvider
+        )
+
+        testRepo.getAllStations() // warm up cache
+
+        val emissions = mutableListOf<List<GasStation>>()
+        val job = launch {
+            testRepo.getNearbyStationsFlow(55.1600, 61.4000, 50.0).collect {
+                emissions.add(it)
+            }
+        }
+
+        kotlinx.coroutines.delay(200L)
+        job.cancel()
+
+        assertTrue("Should have at least 1 emission", emissions.isNotEmpty())
+        assertTrue("Enriched list should contain overpass station", emissions.last().any { it.id == -99 })
+    }
+
+    @Test
+    fun `Overpass error in getNearbyStationsFlow logs warning and keeps base stations without throwing`() = runBlocking {
+        val fakeFailingOverpassProvider = object : OverpassFuelProvider {
+            override suspend fun fetchStations(lat: Double, lon: Double, radiusMeters: Double): List<GasStation> {
+                throw RuntimeException("Network error simulated")
+            }
+        }
+
+        val testRepo = GasStationRepository(
+            context = context,
+            httpClient = httpClient,
+            userPrices = userPrices,
+            getBestStationsUseCase = getBestStationsUseCase,
+            benzonavtProvider = benzonavtProvider,
+            appScope = appScope,
+            overpassFuelProvider = fakeFailingOverpassProvider
+        )
+
+        testRepo.getAllStations() // warm up cache
+
+        val emissions = mutableListOf<List<GasStation>>()
+        val job = launch {
+            testRepo.getNearbyStationsFlow(55.1600, 61.4000, 10.0).collect {
+                emissions.add(it)
+            }
+        }
+
+        kotlinx.coroutines.delay(200L)
+        job.cancel()
+
+        assertTrue("Flow should emit base stations despite Overpass failure", emissions.isNotEmpty())
     }
 
     // ==================== Конкурентный доступ (sanity) ====================

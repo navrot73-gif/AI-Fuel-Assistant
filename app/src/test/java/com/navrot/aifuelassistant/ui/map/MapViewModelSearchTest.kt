@@ -182,9 +182,9 @@ class MapViewModelSearchTest {
             displayName = "Челябинск, ул. Ленина, 1"
         )
         geocodingProvider.geocodeImpl = { geoResult }
-        `when`(repository.getNearbyStations(55.123, 61.456, 10.0)).thenReturn(listOf(
-            makeStation(2, "АЗС рядом", "Газпром", 55.123, 61.456, 51.0)
-        ))
+        val stationNearby = makeStation(2, "АЗС рядом", "Газпром", 55.123, 61.456, 51.0)
+        `when`(repository.getNearbyStations(55.123, 61.456, 10.0)).thenReturn(listOf(stationNearby))
+        `when`(repository.getNearbyStationsFlow(55.123, 61.456, 10.0)).thenReturn(kotlinx.coroutines.flow.flowOf(listOf(stationNearby)))
 
         // When: ищем "Неизвестный адрес"
         viewModel.searchStations("Неизвестный адрес")
@@ -258,6 +258,7 @@ class MapViewModelSearchTest {
         `when`(repository.searchStations("ул. Ленина")).thenReturn(emptyList())
         geocodingProvider.geocodeImpl = { geoResult }
         `when`(repository.getNearbyStations(55.123, 61.456, 10.0)).thenReturn(emptyList())
+        `when`(repository.getNearbyStationsFlow(55.123, 61.456, 10.0)).thenReturn(kotlinx.coroutines.flow.flowOf(emptyList()))
 
         viewModel.searchStations("ул. Ленина")
         advanceUntilIdle()
@@ -293,6 +294,8 @@ class MapViewModelSearchTest {
 
         `when`(repository.getNearbyStations(Mockito.anyDouble(), Mockito.anyDouble(), Mockito.anyDouble()))
             .thenReturn(emptyList())
+        `when`(repository.getNearbyStationsFlow(Mockito.anyDouble(), Mockito.anyDouble(), Mockito.anyDouble()))
+            .thenReturn(kotlinx.coroutines.flow.flowOf(emptyList()))
 
         // When: три быстрых запроса подряд (все >= 2 символов)
         viewModel.searchStations("aa")
@@ -369,6 +372,7 @@ class MapViewModelSearchTest {
     fun `clearRoute clears route state and sets userCancelledRoute but keeps aiRecommendation alive`() = runTest {
         val stationX = makeStation(10, "АЗС X", "Газпром", 55.2, 61.2)
         whenever(repository.getNearbyStations(55.0, 61.0, 50.0)).thenReturn(listOf(stationX))
+        whenever(repository.getNearbyStationsFlow(55.0, 61.0, 50.0)).thenReturn(kotlinx.coroutines.flow.flowOf(listOf(stationX)))
         whenever(repository.getBestStations("АИ-95", 55.0, 61.0, 50.0)).thenReturn(listOf(stationX))
         whenever(repository.getCheapestStation("АИ-95", 55.0, 61.0, 50.0)).thenReturn(stationX)
 
