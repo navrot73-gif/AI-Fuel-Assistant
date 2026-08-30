@@ -116,8 +116,7 @@ fun DashboardScreen(
         createSpeechRecognizer(
             context = context,
             onResult = { text ->
-                viewModel.setUserQuestion(text)
-                viewModel.askUserQuestion()
+                viewModel.askUserQuestion(text)
                 viewModel.setUserQuestion("")
             },
             onListening = { listening ->

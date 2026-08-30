@@ -28,6 +28,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import javax.inject.Inject
 import kotlin.coroutines.resume
@@ -160,15 +161,17 @@ class AiChatDelegate @Inject constructor(
 
     @SuppressLint("MissingPermission")
     private suspend fun getLastLocation(): Location? = try {
-        suspendCancellableCoroutine { cont ->
-            val fusedClient = LocationServices.getFusedLocationProviderClient(
-                applicationContext
-            )
-            fusedClient.lastLocation.addOnSuccessListener { location ->
-                cont.resume(location)
-            }.addOnFailureListener { e ->
-                Timber.tag(TAG).w("Location provider failed: %s", e.message)
-                cont.resume(null)
+        withTimeoutOrNull(3000L) {
+            suspendCancellableCoroutine { cont ->
+                val fusedClient = LocationServices.getFusedLocationProviderClient(
+                    applicationContext
+                )
+                fusedClient.lastLocation.addOnSuccessListener { location ->
+                    cont.resume(location)
+                }.addOnFailureListener { e ->
+                    Timber.tag(TAG).w("Location provider failed: %s", e.message)
+                    cont.resume(null)
+                }
             }
         }
     } catch (e: Exception) {
@@ -179,42 +182,50 @@ class AiChatDelegate @Inject constructor(
     private data class UserContext(val text: String, val nearestStationId: Int?)
 
     private suspend fun buildUserContext(stationsFallback: List<GasStation>): UserContext {
-        val location = getLastLocation()
-            ?: return UserContext("", null)
+        return try {
+            withTimeoutOrNull(5000L) {
+                val location = getLastLocation()
+                    ?: return@withTimeoutOrNull UserContext("", null)
 
-        val lat = location.latitude
-        val lon = location.longitude
+                val lat = location.latitude
+                val lon = location.longitude
 
-        val city = GeoUtils.hardcodedDetectCity(lat, lon)
+                val city = GeoUtils.hardcodedDetectCity(lat, lon)
 
-        val nearbyStations = try {
-            gasStationRepository.getNearbyStations(lat, lon, 50.0)
-                .sortedBy { GeoUtils.calculateDistance(lat, lon, it.latitude, it.longitude) }
+                val nearbyStations = try {
+                    gasStationRepository.getNearbyStations(lat, lon, 50.0)
+                        .sortedBy { GeoUtils.calculateDistance(lat, lon, it.latitude, it.longitude) }
+                } catch (e: Exception) {
+                    Timber.tag(TAG).w("Failed to fetch nearby stations for user context: %s", e.message)
+                    emptyList<GasStation>()
+                }
+
+                val stationsList = if (nearbyStations.isNotEmpty()) nearbyStations else stationsFallback
+                val stationsInfo = if (stationsList.isNotEmpty()) {
+                    stationsList.joinToString("\n") { station ->
+                        val price = station.fuelTypes
+                            .filter { it.available }
+                            .minByOrNull { it.price }?.price
+                            ?: 0.0
+                        "[${station.id}] ${station.brand} (${station.name}), ${station.address}, ${Format.price(price)}₽"
+                    }
+                } else "нет доступных АЗС"
+
+                val text = "Пользователь: $lat, $lon, город: $city.\nСписок АЗС:\n$stationsInfo"
+                UserContext(text, stationsList.firstOrNull()?.id)
+            } ?: UserContext("", null)
         } catch (e: Exception) {
-            Timber.tag(TAG).w("Failed to fetch nearby stations for user context: %s", e.message)
-            emptyList<GasStation>()
+            Timber.tag(TAG).w("Failed to build user context: %s", e.message)
+            UserContext("", null)
         }
-
-        val stationsList = if (nearbyStations.isNotEmpty()) nearbyStations else stationsFallback
-        val stationsInfo = if (stationsList.isNotEmpty()) {
-            stationsList.joinToString("\n") { station ->
-                val price = station.fuelTypes
-                    .filter { it.available }
-                    .minByOrNull { it.price }?.price
-                    ?: 0.0
-                "[${station.id}] ${station.brand} (${station.name}), ${station.address}, ${Format.price(price)}₽"
-            }
-        } else "нет доступных АЗС"
-
-        val text = "Пользователь: $lat, $lon, город: $city.\nСписок АЗС:\n$stationsInfo"
-        return UserContext(text, stationsList.firstOrNull()?.id)
     }
 
     fun askUserQuestion(
         scope: CoroutineScope,
-        recommendationDelegate: StationRecommendationDelegate
+        recommendationDelegate: StationRecommendationDelegate,
+        questionOverride: String? = null
     ) {
-        val question = _userQuestion.value.trim()
+        val question = (questionOverride ?: _userQuestion.value).trim()
         if (question.isEmpty() || _isAnalyzing.value) return
 
         scope.launch {
