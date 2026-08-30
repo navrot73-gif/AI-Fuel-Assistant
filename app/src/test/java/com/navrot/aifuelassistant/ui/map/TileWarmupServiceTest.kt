@@ -58,4 +58,16 @@ class TileWarmupServiceTest {
         // Check that either the sqlite file exists or the method executed without crashing
         assertTrue(sqliteFile.exists() || sqliteFile.parentFile?.exists() == true)
     }
+
+    @Test
+    fun `MapTileProviderBasic includes network downloader provider`() {
+        val provider = org.osmdroid.tileprovider.MapTileProviderBasic(context, org.osmdroid.tileprovider.tilesource.TileSourceFactory.MAPNIK)
+        // Check that MapTileProviderBasic contains a downloader provider in its module provider list (mTileProviderList)
+        val field = org.osmdroid.tileprovider.MapTileProviderArray::class.java.getDeclaredField("mTileProviderList")
+        field.isAccessible = true
+        @Suppress("UNCHECKED_CAST")
+        val list = field.get(provider) as List<org.osmdroid.tileprovider.modules.MapTileModuleProviderBase>
+        val hasDownloader = list.any { it is org.osmdroid.tileprovider.modules.MapTileDownloader }
+        assertTrue("MapTileProviderBasic must include MapTileDownloader for network tile loading", hasDownloader)
+    }
 }
