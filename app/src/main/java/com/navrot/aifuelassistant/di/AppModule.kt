@@ -26,6 +26,8 @@ import com.navrot.aifuelassistant.data.datasource.StationJsonParser
 import com.navrot.aifuelassistant.data.datasource.StationJsonParserImpl
 import com.navrot.aifuelassistant.data.datasource.StationLoader
 import com.navrot.aifuelassistant.data.datasource.StationLoaderImpl
+import com.navrot.aifuelassistant.data.datasource.OverpassFuelProvider
+import com.navrot.aifuelassistant.data.datasource.OverpassFuelProviderImpl
 import com.navrot.aifuelassistant.data.datasource.StationPriceApplier
 import com.navrot.aifuelassistant.data.datasource.StationPriceApplierImpl
 import com.navrot.aifuelassistant.data.providers.BenzonavtProvider
@@ -181,6 +183,14 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideOverpassFuelProvider(
+        okHttpClient: OkHttpClient
+    ): OverpassFuelProvider {
+        return OverpassFuelProviderImpl(okHttpClient)
+    }
+
+    @Provides
+    @Singleton
     fun provideGasStationRepository(
         stationLoader: StationLoader,
         stationCache: StationCache,
@@ -188,6 +198,7 @@ object AppModule {
         stationFilterAndSorter: StationFilterAndSorter,
         userPriceRepository: UserPriceRepository,
         benzonavtProvider: BenzonavtProvider,
+        overpassFuelProvider: OverpassFuelProvider,
         getBestStationsUseCase: GetBestStationsUseCase,
         @ApplicationScope appScope: CoroutineScope
     ): GasStationRepositoryInterface {
@@ -198,6 +209,7 @@ object AppModule {
             stationFilterAndSorter = stationFilterAndSorter,
             userPrices = userPriceRepository,
             benzonavtProvider = benzonavtProvider,
+            overpassFuelProvider = overpassFuelProvider,
             getBestStationsUseCase = getBestStationsUseCase,
             appScope = appScope
         )

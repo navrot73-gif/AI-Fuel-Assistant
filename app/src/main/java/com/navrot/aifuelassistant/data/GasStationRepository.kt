@@ -1,6 +1,8 @@
 package com.navrot.aifuelassistant.data
 
 import android.content.Context
+import com.navrot.aifuelassistant.data.datasource.OverpassFuelProvider
+import com.navrot.aifuelassistant.data.datasource.OverpassFuelProviderImpl
 import com.navrot.aifuelassistant.data.datasource.StationCache
 import com.navrot.aifuelassistant.data.datasource.StationCacheImpl
 import com.navrot.aifuelassistant.data.datasource.StationFilterAndSorter
@@ -13,6 +15,7 @@ import com.navrot.aifuelassistant.data.datasource.StationPriceApplierImpl
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.providers.BenzonavtProvider
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
+import com.navrot.aifuelassistant.geo.GeoUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -41,6 +44,7 @@ class GasStationRepository constructor(
     private val stationFilterAndSorter: StationFilterAndSorter,
     private val userPrices: UserPriceRepository,
     private val benzonavtProvider: BenzonavtProvider,
+    private val overpassFuelProvider: OverpassFuelProvider,
     private val getBestStationsUseCase: GetBestStationsUseCase,
     private val appScope: CoroutineScope
 ) : GasStationRepositoryInterface {
@@ -54,7 +58,8 @@ class GasStationRepository constructor(
         userPrices: UserPriceRepository,
         getBestStationsUseCase: GetBestStationsUseCase,
         benzonavtProvider: BenzonavtProvider,
-        appScope: CoroutineScope
+        appScope: CoroutineScope,
+        overpassFuelProvider: OverpassFuelProvider = OverpassFuelProviderImpl(httpClient)
     ) : this(
         stationLoader = StationLoaderImpl(
             httpClient = httpClient,
@@ -67,13 +72,35 @@ class GasStationRepository constructor(
         stationFilterAndSorter = StationFilterAndSorterImpl(),
         userPrices = userPrices,
         benzonavtProvider = benzonavtProvider,
+        overpassFuelProvider = overpassFuelProvider,
         getBestStationsUseCase = getBestStationsUseCase,
         appScope = appScope
+    )
+
+    /**
+     * Конструктор для тестов без параметра overpassFuelProvider.
+     */
+    constructor(
+        context: Context,
+        httpClient: OkHttpClient,
+        userPrices: UserPriceRepository,
+        getBestStationsUseCase: GetBestStationsUseCase,
+        benzonavtProvider: BenzonavtProvider,
+        appScope: CoroutineScope
+    ) : this(
+        context = context,
+        httpClient = httpClient,
+        userPrices = userPrices,
+        getBestStationsUseCase = getBestStationsUseCase,
+        benzonavtProvider = benzonavtProvider,
+        appScope = appScope,
+        overpassFuelProvider = OverpassFuelProviderImpl(httpClient)
     )
 
     companion object {
         private const val TAG = "GasStationRepo"
         private const val REFRESH_INTERVAL_MS = 10 * 60 * 1000L
+        private const val DEDUPLICATION_RADIUS_KM = 0.1 // 100 meters
     }
 
     private val loadMutex = Mutex()
@@ -81,6 +108,28 @@ class GasStationRepository constructor(
     private var lastRemoteCheckMs = 0L
 
     private var priceRefreshJob: kotlinx.coroutines.Job? = null
+
+    /**
+     * Deduplicates and merges base stations (static/cached/remote) with Overpass stations.
+     * Base stations take precedence. Overpass stations within DEDUPLICATION_RADIUS_KM of any base station are dropped.
+     */
+    fun mergeStations(baseStations: List<GasStation>, overpassStations: List<GasStation>): List<GasStation> {
+        if (overpassStations.isEmpty()) return baseStations
+        if (baseStations.isEmpty()) return overpassStations
+
+        val merged = ArrayList<GasStation>(baseStations.size + overpassStations.size)
+        merged.addAll(baseStations)
+
+        for (overpass in overpassStations) {
+            val isDuplicate = baseStations.any { base ->
+                GeoUtils.calculateDistance(base.latitude, base.longitude, overpass.latitude, overpass.longitude) <= DEDUPLICATION_RADIUS_KM
+            }
+            if (!isDuplicate) {
+                merged.add(overpass)
+            }
+        }
+        return merged
+    }
 
     private suspend fun ensureLoaded(): List<GasStation> = loadMutex.withLock {
         cachedStations?.let { return@withLock it }
@@ -213,8 +262,16 @@ class GasStationRepository constructor(
     }
 
     override suspend fun getNearbyStations(lat: Double, lon: Double, radiusKm: Double): List<GasStation> = withContext(Dispatchers.IO) {
-        val stations = ensureLoaded()
-        stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, stations)
+        val baseStations = ensureLoaded()
+        val overpassStations = try {
+            overpassFuelProvider.fetchStations(lat, lon, radiusKm * 1000.0)
+        } catch (e: Exception) {
+            Timber.tag(TAG).w("Overpass fetch failed in getNearbyStations: %s", e.message)
+            emptyList()
+        }
+        val merged = mergeStations(baseStations, overpassStations)
+        val withPrices = stationPriceApplier.applyUserPrices(merged)
+        stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, withPrices)
     }
 
     override suspend fun getStationsByCity(city: String): List<GasStation> = withContext(Dispatchers.IO) {

@@ -560,6 +560,59 @@ class GasStationRepositoryTest {
         }
     }
 
+    // ==================== Overpass Merging & Deduplication ====================
+
+    @Test
+    fun `mergeStations combines base and overpass stations and deduplicates within 100m`() {
+        val baseStation = GasStation(
+            id = 1,
+            name = "Base Station",
+            brand = "Base",
+            address = "Base Street 1",
+            latitude = 55.1600,
+            longitude = 61.4000,
+            fuelTypes = emptyList(),
+            queueTime = 0,
+            reliability = 80
+        )
+
+        val duplicateOverpass = GasStation(
+            id = -10,
+            name = "Overpass Duplicate",
+            brand = "Overpass",
+            address = "Base Street 1",
+            latitude = 55.1603, // ~30 meters away from baseStation
+            longitude = 61.4000,
+            fuelTypes = emptyList(),
+            queueTime = 0,
+            reliability = 0,
+            dataSources = setOf(FuelDataSource.OVERPASS)
+        )
+
+        val distinctOverpass = GasStation(
+            id = -11,
+            name = "Overpass Far Away",
+            brand = "OSM",
+            address = "OSM Street 10",
+            latitude = 55.2000, // ~4.4 km away
+            longitude = 61.4000,
+            fuelTypes = emptyList(),
+            queueTime = 0,
+            reliability = 0,
+            dataSources = setOf(FuelDataSource.OVERPASS)
+        )
+
+        val merged = repository.mergeStations(
+            baseStations = listOf(baseStation),
+            overpassStations = listOf(duplicateOverpass, distinctOverpass)
+        )
+
+        assertEquals("Merged list size should be 2 (1 base + 1 distinct overpass)", 2, merged.size)
+        assertTrue("Base station should be retained", merged.any { it.id == 1 })
+        assertTrue("Distinct overpass station should be added", merged.any { it.id == -11 })
+        assertFalse("Duplicate overpass station should be dropped", merged.any { it.id == -10 })
+    }
+
     // ==================== Конкурентный доступ (sanity) ====================
 
     @Test
