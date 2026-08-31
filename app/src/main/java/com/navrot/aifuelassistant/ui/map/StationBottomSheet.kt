@@ -35,6 +35,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.data.model.isKnownClosed
 import com.navrot.aifuelassistant.ui.map.components.AiPickCard
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import org.osmdroid.util.GeoPoint
@@ -65,8 +66,9 @@ fun StationBottomSheet(
     modifier: Modifier = Modifier
 ) {
     // Список станций без дублирования лучшей (она показана в карточке сверху)
-    val displayList = remember(stations, bestStation) {
-        if (bestStation == null) stations else stations.filter { it.id != bestStation.id }
+    val displayList = remember(stations, bestStation, openOnly) {
+        val openFiltered = if (openOnly) stations.filter { !it.isKnownClosed() } else stations
+        if (bestStation == null) openFiltered else openFiltered.filter { it.id != bestStation.id }
     }
     val visibleCount = remember(displayList.size) {
         if (displayList.size <= PAGE_SIZE) displayList.size else PAGE_SIZE

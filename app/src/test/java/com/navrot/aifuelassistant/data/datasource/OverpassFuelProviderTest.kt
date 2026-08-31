@@ -1,7 +1,11 @@
 package com.navrot.aifuelassistant.data.datasource
 
 import com.navrot.aifuelassistant.data.model.FuelDataSource
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -100,8 +104,89 @@ class OverpassFuelProviderTest {
         val relStation = stations[2]
         assertTrue("Relation ID should be negative", relStation.id < 0)
         assertEquals("АЗС (без названия)", relStation.name)
-        assertEquals("АЗС", relStation.brand)
+        assertEquals("Прочие", relStation.brand)
         assertEquals("Окрестности OSM", relStation.address)
+    }
+
+    @Test
+    fun `fetchStations falls back to second mirror when first mirror fails`() = org.junit.Assert.assertNotNull {
+        kotlinx.coroutines.runBlocking {
+            val mockClient = OkHttpClient.Builder().addInterceptor { chain ->
+                val url = chain.request().url.toString()
+                if (url.contains("overpass-api.de")) {
+                    Response.Builder()
+                        .request(chain.request())
+                        .protocol(Protocol.HTTP_1_1)
+                        .code(500)
+                        .message("Internal Server Error")
+                        .body("Error".toResponseBody("text/plain".toMediaType()))
+                        .build()
+                } else if (url.contains("overpass.kumi.systems")) {
+                    Response.Builder()
+                        .request(chain.request())
+                        .protocol(Protocol.HTTP_1_1)
+                        .code(200)
+                        .message("OK")
+                        .body("""
+                            {
+                              "elements": [
+                                {
+                                  "type": "node",
+                                  "id": 8888,
+                                  "lat": 55.15,
+                                  "lon": 61.40,
+                                  "tags": {
+                                    "amenity": "fuel",
+                                    "name": "Kumi Gas Station"
+                                  }
+                                }
+                              ]
+                            }
+                        """.trimIndent().toResponseBody("application/json".toMediaType()))
+                        .build()
+                } else {
+                    Response.Builder()
+                        .request(chain.request())
+                        .protocol(Protocol.HTTP_1_1)
+                        .code(404)
+                        .message("Not Found")
+                        .body("".toResponseBody("text/plain".toMediaType()))
+                        .build()
+                }
+            }.build()
+
+            val providerWithMirrors = OverpassFuelProviderImpl(mockClient)
+            val stations = providerWithMirrors.fetchStations(55.15, 61.40, 5000.0)
+
+            assertEquals(1, stations.size)
+            assertEquals("Kumi Gas Station", stations[0].name)
+            assertEquals("Kumi Gas Station", stations[0].brand)
+        }
+    }
+
+    @Test
+    fun `parseOverpassResponse preserves station without brand tag using name as brand`() {
+        val sampleJson = """
+            {
+              "elements": [
+                {
+                  "type": "node",
+                  "id": 5555,
+                  "lat": 55.16,
+                  "lon": 61.40,
+                  "tags": {
+                    "amenity": "fuel",
+                    "name": "Газпромнефть"
+                  }
+                }
+              ]
+            }
+        """.trimIndent()
+
+        val stations = provider.parseOverpassResponse(sampleJson)
+        assertEquals(1, stations.size)
+        assertEquals("Газпромнефть", stations[0].name)
+        assertEquals("Газпромнефть", stations[0].brand)
     }
 
     @Test

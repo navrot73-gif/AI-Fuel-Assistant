@@ -153,6 +153,35 @@ class StationFilterAndSorterTest {
     }
 
     @Test
+    fun `filterOpen does NOT exclude UNKNOWN opening hours stations`() {
+        val unknownHoursStation = createStation(10, "OSM Station", "Brand", "Addr", 55.0, 60.0, 0.0, 0, available = false, updatedAt = 0L)
+            .copy(openingHours = null)
+        val alwaysOpenStation = createStation(20, "Always Open", "Brand", "Addr", 55.0, 60.0, 50.0, 0, available = true, updatedAt = System.currentTimeMillis())
+            .copy(openingHours = "24/7")
+
+        val result = filterAndSorter.filterOpen(listOf(unknownHoursStation, alwaysOpenStation))
+        assertEquals(2, result.size)
+        assertTrue(result.any { it.id == 10 })
+        assertTrue(result.any { it.id == 20 })
+    }
+
+    @Test
+    fun `filterByBrands matches station by normalized brand OR name`() {
+        val osmStationWithoutBrandTag = createStation(100, "Газпромнефть", "Газпромнефть", "Свердловский тракт 12в", 55.0, 60.0, 0.0, 0)
+        val osmStationWithNameOnly = createStation(200, "АЗС Газпромнефть", "Прочие", "Addr", 55.0, 60.0, 0.0, 0)
+        val otherStation = createStation(300, "Лукойл", "Лукойл", "Addr", 55.0, 60.0, 50.0, 0)
+
+        val filtered = filterAndSorter.filterByBrands(
+            listOf(osmStationWithoutBrandTag, osmStationWithNameOnly, otherStation),
+            setOf("Газпромнефть")
+        )
+
+        assertEquals(2, filtered.size)
+        assertTrue(filtered.any { it.id == 100 })
+        assertTrue(filtered.any { it.id == 200 })
+    }
+
+    @Test
     fun `getStationsNearLocation filters by radius and sorts by distance`() {
         val centerLat = 55.1598
         val centerLon = 61.4026

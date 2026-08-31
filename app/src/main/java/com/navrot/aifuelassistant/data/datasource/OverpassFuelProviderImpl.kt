@@ -23,46 +23,65 @@ class OverpassFuelProviderImpl @Inject constructor(
 
     companion object {
         private const val TAG = "OverpassFuelProvider"
-        private const val OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-        private const val TIMEOUT_SECONDS = 10L
+        val MIRRORS = listOf(
+            "https://overpass-api.de/api/interpreter",
+            "https://overpass.kumi.systems/api/interpreter",
+            "https://overpass.private.coffee/api/interpreter",
+            "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
+        )
+        private const val MIRROR_TIMEOUT_MS = 8_000L
+        private const val TIMEOUT_SECONDS = 8L
     }
 
     private val overpassHttpClient: OkHttpClient by lazy {
         httpClient.newBuilder()
             .connectTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .writeTimeout(TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .build()
     }
 
     override suspend fun fetchStations(lat: Double, lon: Double, radiusMeters: Double): List<GasStation> =
         withContext(Dispatchers.IO) {
-            try {
-                val query = """
-                    [out:json][timeout:10];
-                    nwr["amenity"="fuel"](around:${radiusMeters.toInt()},$lat,$lon);
-                    out center;
-                """.trimIndent()
+            val query = """
+                [out:json][timeout:8];
+                nwr["amenity"="fuel"](around:${radiusMeters.toInt()},$lat,$lon);
+                out center;
+            """.trimIndent()
 
-                val requestBody = query.toRequestBody("text/plain; charset=utf-8".toMediaType())
-                val request = Request.Builder()
-                    .url(OVERPASS_URL)
-                    .post(requestBody)
-                    .header("User-Agent", "AIFuelAssistant/1.0")
-                    .build()
+            for (mirrorUrl in MIRRORS) {
+                val stations = kotlinx.coroutines.withTimeoutOrNull(MIRROR_TIMEOUT_MS) {
+                    try {
+                        val requestBody = query.toRequestBody("text/plain; charset=utf-8".toMediaType())
+                        val request = Request.Builder()
+                            .url(mirrorUrl)
+                            .post(requestBody)
+                            .header("User-Agent", "AIFuelAssistant/1.0")
+                            .build()
 
-                overpassHttpClient.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) {
-                        Timber.tag(TAG).w("Overpass HTTP error: %d", response.code)
-                        return@withContext emptyList()
+                        overpassHttpClient.newCall(request).execute().use { response ->
+                            if (response.isSuccessful) {
+                                val bodyString = response.body?.string() ?: return@use null
+                                parseOverpassResponse(bodyString)
+                            } else {
+                                Timber.tag(TAG).w("Mirror %s returned HTTP error: %d", mirrorUrl, response.code)
+                                null
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Timber.tag(TAG).w("Mirror %s failed: %s", mirrorUrl, e.message)
+                        null
                     }
-
-                    val bodyString = response.body?.string() ?: return@withContext emptyList()
-                    parseOverpassResponse(bodyString)
                 }
-            } catch (e: Exception) {
-                Timber.tag(TAG).w("Failed to fetch stations from Overpass: %s", e.message)
-                emptyList()
+
+                if (stations != null) {
+                    Timber.tag(TAG).i("Fetched %d stations from Overpass mirror: %s", stations.size, mirrorUrl)
+                    return@withContext stations
+                }
             }
+
+            Timber.tag(TAG).w("All Overpass mirrors failed")
+            emptyList()
         }
 
     fun parseOverpassResponse(jsonString: String): List<GasStation> {
@@ -109,7 +128,7 @@ class OverpassFuelProviderImpl @Inject constructor(
                     rawBrand.isNotBlank() -> rawBrand
                     rawOperator.isNotBlank() -> rawOperator
                     rawName.isNotBlank() -> rawName
-                    else -> "АЗС"
+                    else -> "Прочие"
                 }
 
                 val street = tags?.optString("addr:street", "")?.trim().orEmpty()
@@ -122,6 +141,8 @@ class OverpassFuelProviderImpl @Inject constructor(
                     fullAddr.isNotBlank() -> fullAddr
                     else -> "Окрестности OSM"
                 }
+
+                val openingHours = tags?.optString("opening_hours", "")?.trim()?.takeIf { it.isNotBlank() }
 
                 // Generates a deterministic negative Int ID for OSM elements
                 val uniqueIdKey = "osm_${type}_$osmId"
@@ -147,7 +168,8 @@ class OverpassFuelProviderImpl @Inject constructor(
                     queueTime = 0,
                     reliability = 0,
                     dataSources = setOf(FuelDataSource.OVERPASS),
-                    updatedAt = 0L
+                    updatedAt = 0L,
+                    openingHours = openingHours
                 )
 
                 stations.add(station)

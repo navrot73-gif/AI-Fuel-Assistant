@@ -117,17 +117,43 @@ fun StationDetailCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.height(4.dp))
-                    Surface(
-                        shape = RoundedCornerShape(6.dp),
-                        color = statusBadgeBg
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = statusBadgeText,
-                            fontSize = 11.sp,
-                            color = statusBadgeTextColor,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                        )
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = statusBadgeBg
+                        ) {
+                            Text(
+                                text = statusBadgeText,
+                                fontSize = 11.sp,
+                                color = statusBadgeTextColor,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+
+                        val isOsmOnly = station.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.OVERPASS) && station.dataSources.size == 1
+                        val sourceBadgeText = when {
+                            isOsmOnly -> "OSM"
+                            station.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.USER_REPORT) -> "метки"
+                            else -> "Benzonavt"
+                        }
+
+                        Surface(
+                            shape = RoundedCornerShape(6.dp),
+                            color = FueldeckColors.Surface,
+                            border = androidx.compose.foundation.BorderStroke(1.dp, FueldeckColors.Line)
+                        ) {
+                            Text(
+                                text = sourceBadgeText,
+                                fontSize = 11.sp,
+                                color = FueldeckColors.InkDim,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
                     }
                 }
                 IconButton(onClick = onClose) {

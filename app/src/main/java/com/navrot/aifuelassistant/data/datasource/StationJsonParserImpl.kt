@@ -28,6 +28,11 @@ class StationJsonParserImpl @Inject constructor() : StationJsonParser {
                 available = fuel.getBoolean("available")
             )
         }
+        val openingHours = when {
+            json.has("openingHours") -> json.optString("openingHours").takeIf { it.isNotBlank() }
+            json.has("opening_hours") -> json.optString("opening_hours").takeIf { it.isNotBlank() }
+            else -> null
+        }
         return GasStation(
             id = json.getInt("id"),
             name = json.getString("name"),
@@ -39,7 +44,8 @@ class StationJsonParserImpl @Inject constructor() : StationJsonParser {
             queueTime = json.getInt("queueTime"),
             reliability = json.getInt("reliability"),
             monumentPhotoUrl = if (json.has("monumentPhotoUrl")) json.getString("monumentPhotoUrl") else null,
-            entrancePhotoUrl = if (json.has("entrancePhotoUrl")) json.getString("entrancePhotoUrl") else null
+            entrancePhotoUrl = if (json.has("entrancePhotoUrl")) json.getString("entrancePhotoUrl") else null,
+            openingHours = openingHours
         )
     }
 }
