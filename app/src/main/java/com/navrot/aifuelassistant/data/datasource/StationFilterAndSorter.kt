@@ -10,4 +10,6 @@ interface StationFilterAndSorter {
     fun sortPriceAscending(stations: List<GasStation>, fuelType: String): List<GasStation>
     fun sortPriceDescending(stations: List<GasStation>, fuelType: String): List<GasStation>
     fun sortByQueue(stations: List<GasStation>, fuelType: String): List<GasStation>
+    fun filterOpen(stations: List<GasStation>): List<GasStation>
+    fun filterByBrands(stations: List<GasStation>, brands: Set<String>): List<GasStation>
 }

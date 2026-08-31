@@ -2,6 +2,7 @@ package com.navrot.aifuelassistant.ui.map.delegate
 
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.data.model.matchesBrand
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.geo.GeoUtils
 import com.navrot.aifuelassistant.ui.common.ErrorContext
@@ -89,7 +90,10 @@ class MapFilterDelegate @Inject constructor(
 
     fun filterStationsByBrands(list: List<GasStation>): List<GasStation> {
         val brands = _selectedBrands.value
-        return if (brands.isEmpty()) list else list.filter { it.brand in brands }
+        if (brands.isEmpty()) return list
+        return list.filter { station ->
+            brands.any { b -> station.matchesBrand(b) }
+        }
     }
 
     fun loadNearbyStations(

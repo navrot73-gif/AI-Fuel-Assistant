@@ -1,6 +1,8 @@
 package com.navrot.aifuelassistant.data.datasource
 
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.data.model.isKnownClosed
+import com.navrot.aifuelassistant.data.model.matchesBrand
 import com.navrot.aifuelassistant.geo.GeoUtils
 import javax.inject.Inject
 
@@ -52,5 +54,16 @@ class StationFilterAndSorterImpl @Inject constructor() : StationFilterAndSorter 
     override fun sortByQueue(stations: List<GasStation>, fuelType: String): List<GasStation> {
         return stations.filter { s -> s.fuelTypes.any { it.type == fuelType } }
             .sortedBy { it.queueTime }
+    }
+
+    override fun filterOpen(stations: List<GasStation>): List<GasStation> {
+        return stations.filter { !it.isKnownClosed() }
+    }
+
+    override fun filterByBrands(stations: List<GasStation>, brands: Set<String>): List<GasStation> {
+        if (brands.isEmpty()) return stations
+        return stations.filter { station ->
+            brands.any { b -> station.matchesBrand(b) }
+        }
     }
 }
