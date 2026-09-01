@@ -53,6 +53,7 @@ class UserPreferencesRepository @Inject constructor(
         val KEY_IS_DARK_MODE = booleanPreferencesKey("is_dark_mode")
         val KEY_CACHED_CITY = stringPreferencesKey("cached_city")
         val KEY_MAP_ENGINE = stringPreferencesKey("map_engine")
+        val KEY_MAP_TILE_SOURCE = stringPreferencesKey("map_tile_source")
         private const val USER_PRICE_PREFIX = "price:"
         const val ENGINE_OSMDROID = "osmdroid"
         const val ENGINE_MAPLIBRE = "maplibre"
@@ -69,6 +70,19 @@ class UserPreferencesRepository @Inject constructor(
         }
         .map { preferences ->
             preferences[KEY_MAP_ENGINE] ?: ENGINE_MAPLIBRE
+        }
+
+    val mapTileSource: Flow<String?> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                Timber.tag(TAG).e(exception, "Error reading map tile source preference.")
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[KEY_MAP_TILE_SOURCE]
         }
 
     val isDarkMode: Flow<Boolean> = dataStore.data
@@ -119,6 +133,12 @@ class UserPreferencesRepository @Inject constructor(
     suspend fun setMapEngine(engine: String) {
         dataStore.edit { preferences ->
             preferences[KEY_MAP_ENGINE] = engine
+        }
+    }
+
+    suspend fun setMapTileSource(source: String) {
+        dataStore.edit { preferences ->
+            preferences[KEY_MAP_TILE_SOURCE] = source
         }
     }
 

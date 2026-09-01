@@ -157,9 +157,15 @@ fun OsmMapView(
                 setMultiTouchControls(true)
                 setBuiltInZoomControls(false)
 
-                val centerPoint = userLocation?.toGeoPoint() ?: GeoPoint(55.1644, 61.4368)
-                controller.setZoom(if (userLocation != null) 16.0 else 13.0)
+                val userPt = userLocation?.toGeoPoint()
+                val centerPoint = if (userPt != null && userPt.latitude != 0.0 && userPt.longitude != 0.0) {
+                    userPt
+                } else {
+                    GeoPoint(55.1644, 61.4368)
+                }
+                controller.setZoom(if (userPt != null && userPt.latitude != 0.0) 16.0 else 13.0)
                 controller.setCenter(centerPoint)
+                timber.log.Timber.tag("OsmMapView").d("Camera center set to: %s, zoom: %.1f", centerPoint, if (userPt != null && userPt.latitude != 0.0) 16.0 else 13.0)
                 mapViewRef[0] = this
             }
         },
