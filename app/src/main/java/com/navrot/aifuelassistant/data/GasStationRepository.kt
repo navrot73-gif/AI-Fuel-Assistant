@@ -315,6 +315,7 @@ class GasStationRepository constructor(
         val baseWithPrices = stationPriceApplier.applyAllPrices(baseStations)
         val baseNearby = stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, baseWithPrices)
 
+        Timber.tag(TAG).i("static emitted %d", baseNearby.size)
         logStationStatusSummary(baseNearby)
         emit(baseNearby)
 
@@ -326,17 +327,21 @@ class GasStationRepository constructor(
             Timber.tag(TAG).w("Overpass fetch failed in getNearbyStationsFlow: %s", e.message)
             emptyList()
         }
+        Timber.tag(TAG).i("overpass result %d", overpassStations.size)
 
         if (overpassStations.isNotEmpty()) {
             val merged = mergeStations(baseStations, overpassStations)
             val withPrices = stationPriceApplier.applyAllPrices(merged)
             val nearbyEnriched = stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, withPrices)
 
+            Timber.tag(TAG).i("merged %d", nearbyEnriched.size)
             logStationStatusSummary(nearbyEnriched)
 
             if (nearbyEnriched != baseNearby) {
                 emit(nearbyEnriched)
             }
+        } else {
+            Timber.tag(TAG).i("merged %d", baseNearby.size)
         }
     }.distinctUntilChangedBy { list ->
         list.stationListSignature()
