@@ -121,6 +121,76 @@ fun createColoredMarker(context: Context, color: Color): android.graphics.drawab
     return drawable
 }
 
+/** Creates a Google Maps–style red finish pin (drop shape #EA4335 with dark center dot). */
+fun createRedPinIcon(context: Context): android.graphics.drawable.BitmapDrawable {
+    val density = context.resources.displayMetrics.density
+    val width = (22 * density).toInt()
+    val height = (30 * density).toInt()
+    val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bitmap)
+
+    val pinPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        color = android.graphics.Color.parseColor("#EA4335")
+        style = android.graphics.Paint.Style.FILL
+    }
+    val dotPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        color = android.graphics.Color.parseColor("#7F1D1D")
+        style = android.graphics.Paint.Style.FILL
+    }
+
+    val path = android.graphics.Path().apply {
+        moveTo(width / 2f, height.toFloat())
+        cubicTo(width / 2f, height.toFloat(), 0f, height * 0.55f, 0f, height * 0.35f)
+        cubicTo(0f, height * 0.15f, width * 0.35f, 0f, width / 2f, 0f)
+        cubicTo(width * 0.65f, 0f, width.toFloat(), height * 0.15f, width.toFloat(), height * 0.35f)
+        cubicTo(width.toFloat(), height * 0.55f, width / 2f, height.toFloat(), width / 2f, height.toFloat())
+        close()
+    }
+    canvas.drawPath(path, pinPaint)
+
+    val dotRadius = (3 * density).toInt()
+    canvas.drawCircle(width / 2f, height * 0.28f, dotRadius.toFloat(), dotPaint)
+
+    return android.graphics.drawable.BitmapDrawable(context.resources, bitmap)
+}
+
+/** Creates a BLUE address pin (#4285F4 drop shape with white center dot). */
+fun createBlueAddressPinIcon(context: Context): android.graphics.drawable.BitmapDrawable {
+    val density = context.resources.displayMetrics.density
+    val width = (32 * density).toInt()
+    val height = (40 * density).toInt()
+    val bitmap = android.graphics.Bitmap.createBitmap(width, height, android.graphics.Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bitmap)
+
+    val pinPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        color = android.graphics.Color.parseColor("#4285F4")
+        style = android.graphics.Paint.Style.FILL
+    }
+    val dotPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        color = android.graphics.Color.WHITE
+        style = android.graphics.Paint.Style.FILL
+    }
+
+    val path = android.graphics.Path().apply {
+        moveTo(width / 2f, height.toFloat())
+        cubicTo(width / 2f, height.toFloat(), 0f, height * 0.55f, 0f, height * 0.35f)
+        cubicTo(0f, height * 0.15f, width * 0.35f, 0f, width / 2f, 0f)
+        cubicTo(width * 0.65f, 0f, width.toFloat(), height * 0.15f, width.toFloat(), height * 0.35f)
+        cubicTo(width.toFloat(), height * 0.55f, width / 2f, height.toFloat(), width / 2f, height.toFloat())
+        close()
+    }
+    canvas.drawPath(path, pinPaint)
+
+    val dotRadius = (4 * density).toInt()
+    canvas.drawCircle(width / 2f, height * 0.28f, dotRadius.toFloat(), dotPaint)
+
+    return android.graphics.drawable.BitmapDrawable(context.resources, bitmap)
+}
+
 fun getCurrentLocation(context: Context, onLocation: (Location) -> Unit) {
     val fusedLocationClient = LocationServices.getFusedLocationProviderClient(context)
     try {
