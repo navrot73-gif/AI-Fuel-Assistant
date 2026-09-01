@@ -31,6 +31,18 @@ class OverpassFuelProviderImpl @Inject constructor(
         )
         private const val MIRROR_TIMEOUT_MS = 8_000L
         private const val TIMEOUT_SECONDS = 8L
+        private const val CACHE_TTL_MS = 24 * 60 * 60 * 1000L // 24 hours
+    }
+
+    private class CacheEntry(
+        val timestamp: Long,
+        val stations: List<GasStation>
+    )
+
+    private val cache = java.util.concurrent.ConcurrentHashMap<String, CacheEntry>()
+
+    fun clearCache() {
+        cache.clear()
     }
 
     private val overpassHttpClient: OkHttpClient by lazy {
@@ -43,6 +55,15 @@ class OverpassFuelProviderImpl @Inject constructor(
 
     override suspend fun fetchStations(lat: Double, lon: Double, radiusMeters: Double): List<GasStation> =
         withContext(Dispatchers.IO) {
+            val cacheKey = "${String.format(java.util.Locale.US, "%.2f", lat)}_${String.format(java.util.Locale.US, "%.2f", lon)}_${radiusMeters.toInt()}"
+            val now = System.currentTimeMillis()
+            cache[cacheKey]?.let { entry ->
+                if (now - entry.timestamp < CACHE_TTL_MS) {
+                    Timber.tag(TAG).i("Returning cached Overpass stations (%d stations)", entry.stations.size)
+                    return@withContext entry.stations
+                }
+            }
+
             val query = """
                 [out:json][timeout:8];
                 nwr["amenity"="fuel"](around:${radiusMeters.toInt()},$lat,$lon);
@@ -76,8 +97,15 @@ class OverpassFuelProviderImpl @Inject constructor(
 
                 if (stations != null) {
                     Timber.tag(TAG).i("Fetched %d stations from Overpass mirror: %s", stations.size, mirrorUrl)
+                    cache[cacheKey] = CacheEntry(System.currentTimeMillis(), stations)
                     return@withContext stations
                 }
+            }
+
+            // Return cached entry if available even if expired when all mirrors fail
+            cache[cacheKey]?.let { entry ->
+                Timber.tag(TAG).w("All mirrors failed, using expired cached Overpass stations (%d stations)", entry.stations.size)
+                return@withContext entry.stations
             }
 
             Timber.tag(TAG).w("All Overpass mirrors failed")
@@ -149,6 +177,8 @@ class OverpassFuelProviderImpl @Inject constructor(
                 var idHash = -abs(uniqueIdKey.hashCode())
                 if (idHash == 0) idHash = -1
 
+                val osmIdStr = "osm:$osmId"
+
                 val defaultFuelTypes = listOf(
                     FuelPrice(type = "AI-92", price = 0.0, available = false, source = FuelDataSource.OVERPASS, updatedAt = 0L),
                     FuelPrice(type = "AI-95", price = 0.0, available = false, source = FuelDataSource.OVERPASS, updatedAt = 0L),
@@ -169,7 +199,8 @@ class OverpassFuelProviderImpl @Inject constructor(
                     reliability = 0,
                     dataSources = setOf(FuelDataSource.OVERPASS),
                     updatedAt = 0L,
-                    openingHours = openingHours
+                    openingHours = openingHours,
+                    osmId = osmIdStr
                 )
 
                 stations.add(station)

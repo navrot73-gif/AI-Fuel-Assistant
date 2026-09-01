@@ -4,6 +4,7 @@ import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.data.model.stationListSignature
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,6 +34,8 @@ class StationRecommendationDelegate @Inject constructor(
 
     private val _bestStation = MutableStateFlow<GasStation?>(null)
     val bestStation: StateFlow<GasStation?> = _bestStation.asStateFlow()
+
+    private var lastStationsSignature: String? = null
 
     companion object {
         private const val TAG = "StationRecommendationDelegate"
@@ -74,6 +77,11 @@ class StationRecommendationDelegate @Inject constructor(
     }
 
     fun setStations(stations: List<GasStation>) {
+        val newSig = stations.stationListSignature()
+        if (newSig == lastStationsSignature && _stations.value.isNotEmpty()) {
+            return
+        }
+        lastStationsSignature = newSig
         _stations.value = stations
         updateBestStation()
     }
@@ -85,6 +93,8 @@ class StationRecommendationDelegate @Inject constructor(
             .minByOrNull { s ->
                 getBestStationsUseCase.calculateScore(s, fuelType)
             }
-        _bestStation.value = best
+        if (_bestStation.value != best) {
+            _bestStation.value = best
+        }
     }
 }

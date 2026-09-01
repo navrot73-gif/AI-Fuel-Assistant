@@ -581,14 +581,15 @@ class GasStationRepositoryTest {
         val duplicateOverpass = GasStation(
             id = -10,
             name = "Overpass Duplicate",
-            brand = "Overpass",
+            brand = "Base",
             address = "Base Street 1",
             latitude = 55.1603, // ~30 meters away from baseStation
             longitude = 61.4000,
             fuelTypes = emptyList(),
             queueTime = 0,
             reliability = 0,
-            dataSources = setOf(FuelDataSource.OVERPASS)
+            dataSources = setOf(FuelDataSource.OVERPASS),
+            osmId = "osm:1001"
         )
 
         val distinctOverpass = GasStation(
@@ -610,9 +611,99 @@ class GasStationRepositoryTest {
         )
 
         assertEquals("Merged list size should be 2 (1 base + 1 distinct overpass)", 2, merged.size)
-        assertTrue("Base station should be retained", merged.any { it.id == 1 })
+        assertTrue("Base station should be retained with original id", merged.any { it.id == 1 })
+        val mergedBase = merged.first { it.id == 1 }
+        assertEquals("osm:1001", mergedBase.osmId)
+        assertTrue(mergedBase.dataSources.contains(FuelDataSource.OVERPASS))
         assertTrue("Distinct overpass station should be added", merged.any { it.id == -11 })
-        assertFalse("Duplicate overpass station should be dropped", merged.any { it.id == -10 })
+        assertFalse("Duplicate overpass station ID should not appear separately", merged.any { it.id == -10 })
+    }
+
+    @Test
+    fun `merge preserves base station id and status when matched with OSM node`() {
+        val baseStation = GasStation(
+            id = 42,
+            name = "Лукойл АЗС 100",
+            brand = "Лукойл",
+            address = "Ленина 1",
+            latitude = 55.1600,
+            longitude = 61.4000,
+            fuelTypes = listOf(
+                FuelPrice(type = "АИ-95", price = 55.0, available = true, source = FuelDataSource.USER_REPORT, updatedAt = System.currentTimeMillis())
+            ),
+            queueTime = 2,
+            reliability = 90
+        )
+
+        val matchedOsm = GasStation(
+            id = -555,
+            name = "Lukoil",
+            brand = "Лукойл",
+            address = "Окрестности OSM",
+            latitude = 55.1602, // ~22m away
+            longitude = 61.4001,
+            fuelTypes = emptyList(),
+            queueTime = 0,
+            reliability = 0,
+            dataSources = setOf(FuelDataSource.OVERPASS),
+            osmId = "osm:node/12345"
+        )
+
+        val merged = repository.mergeStations(listOf(baseStation), listOf(matchedOsm))
+
+        assertEquals(1, merged.size)
+        val result = merged.first()
+        assertEquals(42, result.id)
+        assertEquals("osm:node/12345", result.osmId)
+        assertEquals("Лукойл АЗС 100", result.name)
+        assertTrue(result.dataSources.contains(FuelDataSource.OVERPASS))
+    }
+
+    @Test
+    fun `OSM-only station has stable id across emits`() = runBlocking {
+        val overpass1 = GasStation(
+            id = -123456,
+            name = "АЗС 1",
+            brand = "Прочие",
+            address = "OSM",
+            latitude = 55.3000,
+            longitude = 61.3000,
+            fuelTypes = emptyList(),
+            queueTime = 0,
+            reliability = 0,
+            dataSources = setOf(FuelDataSource.OVERPASS),
+            osmId = "osm:node/999"
+        )
+
+        val merged1 = repository.mergeStations(emptyList(), listOf(overpass1))
+        val merged2 = repository.mergeStations(emptyList(), listOf(overpass1))
+
+        assertEquals(1, merged1.size)
+        assertEquals(1, merged2.size)
+        assertEquals(merged1.first().id, merged2.first().id)
+        assertEquals("osm:node/999", merged1.first().osmId)
+    }
+
+    @Test
+    fun `status recalculation post merge turns station red when fresh no fuel mark exists`() = runBlocking {
+        val baseStation = GasStation(
+            id = 10,
+            name = "Газпромнефть АЗС 5",
+            brand = "Газпромнефть",
+            address = "Победы 10",
+            latitude = 55.1700,
+            longitude = 61.4100,
+            fuelTypes = listOf(
+                FuelPrice(type = "АИ-95", price = 54.0, available = false, source = FuelDataSource.USER_REPORT, updatedAt = System.currentTimeMillis())
+            ),
+            queueTime = 0,
+            reliability = 95
+        )
+
+        val withPrices = repository.mergeStations(listOf(baseStation), emptyList())
+        val status = com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator.calculateFuelAvailability(withPrices.first(), "АИ-95")
+
+        assertEquals(com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus.NO_FUEL, status)
     }
 
     @Test
