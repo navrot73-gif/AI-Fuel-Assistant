@@ -6,6 +6,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -19,7 +20,7 @@ import androidx.compose.ui.text.font.FontWeight
 
 /**
  * Stateless TopAppBar карты: заголовок "Где бензин?" / "Карта: $vehicleName",
- * подзаголовок города, кнопки "Назад", "Поиск" и "Мои автомобили".
+ * подзаголовок города, кнопки "Назад", "Поиск", "Настройки" и "Мои автомобили".
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,6 +30,7 @@ fun MapTopBar(
     currentCity: String,
     onBack: () -> Unit,
     onSearchClick: () -> Unit,
+    onSettingsClick: () -> Unit = {},
     onVehiclesClick: () -> Unit,
     onCityClick: () -> Unit = {}
 ) {
@@ -59,6 +61,9 @@ fun MapTopBar(
         actions = {
             IconButton(onClick = onSearchClick) {
                 Icon(Icons.Default.Search, contentDescription = "Поиск")
+            }
+            IconButton(onClick = onSettingsClick) {
+                Icon(Icons.Default.Settings, contentDescription = "Настройки")
             }
             IconButton(onClick = onVehiclesClick) {
                 Icon(Icons.Default.Menu, contentDescription = "Мои автомобили")
