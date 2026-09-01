@@ -66,8 +66,10 @@ fun StationBottomSheet(
     modifier: Modifier = Modifier
 ) {
     // Список станций без дублирования лучшей (она показана в карточке сверху)
-    val displayList = remember(stations, bestStation, openOnly) {
-        val openFiltered = if (openOnly) stations.filter { !it.isKnownClosed() } else stations
+    // Фильтруем панель: только с доступным топливом > 0₽ (AVAILABLE)
+    val displayList = remember(stations, bestStation, openOnly, selectedFuelTypes) {
+        val panelFiltered = filterStationsForPanel(stations, selectedFuelTypes)
+        val openFiltered = if (openOnly) panelFiltered.filter { !it.isKnownClosed() } else panelFiltered
         if (bestStation == null) openFiltered else openFiltered.filter { it.id != bestStation.id }
     }
     val visibleCount = remember(displayList.size) {

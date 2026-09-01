@@ -300,9 +300,12 @@ class MapFilterDelegate @Inject constructor(
             AiRecommendation(station = st, fuel = fuel, distanceKm = dist)
         }
 
+        val startTime = System.currentTimeMillis()
         if (_aiRecommendation.value != newRecommendation) {
             _aiRecommendation.value = newRecommendation
         }
+        val duration = System.currentTimeMillis() - startTime
+        timber.log.Timber.tag("MapFilterDelegate").i("recommendation built in %d ms from source", duration)
         lastAiSignature = currentSig
         lastAiLat = lat
         lastAiLon = lon
