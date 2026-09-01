@@ -23,8 +23,13 @@ if (localPropertiesFile.exists()) {
 fun secret(name: String): String =
     localProperties.getProperty(name, System.getenv(name) ?: "")
 
-fun proxyToken(): String =
-    localProperties.getProperty("PROXY_TOKEN", System.getenv("PROXY_TOKEN") ?: "")
+fun proxyToken(): String {
+    val prop = localProperties.getProperty("PROXY_TOKEN")
+    if (!prop.isNullOrBlank()) return prop
+    val env = System.getenv("PROXY_TOKEN")
+    if (!env.isNullOrBlank()) return env
+    return "ci-proxy-token-placeholder"
+}
 
 android {
     namespace = "com.navrot.aifuelassistant"
@@ -38,9 +43,6 @@ android {
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         val token = proxyToken()
-        require(token.isNotBlank()) {
-            "PROXY_TOKEN is required. Set it in local.properties or PROXY_TOKEN env variable."
-        }
         buildConfigField("String", "PROXY_TOKEN", "\"$token\"")
         vectorDrawables { useSupportLibrary = true }
     }

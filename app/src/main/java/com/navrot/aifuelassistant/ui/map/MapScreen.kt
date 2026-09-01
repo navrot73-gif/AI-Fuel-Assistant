@@ -100,6 +100,11 @@ fun MapScreen(
     val avgPrice by viewModel.avgPrice.collectAsStateWithLifecycle()
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
     val lastCacheUpdateMs by viewModel.lastCacheUpdateTime.collectAsStateWithLifecycle()
+    val vectorOfflineState by viewModel.vectorOfflineState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(Unit) {
+        viewModel.checkOfflineRegions()
+    }
 
     val fuelTypes = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ", "Газ")
     val recommendationTriple = aiRecommendation?.let { Triple(it.station, it.fuel, it.distanceKm) }
@@ -538,6 +543,68 @@ fun MapScreen(
                             onClick = { viewModel.setMapEngine(UserPreferencesRepository.ENGINE_MAPLIBRE) }
                         )
                         Text("Вектор (beta)", modifier = Modifier.padding(start = 8.dp))
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text(
+                        "Офлайн-карта региона (Вектор)",
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+
+                    when (val state = vectorOfflineState) {
+                        is VectorOfflineState.Idle -> {
+                            TextButton(
+                                onClick = { viewModel.downloadOfflineRegion() },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text("Скачать карту региона для офлайна (~20км)")
+                            }
+                        }
+                        is VectorOfflineState.Downloading -> {
+                            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                                Text(
+                                    "Загрузка: ${"%.1f".format(state.progressPercent)}% (${state.downloadedBytes / 1024 / 1024} МБ)",
+                                    style = MaterialTheme.typography.bodyMedium
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                androidx.compose.material3.LinearProgressIndicator(
+                                    progress = { state.progressPercent / 100f },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                        is VectorOfflineState.Downloaded -> {
+                            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                                Text(
+                                    "✅ Регион доступен офлайн (${state.regionName}, ${"%.1f".format(state.sizeBytes / 1024.0 / 1024.0)} МБ)",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                TextButton(
+                                    onClick = { viewModel.deleteOfflineRegion(state.regionId) },
+                                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
+                                        contentColor = MaterialTheme.colorScheme.error
+                                    )
+                                ) {
+                                    Text("Удалить офлайн-регион")
+                                }
+                            }
+                        }
+                        is VectorOfflineState.Error -> {
+                            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+                                Text(
+                                    "Ошибка: ${state.message}",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.error
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                TextButton(onClick = { viewModel.downloadOfflineRegion() }) {
+                                    Text("Повторить загрузку")
+                                }
+                            }
+                        }
                     }
                 }
             },

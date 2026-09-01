@@ -50,6 +50,12 @@ class UserPreferencesRepositoryTest {
     }
 
     @Test
+    fun `default mapEngine is maplibre`() = runTest {
+        val engine = repository.mapEngine.first()
+        assertEquals(UserPreferencesRepository.ENGINE_MAPLIBRE, engine)
+    }
+
+    @Test
     fun `setDarkMode updates isDarkMode flow`() = runTest {
         repository.setDarkMode(true)
         val mode = repository.isDarkMode.first()

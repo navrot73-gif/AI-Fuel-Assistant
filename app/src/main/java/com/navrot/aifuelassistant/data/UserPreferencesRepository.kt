@@ -68,7 +68,7 @@ class UserPreferencesRepository @Inject constructor(
             }
         }
         .map { preferences ->
-            preferences[KEY_MAP_ENGINE] ?: ENGINE_OSMDROID
+            preferences[KEY_MAP_ENGINE] ?: ENGINE_MAPLIBRE
         }
 
     val isDarkMode: Flow<Boolean> = dataStore.data

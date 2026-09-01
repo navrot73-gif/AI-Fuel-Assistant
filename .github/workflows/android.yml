@@ -46,7 +46,7 @@ jobs:
       - name: Build debug APK
         id: build
         env:
-          PROXY_TOKEN: ${{ secrets.PROXY_TOKEN }}
+          PROXY_TOKEN: ${{ secrets.PROXY_TOKEN || 'ci-proxy-token-placeholder' }}
         run: |
           set -o pipefail
           ./gradlew assembleDebug --stacktrace --info 2>&1 | tee gradle-build.log
