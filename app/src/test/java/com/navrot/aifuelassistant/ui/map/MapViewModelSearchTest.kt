@@ -104,6 +104,7 @@ class MapViewModelSearchTest {
         geocodingProvider = FakeGeocodingProvider()
         routeStateManager = RouteStateManager()
         whenever(userPreferencesRepository.isDarkMode).thenReturn(kotlinx.coroutines.flow.MutableStateFlow(false))
+        whenever(userPreferencesRepository.mapEngine).thenReturn(kotlinx.coroutines.flow.MutableStateFlow(UserPreferencesRepository.ENGINE_OSMDROID))
         whenever(networkMonitor.isOnline).thenReturn(kotlinx.coroutines.flow.MutableStateFlow(true))
 
         runBlocking {

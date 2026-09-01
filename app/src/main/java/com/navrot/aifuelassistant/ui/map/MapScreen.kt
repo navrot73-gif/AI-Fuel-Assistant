@@ -47,7 +47,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.RadioButton
+import com.navrot.aifuelassistant.data.UserPreferencesRepository
 import com.navrot.aifuelassistant.ui.map.components.LocationPermissionHandler
 import com.navrot.aifuelassistant.ui.map.components.LocationStatusIndicator
 import com.navrot.aifuelassistant.ui.map.components.MapErrorDialog
@@ -86,6 +89,7 @@ fun MapScreen(
     val route by viewModel.route.collectAsStateWithLifecycle()
     val isRouting by viewModel.isRouting.collectAsStateWithLifecycle()
     val isDarkMode by viewModel.isDarkMode.collectAsStateWithLifecycle()
+    val mapEngine by viewModel.mapEngine.collectAsStateWithLifecycle()
     val openOnly by viewModel.openOnly.collectAsStateWithLifecycle()
     val aiRecommendation by viewModel.aiRecommendation.collectAsStateWithLifecycle()
     val userCancelledRoute by viewModel.userCancelledRoute.collectAsStateWithLifecycle()
@@ -112,6 +116,7 @@ fun MapScreen(
     var zoomOutTick by remember { mutableIntStateOf(0) }
     var hasInitialCentered by remember { mutableStateOf(false) }
     var showCityPicker by remember { mutableStateOf(false) }
+    var showSettingsDialog by remember { mutableStateOf(false) }
     val yellowRouteVisible = selectedStation != null || (route != null && routeStation != null)
 
     val supportedCities = listOf(
@@ -276,7 +281,9 @@ fun MapScreen(
         topBar = {
             MapTopBar(
                 vehicleId = vehicleId, vehicleName = vehicleName, currentCity = currentCity,
-                onBack = onBack, onSearchClick = { showSearch = !showSearch }, onVehiclesClick = onVehiclesClick,
+                onBack = onBack, onSearchClick = { showSearch = !showSearch },
+                onSettingsClick = { showSettingsDialog = true },
+                onVehiclesClick = onVehiclesClick,
                 onCityClick = { showCityPicker = true }
             )
         },
@@ -306,15 +313,26 @@ fun MapScreen(
             )
 
             Box(modifier = Modifier.fillMaxSize()) {
-                OsmMapView(
-                    userLocation = userLocation, stations = stations,
-                    selectedFuelTypes = selectedFuelTypes, route = route,
-                    isDarkMode = isDarkMode,
-                    recenterRequest = recenterTick,
-                    zoomInRequest = zoomInTick, zoomOutRequest = zoomOutTick,
-                    focusPoint = geocodedLocation?.let { OsmGeoPoint(it.latitude, it.longitude) },
-                    onStationClick = { selectedStation = it }
-                )
+                if (mapEngine == UserPreferencesRepository.ENGINE_MAPLIBRE) {
+                    MapLibreView(
+                        userLocation = userLocation, stations = stations,
+                        selectedFuelTypes = selectedFuelTypes,
+                        isDarkMode = isDarkMode,
+                        recenterRequest = recenterTick,
+                        zoomInRequest = zoomInTick, zoomOutRequest = zoomOutTick,
+                        onStationClick = { selectedStation = it }
+                    )
+                } else {
+                    OsmMapView(
+                        userLocation = userLocation, stations = stations,
+                        selectedFuelTypes = selectedFuelTypes, route = route,
+                        isDarkMode = isDarkMode,
+                        recenterRequest = recenterTick,
+                        zoomInRequest = zoomInTick, zoomOutRequest = zoomOutTick,
+                        focusPoint = geocodedLocation?.let { OsmGeoPoint(it.latitude, it.longitude) },
+                        onStationClick = { selectedStation = it }
+                    )
+                }
 
                 LocationStatusIndicator(status = locationStatus, visible = userLocation == null)
 
@@ -482,6 +500,53 @@ fun MapScreen(
 
             }
         }
+    }
+
+    if (showSettingsDialog) {
+        AlertDialog(
+            onDismissRequest = { showSettingsDialog = false },
+            title = { Text("Настройки карты") },
+            text = {
+                Column {
+                    Text(
+                        "Движок карты",
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { viewModel.setMapEngine(UserPreferencesRepository.ENGINE_OSMDROID) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (mapEngine == UserPreferencesRepository.ENGINE_OSMDROID),
+                            onClick = { viewModel.setMapEngine(UserPreferencesRepository.ENGINE_OSMDROID) }
+                        )
+                        Text("Классика (osmdroid)", modifier = Modifier.padding(start = 8.dp))
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { viewModel.setMapEngine(UserPreferencesRepository.ENGINE_MAPLIBRE) }
+                            .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = (mapEngine == UserPreferencesRepository.ENGINE_MAPLIBRE),
+                            onClick = { viewModel.setMapEngine(UserPreferencesRepository.ENGINE_MAPLIBRE) }
+                        )
+                        Text("Вектор (beta)", modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showSettingsDialog = false }) {
+                    Text("Готово")
+                }
+            }
+        )
     }
 
     if (showCityPicker) {

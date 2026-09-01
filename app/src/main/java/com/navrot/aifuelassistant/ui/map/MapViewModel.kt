@@ -83,10 +83,19 @@ class MapViewModel @Inject constructor(
     val isDarkMode: StateFlow<Boolean> = userPreferencesRepository.isDarkMode
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
+    val mapEngine: StateFlow<String> = userPreferencesRepository.mapEngine
+        .stateIn(viewModelScope, SharingStarted.Eagerly, UserPreferencesRepository.ENGINE_OSMDROID)
+
     fun toggleDarkMode() {
         val newMode = !isDarkMode.value
         viewModelScope.launch {
             userPreferencesRepository.setDarkMode(newMode)
+        }
+    }
+
+    fun setMapEngine(engine: String) {
+        viewModelScope.launch {
+            userPreferencesRepository.setMapEngine(engine)
         }
     }
 
