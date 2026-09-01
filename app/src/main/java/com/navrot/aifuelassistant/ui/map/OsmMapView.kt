@@ -31,41 +31,6 @@ import java.io.File
 
 private const val MAP_BACKGROUND = "#17222B"
 
-/** Создаёт СИНЮЮ метку адреса (drop shape #4285F4 с белой точкой в центре). */
-private fun createBlueAddressPinIcon(context: android.content.Context): BitmapDrawable {
-    val density = context.resources.displayMetrics.density
-    val width = (32 * density).toInt()
-    val height = (40 * density).toInt()
-    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
-
-    val pinPaint = Paint().apply {
-        isAntiAlias = true
-        color = Color.parseColor("#4285F4") // Google Blue
-        style = Paint.Style.FILL
-    }
-    val dotPaint = Paint().apply {
-        isAntiAlias = true
-        color = Color.WHITE
-        style = Paint.Style.FILL
-    }
-
-    val path = Path().apply {
-        moveTo(width / 2f, height.toFloat())
-        cubicTo(width / 2f, height.toFloat(), 0f, height * 0.55f, 0f, height * 0.35f)
-        cubicTo(0f, height * 0.15f, width * 0.35f, 0f, width / 2f, 0f)
-        cubicTo(width * 0.65f, 0f, width.toFloat(), height * 0.15f, width.toFloat(), height * 0.35f)
-        cubicTo(width.toFloat(), height * 0.55f, width / 2f, height.toFloat(), width / 2f, height.toFloat())
-        close()
-    }
-    canvas.drawPath(path, pinPaint)
-
-    val dotRadius = (4 * density).toInt()
-    canvas.drawCircle(width / 2f, height * 0.28f, dotRadius.toFloat(), dotPaint)
-
-    return BitmapDrawable(context.resources, bitmap)
-}
-
 /** ColorMatrix tuned for Google Maps dark palette over CARTO Dark Matter (no labels) tiles. */
 private val GOOGLE_DARK_COLOR_MATRIX = ColorMatrix(
     floatArrayOf(
@@ -85,41 +50,6 @@ private val LABELS_LIGHTEN_MATRIX = ColorMatrix(
         0f, 0f, 0f, 1f, 0f
     )
 )
-
-/** Creates a Google Maps–style red finish pin (drop shape #EA4335 with dark center dot). */
-private fun createRedPinIcon(context: android.content.Context): BitmapDrawable {
-    val density = context.resources.displayMetrics.density
-    val width = (22 * density).toInt()
-    val height = (30 * density).toInt()
-    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(bitmap)
-
-    val pinPaint = Paint().apply {
-        isAntiAlias = true
-        color = Color.parseColor("#EA4335")
-        style = Paint.Style.FILL
-    }
-    val dotPaint = Paint().apply {
-        isAntiAlias = true
-        color = Color.parseColor("#7F1D1D")
-        style = Paint.Style.FILL
-    }
-
-    val path = Path().apply {
-        moveTo(width / 2f, height.toFloat())
-        cubicTo(width / 2f, height.toFloat(), 0f, height * 0.55f, 0f, height * 0.35f)
-        cubicTo(0f, height * 0.15f, width * 0.35f, 0f, width / 2f, 0f)
-        cubicTo(width * 0.65f, 0f, width.toFloat(), height * 0.15f, width.toFloat(), height * 0.35f)
-        cubicTo(width.toFloat(), height * 0.55f, width / 2f, height.toFloat(), width / 2f, height.toFloat())
-        close()
-    }
-    canvas.drawPath(path, pinPaint)
-
-    val dotRadius = (3 * density).toInt()
-    canvas.drawCircle(width / 2f, height * 0.28f, dotRadius.toFloat(), dotPaint)
-
-    return BitmapDrawable(context.resources, bitmap)
-}
 
 private fun processRoutePoints(points: List<GeoPoint>, userLocationPt: GeoPoint?): List<GeoPoint> {
     if (points.isEmpty()) return points

@@ -26,14 +26,27 @@ import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
+import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.layers.LineLayer
+import org.maplibre.android.style.layers.Property
+import org.maplibre.android.style.layers.PropertyFactory
+import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.geojson.Feature
+import org.maplibre.geojson.FeatureCollection
+import org.maplibre.geojson.LineString
+import org.maplibre.geojson.Point
 import timber.log.Timber
 
 private const val LIGHT_STYLE_URL = "https://demotiles.maplibre.org/style.json"
 // CartoDB Dark Matter tile style fallback
 private const val DARK_STYLE_URL = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+
+private const val ROUTE_SOURCE_ID = "osrm-route-source"
+private const val ROUTE_CASING_LAYER_ID = "osrm-route-casing-layer"
+private const val ROUTE_LINE_LAYER_ID = "osrm-route-line-layer"
 
 private fun drawableToBitmap(drawable: Drawable): Bitmap {
     if (drawable is BitmapDrawable && drawable.bitmap != null) {
@@ -53,6 +66,7 @@ fun MapLibreView(
     userLocation: UserLocationState?,
     stations: List<GasStation>,
     selectedFuelTypes: Set<String>,
+    route: MapViewModel.RouteOptionUiState? = null,
     isDarkMode: Boolean = false,
     recenterRequest: Int = 0,
     zoomInRequest: Int = 0,
@@ -65,6 +79,50 @@ fun MapLibreView(
     val mapViewRef = remember { arrayOfNulls<MapView>(1) }
     var mapLibreMap by remember { mutableStateOf<MapLibreMap?>(null) }
     val markerStationMap = remember { mutableMapOf<Long, GasStation>() }
+
+    fun updateRouteLayer(style: Style) {
+        val existingSource = style.getSourceAs<GeoJsonSource>(ROUTE_SOURCE_ID)
+        val existingCasing = style.getLayer(ROUTE_CASING_LAYER_ID)
+        val existingLine = style.getLayer(ROUTE_LINE_LAYER_ID)
+
+        val currentRoute = route
+        if (currentRoute == null || currentRoute.points.size < 2) {
+            existingLine?.let { style.removeLayer(it) }
+            existingCasing?.let { style.removeLayer(it) }
+            existingSource?.let { style.removeSource(it) }
+            return
+        }
+
+        val points = currentRoute.points.map { Point.fromLngLat(it.longitude, it.latitude) }
+        val lineString = LineString.fromLngLats(points)
+        val featureCollection = FeatureCollection.fromFeature(Feature.fromGeometry(lineString))
+
+        if (existingSource != null) {
+            existingSource.setGeoJson(featureCollection)
+        } else {
+            val geoJsonSource = GeoJsonSource(ROUTE_SOURCE_ID, featureCollection)
+            style.addSource(geoJsonSource)
+
+            val casingLayer = LineLayer(ROUTE_CASING_LAYER_ID, ROUTE_SOURCE_ID).apply {
+                setProperties(
+                    PropertyFactory.lineColor(android.graphics.Color.parseColor("#0D47A1")),
+                    PropertyFactory.lineWidth(9f),
+                    PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                    PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND)
+                )
+            }
+            val lineLayer = LineLayer(ROUTE_LINE_LAYER_ID, ROUTE_SOURCE_ID).apply {
+                setProperties(
+                    PropertyFactory.lineColor(android.graphics.Color.parseColor("#2196F3")),
+                    PropertyFactory.lineWidth(5f),
+                    PropertyFactory.lineCap(Property.LINE_CAP_ROUND),
+                    PropertyFactory.lineJoin(Property.LINE_JOIN_ROUND)
+                )
+            }
+            style.addLayer(casingLayer)
+            style.addLayerAbove(lineLayer, ROUTE_CASING_LAYER_ID)
+        }
+    }
 
     fun updateMarkers(map: MapLibreMap) {
         map.clear()
@@ -87,13 +145,55 @@ fun MapLibreView(
             val addedMarker: Marker = map.addMarker(markerOptions)
             markerStationMap[addedMarker.id] = station
         }
+
+        route?.points?.lastOrNull()?.let { finishPt ->
+            val redPinDrawable = createRedPinIcon(context)
+            val redPinBitmap = drawableToBitmap(redPinDrawable)
+            val finishIcon = iconFactory.fromBitmap(redPinBitmap)
+            val finishMarkerOptions = MarkerOptions()
+                .position(LatLng(finishPt.latitude, finishPt.longitude))
+                .title("Финиш")
+                .icon(finishIcon)
+            map.addMarker(finishMarkerOptions)
+        }
+
+        map.style?.let { style ->
+            updateRouteLayer(style)
+        }
     }
 
     LaunchedEffect(isDarkMode) {
         mapLibreMap?.let { map ->
             val styleUri = if (isDarkMode) DARK_STYLE_URL else LIGHT_STYLE_URL
-            map.setStyle(Style.Builder().fromUri(styleUri)) {
+            map.setStyle(Style.Builder().fromUri(styleUri)) { style ->
                 Timber.tag("MapLibreView").d("MapLibre style updated for dark mode=$isDarkMode")
+                updateMarkers(map)
+                updateRouteLayer(style)
+            }
+        }
+    }
+
+    LaunchedEffect(route) {
+        mapLibreMap?.let { map ->
+            map.style?.let { style ->
+                updateRouteLayer(style)
+            }
+            updateMarkers(map)
+
+            val pts = route?.points
+            if (pts != null && pts.size >= 2) {
+                try {
+                    val builder = LatLngBounds.Builder()
+                    pts.forEach { pt ->
+                        builder.include(LatLng(pt.latitude, pt.longitude))
+                    }
+                    val bounds = builder.build()
+                    val density = context.resources.displayMetrics.density
+                    val paddingPx = (64 * density).toInt()
+                    map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, paddingPx))
+                } catch (e: Exception) {
+                    Timber.tag("MapLibreView").w("Failed to fit bounds for route: %s", e.message)
+                }
             }
         }
     }
@@ -128,9 +228,10 @@ fun MapLibreView(
                 onCreate(null)
                 getMapAsync { map ->
                     val styleUri = if (isDarkMode) DARK_STYLE_URL else LIGHT_STYLE_URL
-                    map.setStyle(Style.Builder().fromUri(styleUri)) { _ ->
+                    map.setStyle(Style.Builder().fromUri(styleUri)) { style ->
                         Timber.tag("MapLibreView").d("MapLibre initial style loaded")
                         updateMarkers(map)
+                        updateRouteLayer(style)
                     }
 
                     val initialCenter = userLocation?.let { LatLng(it.latitude, it.longitude) }

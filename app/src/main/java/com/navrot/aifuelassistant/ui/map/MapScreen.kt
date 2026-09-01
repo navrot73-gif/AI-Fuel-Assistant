@@ -316,7 +316,7 @@ fun MapScreen(
                 if (mapEngine == UserPreferencesRepository.ENGINE_MAPLIBRE) {
                     MapLibreView(
                         userLocation = userLocation, stations = stations,
-                        selectedFuelTypes = selectedFuelTypes,
+                        selectedFuelTypes = selectedFuelTypes, route = route,
                         isDarkMode = isDarkMode,
                         recenterRequest = recenterTick,
                         zoomInRequest = zoomInTick, zoomOutRequest = zoomOutTick,
