@@ -3,6 +3,7 @@ package com.navrot.aifuelassistant.ui.map.delegate
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.matchesBrand
+import com.navrot.aifuelassistant.data.model.stationListSignature
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.geo.GeoUtils
 import com.navrot.aifuelassistant.ui.common.ErrorContext
@@ -44,6 +45,10 @@ class MapFilterDelegate @Inject constructor(
 
     private val _aiRecommendation = MutableStateFlow<AiRecommendation?>(null)
     val aiRecommendation: StateFlow<AiRecommendation?> = _aiRecommendation.asStateFlow()
+
+    private var lastAiSignature: String? = null
+    private var lastAiLat: Double? = null
+    private var lastAiLon: Double? = null
 
     fun updateStations(newList: List<GasStation>) {
         _stations.value = newList
@@ -271,6 +276,11 @@ class MapFilterDelegate @Inject constructor(
     fun updateAiRecommendation(lat: Double? = null, lon: Double? = null) {
         val stationList = _stations.value
         val fuelFilter = _selectedFuelTypes.value
+        val currentSig = stationList.stationListSignature() + ":" + fuelFilter.joinToString(",")
+
+        if (currentSig == lastAiSignature && lat == lastAiLat && lon == lastAiLon && _aiRecommendation.value != null) {
+            return
+        }
 
         val best = stationList
             .mapNotNull { st ->
@@ -286,8 +296,15 @@ class MapFilterDelegate @Inject constructor(
                 getBestStationsUseCase.calculateScore(st, fuel.type, dist)
             }
 
-        _aiRecommendation.value = best?.let { (st, fuel, dist) ->
+        val newRecommendation = best?.let { (st, fuel, dist) ->
             AiRecommendation(station = st, fuel = fuel, distanceKm = dist)
         }
+
+        if (_aiRecommendation.value != newRecommendation) {
+            _aiRecommendation.value = newRecommendation
+        }
+        lastAiSignature = currentSig
+        lastAiLat = lat
+        lastAiLon = lon
     }
 }

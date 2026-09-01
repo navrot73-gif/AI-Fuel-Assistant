@@ -65,14 +65,15 @@ class StationPriceApplierImpl @Inject constructor(
                 ?: benzonavt.entries.firstOrNull { it.key.equals(fuel.type, ignoreCase = true) }?.value
                 ?: return@map fuel
             val benzonavtTs = parseUpdatedAt(info.updatedAt)
-            if (benzonavtTs > fuel.updatedAt) {
+            val effectiveTs = if (benzonavtTs > 0L) benzonavtTs else System.currentTimeMillis()
+            if (effectiveTs >= fuel.updatedAt) {
                 changed = true
                 fuel.copy(
                     price = info.median,
-                    available = true,
+                    available = info.available,
                     source = FuelDataSource.BENZONAVT,
                     sourceCount = info.sourceCount,
-                    updatedAt = benzonavtTs
+                    updatedAt = effectiveTs
                 )
             } else {
                 fuel

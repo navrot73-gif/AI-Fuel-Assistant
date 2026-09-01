@@ -20,8 +20,18 @@ data class GasStation(
     val photoEvidence: List<PhotoEvidence> = emptyList(),
     val monumentPhotoUrl: String? = null,
     val entrancePhotoUrl: String? = null,
-    val openingHours: String? = null
+    val openingHours: String? = null,
+    val osmId: String? = null
 ) : Parcelable
+
+fun GasStation.signature(): String {
+    val pricesSig = fuelTypes.joinToString(",") { "${it.type}:${it.price}:${it.available}:${it.updatedAt}" }
+    return "$id:${dataSources.joinToString()}:$pricesSig:$updatedAt"
+}
+
+fun List<GasStation>.stationListSignature(): String {
+    return joinToString("|") { it.signature() }
+}
 
 fun GasStation.matchesBrand(selectedBrand: String): Boolean {
     val normSel = selectedBrand.trim().lowercase()

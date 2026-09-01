@@ -222,4 +222,43 @@ class OverpassFuelProviderTest {
         assertEquals(list1[0].id, list2[0].id)
         assertTrue(list1[0].id < 0)
     }
+
+    @Test
+    fun `fetchStations does not hit network when cache is younger than TTL`() = org.junit.Assert.assertNotNull {
+        kotlinx.coroutines.runBlocking {
+            var networkCallCount = 0
+            val mockClient = OkHttpClient.Builder().addInterceptor { chain ->
+                networkCallCount++
+                Response.Builder()
+                    .request(chain.request())
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(200)
+                    .message("OK")
+                    .body("""
+                        {
+                          "elements": [
+                            {
+                              "type": "node",
+                              "id": 9999,
+                              "lat": 55.15,
+                              "lon": 61.40,
+                              "tags": { "name": "Cached Station" }
+                            }
+                          ]
+                        }
+                    """.trimIndent().toResponseBody("application/json".toMediaType()))
+                    .build()
+            }.build()
+
+            val providerWithCache = OverpassFuelProviderImpl(mockClient)
+            val firstFetch = providerWithCache.fetchStations(55.15, 61.40, 5000.0)
+            val secondFetch = providerWithCache.fetchStations(55.15, 61.40, 5000.0)
+
+            assertEquals(1, networkCallCount)
+            assertEquals(1, firstFetch.size)
+            assertEquals(1, secondFetch.size)
+            assertEquals("Cached Station", firstFetch[0].name)
+            assertEquals(firstFetch[0].id, secondFetch[0].id)
+        }
+    }
 }

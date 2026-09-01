@@ -12,13 +12,19 @@ import com.navrot.aifuelassistant.data.datasource.StationLoader
 import com.navrot.aifuelassistant.data.datasource.StationLoaderImpl
 import com.navrot.aifuelassistant.data.datasource.StationPriceApplier
 import com.navrot.aifuelassistant.data.datasource.StationPriceApplierImpl
+import com.navrot.aifuelassistant.data.model.FuelDataSource
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.data.model.matchesBrand
+import com.navrot.aifuelassistant.data.model.stationListSignature
 import com.navrot.aifuelassistant.data.providers.BenzonavtProvider
+import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
+import com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.geo.GeoUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -115,25 +121,59 @@ class GasStationRepository constructor(
 
     /**
      * Deduplicates and merges base stations (static/cached/remote) with Overpass stations.
-     * Base stations take precedence. Overpass stations within DEDUPLICATION_RADIUS_KM of any base station are dropped.
+     * Base stations take precedence. Overpass stations within DEDUPLICATION_RADIUS_KM of any base station
+     * (with matching brand) are merged into a SINGLE GasStation object retaining base ID and base metadata,
+     * while storing osmId and dataSources.
+     * OSM-only stations retain their stable ID.
      */
     fun mergeStations(baseStations: List<GasStation>, overpassStations: List<GasStation>): List<GasStation> {
         if (overpassStations.isEmpty()) return baseStations
         if (baseStations.isEmpty()) return overpassStations
 
         return try {
-            val merged = ArrayList<GasStation>(baseStations.size + overpassStations.size)
-            merged.addAll(baseStations)
+            val mergedBaseMap = HashMap<Int, GasStation>(baseStations.size)
+            val baseOrderList = ArrayList<Int>(baseStations.size)
+
+            for (base in baseStations) {
+                mergedBaseMap[base.id] = base
+                baseOrderList.add(base.id)
+            }
+
+            val standaloneOsmStations = ArrayList<GasStation>()
 
             for (overpass in overpassStations) {
-                val isDuplicate = baseStations.any { base ->
-                    GeoUtils.calculateDistance(base.latitude, base.longitude, overpass.latitude, overpass.longitude) <= DEDUPLICATION_RADIUS_KM
+                val matchingBaseId = baseOrderList.firstOrNull { baseId ->
+                    val base = mergedBaseMap[baseId] ?: return@firstOrNull false
+                    val distKm = GeoUtils.calculateDistance(base.latitude, base.longitude, overpass.latitude, overpass.longitude)
+                    val distMeters = distKm * 1000.0
+                    val isWithinRadius = distMeters <= 120.0
+                    val brandMatches = base.matchesBrand(overpass.brand) || overpass.matchesBrand(base.brand) ||
+                            (base.brand.isNotBlank() && overpass.brand.isNotBlank() &&
+                                    (base.brand.contains(overpass.brand, ignoreCase = true) || overpass.brand.contains(base.brand, ignoreCase = true)))
+                    isWithinRadius && brandMatches
                 }
-                if (!isDuplicate) {
-                    merged.add(overpass)
+
+                if (matchingBaseId != null) {
+                    val existingBase = mergedBaseMap[matchingBaseId]!!
+                    val updatedSources = existingBase.dataSources + FuelDataSource.OVERPASS
+                    val updatedOsmId = existingBase.osmId ?: overpass.osmId
+                    mergedBaseMap[matchingBaseId] = existingBase.copy(
+                        dataSources = updatedSources,
+                        osmId = updatedOsmId
+                    )
+                } else {
+                    standaloneOsmStations.add(overpass)
                 }
             }
-            merged
+
+            standaloneOsmStations.sortBy { it.id }
+
+            val result = ArrayList<GasStation>(baseOrderList.size + standaloneOsmStations.size)
+            for (baseId in baseOrderList) {
+                result.add(mergedBaseMap[baseId]!!)
+            }
+            result.addAll(standaloneOsmStations)
+            result
         } catch (e: Exception) {
             Timber.tag(TAG).w(e, "Error merging stations, returning base list")
             baseStations
@@ -272,7 +312,10 @@ class GasStationRepository constructor(
 
     override fun getNearbyStationsFlow(lat: Double, lon: Double, radiusKm: Double): Flow<List<GasStation>> = flow {
         val baseStations = ensureLoaded()
-        val baseNearby = stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, baseStations)
+        val baseWithPrices = stationPriceApplier.applyAllPrices(baseStations)
+        val baseNearby = stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, baseWithPrices)
+
+        logStationStatusSummary(baseNearby)
         emit(baseNearby)
 
         val overpassStations = try {
@@ -286,13 +329,33 @@ class GasStationRepository constructor(
 
         if (overpassStations.isNotEmpty()) {
             val merged = mergeStations(baseStations, overpassStations)
-            val withPrices = stationPriceApplier.applyUserPrices(merged)
+            val withPrices = stationPriceApplier.applyAllPrices(merged)
             val nearbyEnriched = stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, withPrices)
+
+            logStationStatusSummary(nearbyEnriched)
+
             if (nearbyEnriched != baseNearby) {
                 emit(nearbyEnriched)
             }
         }
+    }.distinctUntilChangedBy { list ->
+        list.stationListSignature()
     }.flowOn(Dispatchers.IO)
+
+    private fun logStationStatusSummary(stations: List<GasStation>) {
+        var greenCount = 0
+        var redCount = 0
+        var grayCount = 0
+        val now = System.currentTimeMillis()
+        for (st in stations) {
+            when (PriceReliabilityCalculator.calculateFuelAvailability(st, currentTimeMs = now)) {
+                FuelAvailabilityStatus.AVAILABLE -> greenCount++
+                FuelAvailabilityStatus.NO_FUEL -> redCount++
+                FuelAvailabilityStatus.UNKNOWN -> grayCount++
+            }
+        }
+        Timber.tag(TAG).i("merged: %d stations, %d green, %d red, %d gray", stations.size, greenCount, redCount, grayCount)
+    }
 
     override suspend fun getNearbyStations(lat: Double, lon: Double, radiusKm: Double): List<GasStation> = withContext(Dispatchers.IO) {
         getNearbyStationsFlow(lat, lon, radiusKm).first()

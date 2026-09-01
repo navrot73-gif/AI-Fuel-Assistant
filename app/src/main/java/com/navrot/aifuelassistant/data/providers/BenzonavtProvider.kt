@@ -20,7 +20,8 @@ data class FuelPriceInfo(
     val min: Double,
     val max: Double,
     val sourceCount: Int,
-    val updatedAt: String
+    val updatedAt: String,
+    val available: Boolean = true
 )
 
 /**
@@ -109,12 +110,23 @@ class BenzonavtProvider @Inject constructor(
                     val code = item.optString("code")
                     if (code.isBlank()) continue
                     val sources = item.optJSONArray("sources")
+                    val isNoFuel = if (item.has("noFuel")) {
+                        item.optBoolean("noFuel", false)
+                    } else if (item.has("no_fuel")) {
+                        item.optBoolean("no_fuel", false)
+                    } else false
+
+                    val isAvailable = if (item.has("available")) {
+                        item.optBoolean("available", true)
+                    } else !isNoFuel
+
                     result[code] = FuelPriceInfo(
                         median = item.optDouble("median", 0.0),
                         min = item.optDouble("min", 0.0),
                         max = item.optDouble("max", 0.0),
                         sourceCount = sources?.length() ?: 0,
-                        updatedAt = updatedAt
+                        updatedAt = updatedAt,
+                        available = isAvailable
                     )
                 }
                 Timber.tag(TAG).i("loaded %d fuel types for %s", result.size, city)
