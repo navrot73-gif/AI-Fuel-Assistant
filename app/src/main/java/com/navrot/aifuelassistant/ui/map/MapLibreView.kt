@@ -225,6 +225,19 @@ fun MapLibreView(
             map.addMarker(finishMarkerOptions)
         }
 
+        userLocation?.let { loc ->
+            if (loc.latitude != 0.0 && loc.longitude != 0.0) {
+                val userLocationDrawable = createUserLocationIcon(context)
+                val userLocationBitmap = drawableToBitmap(userLocationDrawable)
+                val userLocationIcon = iconFactory.fromBitmap(userLocationBitmap)
+                val locationMarkerOptions = MarkerOptions()
+                    .position(LatLng(loc.latitude, loc.longitude))
+                    .title("Моё местоположение")
+                    .icon(userLocationIcon)
+                map.addMarker(locationMarkerOptions)
+            }
+        }
+
         map.style?.let { style ->
             updateRouteLayer(style)
         }
@@ -324,7 +337,7 @@ fun MapLibreView(
                     }
                     val bounds = builder.build()
                     val density = context.resources.displayMetrics.density
-                    val paddingPx = (64 * density).toInt()
+                    val paddingPx = (80 * density).toInt()
                     map.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, paddingPx))
                 } catch (e: Exception) {
                     Timber.tag("MapLibreView").w("Failed to fit bounds for route: %s", e.message)
@@ -360,6 +373,19 @@ fun MapLibreView(
             MapLibre.getInstance(ctx)
             MapView(ctx).apply {
                 mapViewRef[0] = this
+                setOnTouchListener { view, event ->
+                    when (event.action) {
+                        android.view.MotionEvent.ACTION_DOWN,
+                        android.view.MotionEvent.ACTION_MOVE -> {
+                            view.parent?.requestDisallowInterceptTouchEvent(true)
+                        }
+                        android.view.MotionEvent.ACTION_UP,
+                        android.view.MotionEvent.ACTION_CANCEL -> {
+                            view.parent?.requestDisallowInterceptTouchEvent(false)
+                        }
+                    }
+                    false
+                }
                 onCreate(null)
                 getMapAsync { map ->
                     applyStyleWithFallback(map, currentSourceIndex)

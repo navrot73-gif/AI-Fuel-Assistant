@@ -29,8 +29,8 @@ class OverpassFuelProviderImpl @Inject constructor(
             "https://overpass.private.coffee/api/interpreter",
             "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
         )
-        private const val MIRROR_TIMEOUT_MS = 8_000L
-        private const val TIMEOUT_SECONDS = 8L
+        private const val MIRROR_TIMEOUT_MS = 3_000L
+        private const val TIMEOUT_SECONDS = 3L
         private const val CACHE_TTL_MS = 24 * 60 * 60 * 1000L // 24 hours
     }
 

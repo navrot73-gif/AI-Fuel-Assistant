@@ -156,6 +156,42 @@ fun createRedPinIcon(context: Context): android.graphics.drawable.BitmapDrawable
     return android.graphics.drawable.BitmapDrawable(context.resources, bitmap)
 }
 
+/** Creates a Google Maps–style user position dot icon (blue dot with white ring and accuracy halo). */
+fun createUserLocationIcon(context: Context): android.graphics.drawable.BitmapDrawable {
+    val density = context.resources.displayMetrics.density
+    val haloRadius = (18 * density).toInt()
+    val size = haloRadius * 2
+    val bitmap = android.graphics.Bitmap.createBitmap(size, size, android.graphics.Bitmap.Config.ARGB_8888)
+    val canvas = android.graphics.Canvas(bitmap)
+    val cx = size / 2f
+    val cy = size / 2f
+
+    val haloPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        color = 0x334285F4.toInt()
+        style = android.graphics.Paint.Style.FILL
+    }
+    val ringPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        color = android.graphics.Color.WHITE
+        style = android.graphics.Paint.Style.STROKE
+        strokeWidth = 3f * density
+    }
+    val dotPaint = android.graphics.Paint().apply {
+        isAntiAlias = true
+        color = android.graphics.Color.parseColor("#4285F4")
+        style = android.graphics.Paint.Style.FILL
+    }
+
+    canvas.drawCircle(cx, cy, haloRadius.toFloat(), haloPaint)
+    val dotRadius = 9f * density
+    val ringStroke = 3f * density
+    canvas.drawCircle(cx, cy, dotRadius + ringStroke / 2f, ringPaint)
+    canvas.drawCircle(cx, cy, dotRadius, dotPaint)
+
+    return android.graphics.drawable.BitmapDrawable(context.resources, bitmap)
+}
+
 /** Creates a BLUE address pin (#4285F4 drop shape with white center dot). */
 fun createBlueAddressPinIcon(context: Context): android.graphics.drawable.BitmapDrawable {
     val density = context.resources.displayMetrics.density
