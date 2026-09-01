@@ -158,7 +158,7 @@ class VectorOfflineManager @Inject constructor(
     fun checkDownloadedRegions(onResult: ((List<OfflineRegionItem>) -> Unit)? = null) {
         try {
             offlineManager.listOfflineRegions(object : OfflineManager.ListOfflineRegionsCallback {
-                override fun onList(offlineRegions: Array<out OfflineRegion>?) {
+                override fun onList(offlineRegions: Array<OfflineRegion>?) {
                     val regions = offlineRegions ?: emptyArray()
                     val items = mutableListOf<OfflineRegionItem>()
                     var processedCount = 0
@@ -243,7 +243,7 @@ class VectorOfflineManager @Inject constructor(
     fun deleteRegion(regionId: Long, onComplete: (() -> Unit)? = null) {
         try {
             offlineManager.listOfflineRegions(object : OfflineManager.ListOfflineRegionsCallback {
-                override fun onList(offlineRegions: Array<out OfflineRegion>?) {
+                override fun onList(offlineRegions: Array<OfflineRegion>?) {
                     val regionToDelete = offlineRegions?.firstOrNull { it.id == regionId }
                     if (regionToDelete != null) {
                         regionToDelete.delete(object : OfflineRegion.OfflineRegionDeleteCallback {
