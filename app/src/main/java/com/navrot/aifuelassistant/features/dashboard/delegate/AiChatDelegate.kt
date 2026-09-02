@@ -12,6 +12,7 @@ import com.google.gson.reflect.TypeToken
 import com.navrot.aifuelassistant.ai.router.AiRouter
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.RouteStateManager
+import com.navrot.aifuelassistant.data.model.FuelDataSource
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
 import com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator
@@ -224,14 +225,14 @@ class AiChatDelegate @Inject constructor(
                     val status = PriceReliabilityCalculator.calculateFuelAvailability(station, fuel?.type)
                     val statusStr = when (status) {
                         FuelAvailabilityStatus.AVAILABLE -> "🟢 есть топливо"
-                        FuelAvailabilityStatus.NO_FUEL -> "🔴 нет топлива"
+                        FuelAvailabilityStatus.NO_FUEL -> if (station.dataSources.contains(FuelDataSource.RUSSIABASE)) "🔴 нет топлива (по данным Russiabase)" else "🔴 нет топлива"
                         FuelAvailabilityStatus.UNKNOWN -> "⚪ нет данных"
                     }
                     "[${station.id}] ${station.brand} (${station.name}), ${station.address}, ${Format.price(price)}₽ ($statusStr)"
                 }
             } else "нет доступных АЗС"
 
-            val text = "Пользователь: $lat, $lon, город: $city.\nПравило для AI: При вопросе о ближайшей АЗС определи РЕАЛЬНО ближайшую станцию (по расстоянию). Назови её бренд, адрес и статус топлива. Если у неё статус NO_FUEL (🔴 нет топлива), обязательно напиши \"⚠️ по меткам нет топлива\" и предложи ближайшую альтернативную АЗС С ТОПЛИВОМ (укажи её бренд, адрес, цену и расстояние).\nСписок АЗС:\n$stationsInfo"
+            val text = "Пользователь: $lat, $lon, город: $city.\nПравило для AI: При вопросе о ближайшей АЗС определи РЕАЛЬНО ближайшую станцию (по расстоянию). Назови её бренд, адрес и статус топлива. Если у неё статус NO_FUEL (🔴 нет топлива), обязательно напиши \"⚠️ по данным Russiabase топлива нет\" и предложи ближайшую альтернативную АЗС С ТОПЛИВОМ (укажи её бренд, адрес, цену и расстояние).\nСписок АЗС:\n$stationsInfo"
             UserContext(text, stationsList.firstOrNull()?.id)
         } catch (e: Exception) {
             Timber.tag(TAG).w("Failed to build user context: %s", e.message)

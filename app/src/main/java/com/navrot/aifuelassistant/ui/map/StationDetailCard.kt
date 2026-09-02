@@ -41,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.background
+import com.navrot.aifuelassistant.data.model.FuelDataSource
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.isMedianFromNetwork
 import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
@@ -88,6 +89,9 @@ fun StationDetailCard(
         FuelAvailabilityStatus.UNKNOWN -> FueldeckColors.InkFaint
     }
 
+    val activeLimitNote = station.fuelTypes.find { selectedFuelTypes.contains(it.type) }?.limitNote
+        ?: station.fuelTypes.firstOrNull { !it.limitNote.isNullOrBlank() }?.limitNote
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -134,10 +138,12 @@ fun StationDetailCard(
                             )
                         }
 
-                        val isOsmOnly = station.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.OVERPASS) && station.dataSources.size == 1
+                        val isOsmOnly = station.dataSources.contains(FuelDataSource.OVERPASS) && station.dataSources.size == 1
+                        val isRussiabase = station.dataSources.contains(FuelDataSource.RUSSIABASE)
                         val sourceBadgeText = when {
+                            isRussiabase -> "Russiabase"
                             isOsmOnly -> "OSM"
-                            station.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.USER_REPORT) -> "метки"
+                            station.dataSources.contains(FuelDataSource.USER_REPORT) -> "метки"
                             else -> "Benzonavt"
                         }
 
@@ -151,6 +157,22 @@ fun StationDetailCard(
                                 fontSize = 11.sp,
                                 color = FueldeckColors.InkDim,
                                 fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    }
+
+                    if (!activeLimitNote.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = FueldeckColors.AmberSoft
+                        ) {
+                            Text(
+                                text = "⚠️ $activeLimitNote",
+                                fontSize = 12.sp,
+                                color = FueldeckColors.Amber,
+                                fontWeight = FontWeight.SemiBold,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }
@@ -292,7 +314,7 @@ fun StationDetailCard(
 
             val sourceText = when (priceReliability.source) {
                 PriceSource.USER_CONFIRMED -> "Проверено пользователем"
-                PriceSource.NETWORK -> "Сеть Benzonavt"
+                PriceSource.NETWORK -> "Сеть Benzonavt / Russiabase"
                 PriceSource.CACHE -> "Локальный кэш"
                 PriceSource.ASSETS -> "Базовые данные (офлайн)"
             }

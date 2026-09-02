@@ -12,7 +12,8 @@ data class FuelPrice(
     val updatedAt: Long = 0L,
     val confidence: Int = 0,
     val sourceCount: Int = 0,
-    val photoEvidence: PhotoEvidence? = null
+    val photoEvidence: PhotoEvidence? = null,
+    val limitNote: String? = null
 ) : Parcelable
 
 /** Цена пришла от Benzonavt (медиана по городу через прокси). */
