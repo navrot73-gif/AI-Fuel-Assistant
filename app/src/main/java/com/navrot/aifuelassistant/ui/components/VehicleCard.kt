@@ -84,20 +84,24 @@ fun VehicleCard(
                         NetworkImage(
                             url = state.photoUrl,
                             contentDescription = "Фото автомобиля",
+                            contentScale = ContentScale.Fit,
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(RoundedCornerShape(12.dp))
+                                .background(Color(0xFF17222B))
+                                .padding(4.dp)
                         )
                     } else {
                         val stockRes = BrandPhotoMapper.getStockPhotoResource(state.brand)
                         Image(
                             painter = painterResource(id = stockRes),
                             contentDescription = "Стоковое фото ${state.brand}",
-                            contentScale = ContentScale.Crop,
+                            contentScale = ContentScale.Fit,
                             modifier = Modifier
                                 .size(48.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(carIconBgColor)
+                                .background(Color(0xFF17222B))
+                                .padding(4.dp)
                         )
                     }
                     

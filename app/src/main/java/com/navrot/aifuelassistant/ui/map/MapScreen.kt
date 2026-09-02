@@ -101,6 +101,7 @@ fun MapScreen(
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
     val lastCacheUpdateMs by viewModel.lastCacheUpdateTime.collectAsStateWithLifecycle()
     val vectorOfflineState by viewModel.vectorOfflineState.collectAsStateWithLifecycle()
+    val showStraightLineBanner by viewModel.showStraightLineBanner.collectAsStateWithLifecycle()
 
     LaunchedEffect(Unit) {
         viewModel.checkOfflineRegions()
@@ -340,6 +341,33 @@ fun MapScreen(
                 }
 
                 LocationStatusIndicator(status = locationStatus, visible = userLocation == null)
+
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showStraightLineBanner,
+                    enter = androidx.compose.animation.fadeIn() + androidx.compose.animation.slideInVertically(),
+                    exit = androidx.compose.animation.fadeOut() + androidx.compose.animation.slideOutVertically(),
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 16.dp)
+                ) {
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = Color(0xFF2C1F1D),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE53935)),
+                        shadowElevation = 6.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Роутинг недоступен — показана прямая линия",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
 
                 RouteOverlay(
                     selectedStation = selectedStation, route = route, routeStation = routeStation,

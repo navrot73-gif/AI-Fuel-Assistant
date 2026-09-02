@@ -100,6 +100,9 @@ fun MapLibreView(
     val mapViewRef = remember { arrayOfNulls<MapView>(1) }
     var mapLibreMap by remember { mutableStateOf<MapLibreMap?>(null) }
     val markerStationMap = remember { mutableMapOf<Long, GasStation>() }
+    val activeStationMarkers = remember { mutableMapOf<Int, Marker>() }
+    val finishMarkerRef = remember { arrayOfNulls<Marker>(1) }
+    val userLocationMarkerRef = remember { arrayOfNulls<Marker>(1) }
 
     val tileSourceChain = remember {
         listOf(TILE_SOURCE_OPENFREEMAP, TILE_SOURCE_VERSATILES, TILE_SOURCE_OSM_RASTER)
@@ -193,12 +196,19 @@ fun MapLibreView(
     }
 
     fun updateMarkers(map: MapLibreMap) {
-        map.clear()
-        markerStationMap.clear()
-
         val iconFactory = IconFactory.getInstance(context)
 
-        stations.forEach { station ->
+        val diff = MarkerDiffCalculator.calculateDiff(activeStationMarkers.keys, stations) { it.id }
+
+        diff.toRemoveIds.forEach { stationId ->
+            val marker = activeStationMarkers.remove(stationId)
+            marker?.let {
+                map.removeMarker(it)
+                markerStationMap.remove(it.id)
+            }
+        }
+
+        diff.toAdd.forEach { station ->
             val markerColor = getMarkerColor(station, selectedFuelTypes)
             val drawable = createColoredMarker(context, markerColor)
             val bitmap = drawableToBitmap(drawable)
@@ -211,31 +221,65 @@ fun MapLibreView(
                 .icon(icon)
 
             val addedMarker: Marker = map.addMarker(markerOptions)
+            activeStationMarkers[station.id] = addedMarker
             markerStationMap[addedMarker.id] = station
         }
 
-        route?.points?.lastOrNull()?.let { finishPt ->
+        diff.toUpdate.forEach { station ->
+            val existingMarker = activeStationMarkers[station.id]
+            if (existingMarker != null) {
+                existingMarker.position = LatLng(station.latitude, station.longitude)
+                existingMarker.title = station.name
+                existingMarker.snippet = buildStationSnippet(station, selectedFuelTypes)
+                val markerColor = getMarkerColor(station, selectedFuelTypes)
+                val drawable = createColoredMarker(context, markerColor)
+                val bitmap = drawableToBitmap(drawable)
+                val icon = iconFactory.fromBitmap(bitmap)
+                existingMarker.icon = icon
+                markerStationMap[existingMarker.id] = station
+            }
+        }
+
+        val finishPt = route?.points?.lastOrNull()
+        if (finishPt != null) {
             val redPinDrawable = createRedPinIcon(context)
             val redPinBitmap = drawableToBitmap(redPinDrawable)
             val finishIcon = iconFactory.fromBitmap(redPinBitmap)
-            val finishMarkerOptions = MarkerOptions()
-                .position(LatLng(finishPt.latitude, finishPt.longitude))
-                .title("Финиш")
-                .icon(finishIcon)
-            map.addMarker(finishMarkerOptions)
+            val currentFinishMarker = finishMarkerRef[0]
+            if (currentFinishMarker != null) {
+                currentFinishMarker.position = LatLng(finishPt.latitude, finishPt.longitude)
+                currentFinishMarker.icon = finishIcon
+            } else {
+                val finishMarkerOptions = MarkerOptions()
+                    .position(LatLng(finishPt.latitude, finishPt.longitude))
+                    .title("Финиш")
+                    .icon(finishIcon)
+                finishMarkerRef[0] = map.addMarker(finishMarkerOptions)
+            }
+        } else {
+            finishMarkerRef[0]?.let { map.removeMarker(it) }
+            finishMarkerRef[0] = null
         }
 
-        userLocation?.let { loc ->
-            if (loc.latitude != 0.0 && loc.longitude != 0.0) {
-                val userLocationDrawable = createUserLocationIcon(context)
-                val userLocationBitmap = drawableToBitmap(userLocationDrawable)
-                val userLocationIcon = iconFactory.fromBitmap(userLocationBitmap)
+        val loc = userLocation
+        if (loc != null && loc.latitude != 0.0 && loc.longitude != 0.0) {
+            val userLocationDrawable = createUserLocationIcon(context)
+            val userLocationBitmap = drawableToBitmap(userLocationDrawable)
+            val userLocationIcon = iconFactory.fromBitmap(userLocationBitmap)
+            val currentLocMarker = userLocationMarkerRef[0]
+            if (currentLocMarker != null) {
+                currentLocMarker.position = LatLng(loc.latitude, loc.longitude)
+                currentLocMarker.icon = userLocationIcon
+            } else {
                 val locationMarkerOptions = MarkerOptions()
                     .position(LatLng(loc.latitude, loc.longitude))
                     .title("Моё местоположение")
                     .icon(userLocationIcon)
-                map.addMarker(locationMarkerOptions)
+                userLocationMarkerRef[0] = map.addMarker(locationMarkerOptions)
             }
+        } else {
+            userLocationMarkerRef[0]?.let { map.removeMarker(it) }
+            userLocationMarkerRef[0] = null
         }
 
         map.style?.let { style ->

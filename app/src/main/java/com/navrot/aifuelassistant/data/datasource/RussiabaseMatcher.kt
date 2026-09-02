@@ -4,6 +4,9 @@ import com.navrot.aifuelassistant.data.model.FuelDataSource
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.matchesBrand
+import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
+import com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator
+import timber.log.Timber
 
 object RussiabaseMatcher {
 
@@ -11,9 +14,15 @@ object RussiabaseMatcher {
         stations: List<GasStation>,
         observations: List<FuelObservation>
     ): List<GasStation> {
-        if (observations.isEmpty() || stations.isEmpty()) return stations
+        if (observations.isEmpty() || stations.isEmpty()) {
+            if (observations.isNotEmpty()) {
+                Timber.tag("GasStationRepo").i("russiabase: http=200, observations=%d, matched=0, red=0", observations.size)
+            }
+            return stations
+        }
 
         val matchedStationMap = stations.associateBy { it.id }.toMutableMap()
+        val matchedIds = mutableSetOf<Int>()
 
         for (obs in observations) {
             val matchingStation = stations.firstOrNull { station ->
@@ -21,6 +30,7 @@ object RussiabaseMatcher {
             }
 
             if (matchingStation != null) {
+                matchedIds.add(matchingStation.id)
                 val current = matchedStationMap[matchingStation.id] ?: matchingStation
                 val updatedFuelTypes = updateFuelPrices(current.fuelTypes, obs)
                 val updatedSources = current.dataSources + FuelDataSource.RUSSIABASE
@@ -34,7 +44,24 @@ object RussiabaseMatcher {
             }
         }
 
-        return stations.map { matchedStationMap[it.id] ?: it }
+        val updatedStations = stations.map { matchedStationMap[it.id] ?: it }
+
+        var redCount = 0
+        for (id in matchedIds) {
+            val station = matchedStationMap[id]
+            if (station != null && PriceReliabilityCalculator.calculateFuelAvailability(station) == FuelAvailabilityStatus.NO_FUEL) {
+                redCount++
+            }
+        }
+
+        Timber.tag("GasStationRepo").i(
+            "russiabase: http=200, observations=%d, matched=%d, red=%d",
+            observations.size,
+            matchedIds.size,
+            redCount
+        )
+
+        return updatedStations
     }
 
     fun matchesBrandAndAddress(station: GasStation, obs: FuelObservation): Boolean {
@@ -77,13 +104,30 @@ object RussiabaseMatcher {
     }
 
     fun normalizeAddress(address: String): String {
-        return address.lowercase()
+        if (address.isBlank()) return ""
+
+        var norm = address.lowercase()
+
+        norm = norm
+            .replace('v', 'в')
+            .replace('a', 'а')
+            .replace('c', 'с')
+            .replace('e', 'е')
+            .replace('k', 'к')
+            .replace('m', 'м')
+            .replace('o', 'о')
+            .replace('p', 'р')
+            .replace('x', 'х')
+            .replace('y', 'у')
+
+        norm = norm
             .replace("г.", "")
             .replace("город", "")
             .replace("ул.", "")
             .replace("улица", "")
-            .replace("пр.", "")
+            .replace("пр-кт", "")
             .replace("проспект", "")
+            .replace("пр.", "")
             .replace("пер.", "")
             .replace("переулок", "")
             .replace("ш.", "")
@@ -94,9 +138,14 @@ object RussiabaseMatcher {
             .replace("строение", "")
             .replace("д.", "")
             .replace("дом", "")
-            .replace(Regex("[.,\\\\/\\-–—_\"']"), " ")
-            .replace(Regex("\\s+"), " ")
-            .trim()
+            .replace("корп.", "")
+            .replace("корпус", "")
+
+        norm = norm.replace(Regex("[.,\\\\/\\-–—_\"'()`]"), " ")
+
+        norm = norm.replace(Regex("(\\d+)\\s+([а-я])"), "$1$2")
+
+        return norm.replace(Regex("\\s+"), " ").trim()
     }
 
     fun computeLevenshteinDistance(s1: String, s2: String): Int {

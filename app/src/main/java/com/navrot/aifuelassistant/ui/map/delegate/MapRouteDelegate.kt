@@ -35,6 +35,9 @@ class MapRouteDelegate @Inject constructor(
     private val _isRouting = MutableStateFlow(false)
     val isRouting: StateFlow<Boolean> = _isRouting.asStateFlow()
 
+    private val _showStraightLineBanner = MutableStateFlow(false)
+    val showStraightLineBanner: StateFlow<Boolean> = _showStraightLineBanner.asStateFlow()
+
     fun resetUserCancelledRoute() {
         routeStateManager.setUserCancelledRoute(false)
     }
@@ -90,42 +93,44 @@ class MapRouteDelegate @Inject constructor(
                 )
 
                 val response = routeResult.getOrNull()
-                if (response == null) {
-                    val exception = routeResult.exceptionOrNull() ?: java.io.IOException("Worker routing failed")
-                    onError(ErrorMessageMapper.mapToUserMessage(exception, ErrorContext.ROUTE))
-                    Timber.tag(TAG).w("Worker routing failed: %s, fallback to straight line", exception.message)
+                if (response == null || response.getRouteOptions().isEmpty()) {
+                    Timber.tag(TAG).w("Routing failed, fallback to straight line without modal dialog")
                     _route.value = fallbackState
+                    _showStraightLineBanner.value = true
+                    scope.launch {
+                        kotlinx.coroutines.delay(4000L)
+                        _showStraightLineBanner.value = false
+                    }
                 } else {
                     val rawOptions = response.getRouteOptions()
-                    if (rawOptions.isEmpty()) {
-                        onError(ErrorMessageMapper.mapToUserMessage(java.io.IOException("Empty route response"), ErrorContext.ROUTE))
-                        _route.value = fallbackState
-                    } else {
-                        val optionData = rawOptions.first()
-                        val routePoints = optionData.points.map { pt ->
-                            GeoPoint(latitude = pt[0], longitude = pt[1])
-                        }
-                        val min = Math.round(optionData.durationSeconds / 60.0).toInt()
-                        val durText = if (min < 60) "$min мин" else "${min / 60} ч ${min % 60} мин"
-
-                        _route.value = RouteOptionUiState(
-                            title = "Быстрый",
-                            points = routePoints,
-                            distanceText = "${Format.km(optionData.distanceMeters / 1000.0)} км",
-                            durationText = durText,
-                            destination = station.brand,
-                            isStraightLine = false,
-                            isDirect = false,
-                            distanceMeters = optionData.distanceMeters,
-                            durationSeconds = optionData.durationSeconds
-                        )
+                    val optionData = rawOptions.first()
+                    val routePoints = optionData.points.map { pt ->
+                        GeoPoint(latitude = pt[0], longitude = pt[1])
                     }
+                    val min = Math.round(optionData.durationSeconds / 60.0).toInt()
+                    val durText = if (min < 60) "$min мин" else "${min / 60} ч ${min % 60} мин"
+
+                    _route.value = RouteOptionUiState(
+                        title = "Быстрый",
+                        points = routePoints,
+                        distanceText = "${Format.km(optionData.distanceMeters / 1000.0)} км",
+                        durationText = durText,
+                        destination = station.brand,
+                        isStraightLine = false,
+                        isDirect = false,
+                        distanceMeters = optionData.distanceMeters,
+                        durationSeconds = optionData.durationSeconds
+                    )
                 }
             } catch (e: Exception) {
                 val errMsg = e.message ?: "неизвестная ошибка"
-                onError(ErrorMessageMapper.mapToUserMessage(e, ErrorContext.ROUTE))
-                Timber.tag(TAG).w("Worker routing failed: %s, fallback to straight line", errMsg)
+                Timber.tag(TAG).w("Routing failed: %s, fallback to straight line without modal dialog", errMsg)
                 _route.value = fallbackState
+                _showStraightLineBanner.value = true
+                scope.launch {
+                    kotlinx.coroutines.delay(4000L)
+                    _showStraightLineBanner.value = false
+                }
             } finally {
                 _isRouting.value = false
             }

@@ -339,7 +339,8 @@ class GasStationRepository @Inject constructor(
         val baseWithPrices = stationPriceApplier.applyAllPrices(baseStations)
         val baseNearby = stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, baseWithPrices)
 
-        Timber.tag(TAG).i("static emitted %d", baseNearby.size)
+        val elapsedFirst = System.currentTimeMillis() - initTimestamp
+        Timber.tag(TAG).i("t+%dms first pins (%d)", elapsedFirst, baseNearby.size)
         logStationStatusSummary(baseNearby)
         emit(baseNearby)
 
@@ -366,7 +367,7 @@ class GasStationRepository @Inject constructor(
         }
 
         val elapsed = System.currentTimeMillis() - initTimestamp
-        Timber.tag(TAG).i("t+%dms enrichment done (overpass: %d, russiabase: %d)", elapsed, overpassStations.size, russiabaseObservations.size)
+        Timber.tag(TAG).i("t+%dms enrichment (%d added)", elapsed, overpassStations.size)
 
         if (overpassStations.isNotEmpty() || russiabaseObservations.isNotEmpty()) {
             val mergedOverpass = mergeStations(baseStations, overpassStations)
