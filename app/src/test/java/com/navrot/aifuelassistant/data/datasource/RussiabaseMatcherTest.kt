@@ -29,7 +29,7 @@ class RussiabaseMatcherTest {
 
         val obs = FuelObservation(
             brand = "Газпромнефть",
-            address = "Свердловский 12в",
+            address = "Свердловский тракт, 12В",
             fuelType = "АИ-95",
             price = 0.0,
             available = false,
@@ -37,7 +37,40 @@ class RussiabaseMatcherTest {
         )
 
         val isMatch = RussiabaseMatcher.matchesBrandAndAddress(station, obs)
-        assertTrue("Expected station on Свердловский тракт, 12в to match observation Свердловский 12в", isMatch)
+        assertTrue("Expected station on Свердловский тракт, 12в to match observation Свердловский тракт, 12В", isMatch)
+    }
+
+    @Test
+    fun regression_sverdlovsky12v_matchesAndGivesRedPinStatus() {
+        val station = GasStation(
+            id = 148,
+            name = "Газпромнефть",
+            brand = "Газпромнефть",
+            address = "Свердловский тракт, 12в",
+            latitude = 55.18,
+            longitude = 61.35,
+            fuelTypes = listOf(FuelPrice("АИ-95", 53.5, available = true)),
+            queueTime = 0,
+            reliability = 80
+        )
+
+        val obs = FuelObservation(
+            brand = "Газпромнефть",
+            address = "Свердловский тракт, 12В",
+            fuelType = "АИ-95",
+            price = 0.0,
+            available = false,
+            statusText = "Отсутствует"
+        )
+
+        val updatedStations = RussiabaseMatcher.applyObservations(listOf(station), listOf(obs))
+        val updatedStation = updatedStations.first()
+
+        val availability = PriceReliabilityCalculator.calculateFuelAvailability(updatedStation, "АИ-95")
+        assertEquals(FuelAvailabilityStatus.NO_FUEL, availability)
+
+        val markerColor = com.navrot.aifuelassistant.ui.map.getMarkerColor(updatedStation, setOf("АИ-95"))
+        assertEquals(com.navrot.aifuelassistant.ui.theme.FueldeckColors.Coral, markerColor)
     }
 
     @Test

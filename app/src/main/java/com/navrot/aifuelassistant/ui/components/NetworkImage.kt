@@ -19,7 +19,8 @@ import coil.request.ImageRequest
 fun NetworkImage(
     url: String,
     modifier: Modifier = Modifier,
-    contentDescription: String? = null
+    contentDescription: String? = null,
+    contentScale: ContentScale = ContentScale.Crop
 ) {
     if (url.isBlank()) {
         Surface(modifier = modifier, color = MaterialTheme.colorScheme.surfaceVariant) { Box(modifier = Modifier.fillMaxSize()) }
@@ -34,6 +35,6 @@ fun NetworkImage(
             .build(),
         contentDescription = contentDescription,
         modifier = modifier,
-        contentScale = ContentScale.Crop
+        contentScale = contentScale
     )
 }

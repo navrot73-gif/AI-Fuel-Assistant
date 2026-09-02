@@ -30,7 +30,8 @@ class FuelApiImplTest {
             .readTimeout(2, TimeUnit.SECONDS)
             .build()
 
-        fuelApi = FuelApiImpl(client, baseUrl = mockServer.url("/route").toString())
+        val mockUrl = mockServer.url("/route").toString()
+        fuelApi = FuelApiImpl(client, baseUrl = mockUrl, secondaryBaseUrl = mockUrl)
     }
 
     @After
@@ -132,12 +133,38 @@ class FuelApiImplTest {
     }
 
     @Test
+    fun getRoute_mirror1Fails_mirror2Succeeds() = runTest {
+        val successJson = """
+            {
+              "distance_m": 5000.0,
+              "duration_s": 400.0,
+              "points": [[55.75, 37.61], [55.76, 37.62]]
+            }
+        """.trimIndent()
+
+        // Mirror 1 attempt 1: 500 Error
+        mockServer.enqueue(MockResponse().setResponseCode(500).setBody("Error 1"))
+        // Mirror 1 retry: 500 Error
+        mockServer.enqueue(MockResponse().setResponseCode(500).setBody("Error 2"))
+        // Mirror 2 attempt 1: 200 Success
+        mockServer.enqueue(MockResponse().setResponseCode(200).setBody(successJson))
+
+        val result = fuelApi.getRoute(37.61, 55.75, 37.62, 55.76)
+
+        assertTrue("Expected result to be success from mirror 2", result.isSuccess)
+        val routeResponse = result.getOrNull()!!
+        assertEquals(5000.0, routeResponse.distance_m, 0.001)
+    }
+
+    @Test
     fun getRoute_httpErrorStatus_returnsFailureResult() = runTest {
-        mockServer.enqueue(
-            MockResponse()
-                .setResponseCode(500)
-                .setBody("Internal Server Error")
-        )
+        repeat(3) {
+            mockServer.enqueue(
+                MockResponse()
+                    .setResponseCode(500)
+                    .setBody("Internal Server Error")
+            )
+        }
 
         val result = fuelApi.getRoute(37.61, 55.75, 37.62, 55.76)
 
@@ -148,11 +175,13 @@ class FuelApiImplTest {
 
     @Test
     fun getRoute_emptyResponseBody_returnsFailureResult() = runTest {
-        mockServer.enqueue(
-            MockResponse()
-                .setResponseCode(200)
-                .setBody("")
-        )
+        repeat(3) {
+            mockServer.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody("")
+            )
+        }
 
         val result = fuelApi.getRoute(37.61, 55.75, 37.62, 55.76)
 
@@ -163,11 +192,13 @@ class FuelApiImplTest {
 
     @Test
     fun getRoute_malformedJsonBody_returnsFailureResult() = runTest {
-        mockServer.enqueue(
-            MockResponse()
-                .setResponseCode(200)
-                .setBody("{ corrupted json: true ")
-        )
+        repeat(3) {
+            mockServer.enqueue(
+                MockResponse()
+                    .setResponseCode(200)
+                    .setBody("{ corrupted json: true ")
+            )
+        }
 
         val result = fuelApi.getRoute(37.61, 55.75, 37.62, 55.76)
 
@@ -176,10 +207,12 @@ class FuelApiImplTest {
 
     @Test
     fun getRoute_networkTimeout_returnsFailureResult() = runTest {
-        mockServer.enqueue(
-            MockResponse()
-                .setSocketPolicy(SocketPolicy.NO_RESPONSE)
-        )
+        repeat(3) {
+            mockServer.enqueue(
+                MockResponse()
+                    .setSocketPolicy(SocketPolicy.NO_RESPONSE)
+            )
+        }
 
         val result = fuelApi.getRoute(37.61, 55.75, 37.62, 55.76)
 

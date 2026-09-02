@@ -366,7 +366,7 @@ class MapViewModelSearchTest {
         assertEquals("по прямой", route.durationText)
         assertEquals(true, route.isDirect)
         assertEquals(true, route.isStraightLine)
-        assertEquals("Что-то пошло не так. Попробуйте ещё раз.", viewModel.error.value)
+        assertNull(viewModel.error.value)
     }
 
     @Test

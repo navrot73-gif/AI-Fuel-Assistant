@@ -139,6 +139,7 @@ class MapViewModel @Inject constructor(
     val autoBuildConsumed: StateFlow<Boolean> = routeDelegate.autoBuildConsumed
     val route: StateFlow<RouteOptionUiState?> = routeDelegate.route
     val isRouting: StateFlow<Boolean> = routeDelegate.isRouting
+    val showStraightLineBanner: StateFlow<Boolean> = routeDelegate.showStraightLineBanner
 
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
