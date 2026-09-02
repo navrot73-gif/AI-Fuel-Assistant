@@ -113,6 +113,12 @@ class GasStationRepository constructor(
         private const val DEDUPLICATION_RADIUS_KM = 0.1 // 100 meters
     }
 
+    private val initTimestamp = System.currentTimeMillis()
+
+    init {
+        Timber.tag(TAG).i("t0 init")
+    }
+
     private val loadMutex = Mutex()
     private var cachedStations: List<GasStation>? = null
     private var lastRemoteCheckMs = 0L
@@ -183,18 +189,26 @@ class GasStationRepository constructor(
     private suspend fun ensureLoaded(): List<GasStation> = loadMutex.withLock {
         cachedStations?.let { return@withLock it }
 
-        val now = System.currentTimeMillis()
-        val stations: List<GasStation> =
+        val isFirstLoad = lastRemoteCheckMs == 0L
+        val stations: List<GasStation> = if (isFirstLoad) {
+            // First load MUST be zero network: read strictly from cache or assets
+            val local = stationLoader.loadFromCache() ?: stationLoader.loadFromAssets()
+            if (local.isNotEmpty()) local else stationLoader.loadStations()
+        } else {
+            val now = System.currentTimeMillis()
             if (now - lastRemoteCheckMs >= REFRESH_INTERVAL_MS) {
                 lastRemoteCheckMs = now
                 stationLoader.loadStations()
             } else {
                 stationLoader.loadFromCache() ?: stationLoader.loadFromAssets()
             }
+        }
 
         val withUser = stationPriceApplier.applyUserPrices(stations)
         cachedStations = withUser
-        Timber.tag(TAG).d("stations shown (%d), prices pending", withUser.size)
+        val sourceStr = if (stationLoader.loadFromCache() != null) "cache" else "assets"
+        val elapsed = System.currentTimeMillis() - initTimestamp
+        Timber.tag(TAG).i("t+%dms first emit (%d stations, source=%s)", elapsed, withUser.size, sourceStr)
 
         priceRefreshJob?.cancel()
         priceRefreshJob = appScope.launch {
@@ -320,14 +334,14 @@ class GasStationRepository constructor(
         emit(baseNearby)
 
         val overpassStations = try {
-            withTimeoutOrNull(10_000L) {
-                overpassFuelProvider.fetchStations(lat, lon, radiusKm * 1000.0)
-            } ?: emptyList()
+            overpassFuelProvider.fetchStations(lat, lon, radiusKm * 1000.0)
         } catch (e: Exception) {
             Timber.tag(TAG).w("Overpass fetch failed in getNearbyStationsFlow: %s", e.message)
             emptyList()
         }
-        Timber.tag(TAG).i("overpass result %d", overpassStations.size)
+        val addedCount = overpassStations.size
+        val elapsed = System.currentTimeMillis() - initTimestamp
+        Timber.tag(TAG).i("t+%dms enrichment done (%d added)", elapsed, addedCount)
 
         if (overpassStations.isNotEmpty()) {
             val merged = mergeStations(baseStations, overpassStations)

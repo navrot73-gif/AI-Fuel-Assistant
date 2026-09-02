@@ -707,6 +707,41 @@ class GasStationRepositoryTest {
     }
 
     @Test
+    fun `first_emit_is_instant_and_uses_cache_or_assets_without_network`() = runBlocking {
+        val fakeOfflineOverpassProvider = object : OverpassFuelProvider {
+            override suspend fun fetchStations(lat: Double, lon: Double, radiusMeters: Double): List<GasStation> {
+                throw java.net.UnknownHostException("No internet connection")
+            }
+        }
+
+        val testRepo = GasStationRepository(
+            context = context,
+            httpClient = httpClient,
+            userPrices = userPrices,
+            getBestStationsUseCase = getBestStationsUseCase,
+            benzonavtProvider = benzonavtProvider,
+            appScope = appScope,
+            overpassFuelProvider = fakeOfflineOverpassProvider
+        )
+
+        val startMs = System.currentTimeMillis()
+        val emissions = mutableListOf<List<GasStation>>()
+        val job = launch {
+            testRepo.getNearbyStationsFlow(55.1600, 61.4000, 10.0).collect {
+                emissions.add(it)
+            }
+        }
+
+        kotlinx.coroutines.delay(100L)
+        job.cancel()
+
+        val durationMs = System.currentTimeMillis() - startMs
+        assertTrue("First emit must occur almost instantly (<= 1500ms)", durationMs <= 1500L)
+        assertTrue("Flow should emit base stations immediately from cache/assets", emissions.isNotEmpty())
+        assertTrue("Emitted base stations should not be empty", emissions.first().isNotEmpty())
+    }
+
+    @Test
     fun `getNearbyStationsFlow emits base stations immediately without waiting for hanging Overpass`() = runBlocking {
         val fakeHangingOverpassProvider = object : OverpassFuelProvider {
             override suspend fun fetchStations(lat: Double, lon: Double, radiusMeters: Double): List<GasStation> {

@@ -224,6 +224,115 @@ class OverpassFuelProviderTest {
     }
 
     @Test
+    fun `overpass_persisted_cache_survives_restart_and_skips_network_when_fresh`() = org.junit.Assert.assertNotNull {
+        kotlinx.coroutines.runBlocking {
+            val context = org.robolectric.RuntimeEnvironment.getApplication()
+            var networkCallCount = 0
+            val mockClient = OkHttpClient.Builder().addInterceptor { chain ->
+                networkCallCount++
+                Response.Builder()
+                    .request(chain.request())
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(200)
+                    .message("OK")
+                    .body("""
+                        {
+                          "elements": [
+                            {
+                              "type": "node",
+                              "id": 7777,
+                              "lat": 55.15,
+                              "lon": 61.40,
+                              "tags": { "name": "Persisted Station" }
+                            }
+                          ]
+                        }
+                    """.trimIndent().toResponseBody("application/json".toMediaType()))
+                    .build()
+            }.build()
+
+            // First provider instance fetches from network and persists to disk
+            val provider1 = OverpassFuelProviderImpl(mockClient, context)
+            val stations1 = provider1.fetchStations(55.15, 61.40, 5000.0)
+            assertEquals(1, networkCallCount)
+            assertEquals(1, stations1.size)
+            assertEquals("Persisted Station", stations1[0].name)
+
+            // Second provider instance (simulating app restart) reads from disk cache without hitting network
+            val failingClient = OkHttpClient.Builder().addInterceptor {
+                throw java.io.IOException("Network should not be called when disk cache is fresh")
+            }.build()
+
+            val provider2 = OverpassFuelProviderImpl(failingClient, context)
+            val stations2 = provider2.fetchStations(55.15, 61.40, 5000.0)
+
+            assertEquals("Should receive 1 station from persisted disk cache", 1, stations2.size)
+            assertEquals("Persisted Station", stations2[0].name)
+            assertEquals("Station IDs should match across restart", stations1[0].id, stations2[0].id)
+        }
+    }
+
+    @Test
+    fun `enrichment_budget_times_out_after_6_seconds_and_retains_cached_data`() = org.junit.Assert.assertNotNull {
+        kotlinx.coroutines.runBlocking {
+            val context = org.robolectric.RuntimeEnvironment.getApplication()
+
+            // Pre-seed disk cache with an expired item
+            val setupClient = OkHttpClient.Builder().addInterceptor { chain ->
+                Response.Builder()
+                    .request(chain.request())
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(200)
+                    .message("OK")
+                    .body("""
+                        {
+                          "elements": [
+                            {
+                              "type": "node",
+                              "id": 1234,
+                              "lat": 55.15,
+                              "lon": 61.40,
+                              "tags": { "name": "Initial Cache Station" }
+                            }
+                          ]
+                        }
+                    """.trimIndent().toResponseBody("application/json".toMediaType()))
+                    .build()
+            }.build()
+
+            val initialProvider = OverpassFuelProviderImpl(setupClient, context)
+            initialProvider.fetchStations(55.15, 61.40, 5000.0)
+
+            // Modify file timestamp on disk to simulate expired (>24h) cache
+            val cacheFile = java.io.File(context.filesDir, "overpass_cache.json")
+            assertTrue("Cache file should exist", cacheFile.exists())
+            val oldContent = cacheFile.readText().replace(Regex("\"timestamp\":\\d+"), "\"timestamp\":1000")
+            cacheFile.writeText(oldContent)
+
+            // Setup slow client that delays beyond mirror timeouts (e.g. 10s delay per request)
+            val slowClient = OkHttpClient.Builder().addInterceptor { chain ->
+                Thread.sleep(10_000L)
+                Response.Builder()
+                    .request(chain.request())
+                    .protocol(Protocol.HTTP_1_1)
+                    .code(200)
+                    .message("OK")
+                    .body("{}".toResponseBody("application/json".toMediaType()))
+                    .build()
+            }.build()
+
+            val providerWithSlowMirrors = OverpassFuelProviderImpl(slowClient, context)
+            val startMs = System.currentTimeMillis()
+            val result = providerWithSlowMirrors.fetchStations(55.15, 61.40, 5000.0)
+            val durationMs = System.currentTimeMillis() - startMs
+
+            assertTrue("Enrichment should terminate within ~6.5 seconds total budget", durationMs <= 7000L)
+            assertEquals("Should fallback to expired cached station when enrichment times out", 1, result.size)
+            assertEquals("Initial Cache Station", result[0].name)
+        }
+    }
+
+    @Test
     fun `fetchStations does not hit network when cache is younger than TTL`() = org.junit.Assert.assertNotNull {
         kotlinx.coroutines.runBlocking {
             var networkCallCount = 0

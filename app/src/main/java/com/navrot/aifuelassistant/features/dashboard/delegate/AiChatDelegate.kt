@@ -185,43 +185,54 @@ class AiChatDelegate @Inject constructor(
 
     private suspend fun buildUserContext(stationsFallback: List<GasStation>): UserContext {
         return try {
-            withTimeoutOrNull(5000L) {
-                val location = getLastLocation()
-                    ?: return@withTimeoutOrNull UserContext("", null)
+            val location = getLastLocation()
+            val lat = location?.latitude ?: _userLocation.value?.first ?: 55.1644
+            val lon = location?.longitude ?: _userLocation.value?.second ?: 61.4368
+            val city = GeoUtils.hardcodedDetectCity(lat, lon)
 
-                val lat = location.latitude
-                val lon = location.longitude
-
-                val city = GeoUtils.hardcodedDetectCity(lat, lon)
-
-                val nearbyStations = try {
-                    withTimeoutOrNull(5000L) {
-                        gasStationRepository.getNearbyStations(lat, lon, 50.0)
-                            .sortedBy { GeoUtils.calculateDistance(lat, lon, it.latitude, it.longitude) }
-                    } ?: emptyList()
+            val initialStations = if (stationsFallback.isNotEmpty()) {
+                stationsFallback
+            } else {
+                try {
+                    gasStationRepository.getAllStations()
                 } catch (e: Exception) {
-                    Timber.tag(TAG).w("Failed to fetch nearby stations for user context: %s", e.message)
-                    emptyList<GasStation>()
+                    emptyList()
                 }
+            }
 
-                val stationsList = if (nearbyStations.isNotEmpty()) nearbyStations else stationsFallback
-                val stationsInfo = if (stationsList.isNotEmpty()) {
-                    stationsList.joinToString("\n") { station ->
-                        val fuel = station.fuelTypes.firstOrNull()
-                        val price = fuel?.price ?: 0.0
-                        val status = PriceReliabilityCalculator.calculateFuelAvailability(station, fuel?.type)
-                        val statusStr = when (status) {
-                            FuelAvailabilityStatus.AVAILABLE -> "🟢 есть топливо"
-                            FuelAvailabilityStatus.NO_FUEL -> "🔴 нет топлива"
-                            FuelAvailabilityStatus.UNKNOWN -> "⚪ нет данных"
-                        }
-                        "[${station.id}] ${station.brand} (${station.name}), ${station.address}, ${Format.price(price)}₽ ($statusStr)"
+            var stationsList = if (initialStations.isNotEmpty()) {
+                initialStations.sortedBy { GeoUtils.calculateDistance(lat, lon, it.latitude, it.longitude) }
+            } else {
+                emptyList()
+            }
+
+            if (stationsList.isEmpty()) {
+                stationsList = withTimeoutOrNull(3000L) {
+                    try {
+                        gasStationRepository.getAllStations()
+                            .sortedBy { GeoUtils.calculateDistance(lat, lon, it.latitude, it.longitude) }
+                    } catch (e: Exception) {
+                        emptyList()
                     }
-                } else "нет доступных АЗС"
+                } ?: emptyList()
+            }
 
-                val text = "Пользователь: $lat, $lon, город: $city.\nПравило для AI: При вопросе о ближайшей АЗС определи РЕАЛЬНО ближайшую станцию (по расстоянию). Назови её бренд, адрес и статус топлива. Если у неё статус NO_FUEL (🔴 нет топлива), обязательно напиши \"⚠️ по меткам нет топлива\" и предложи ближайшую альтернативную АЗС С ТОПЛИВОМ (укажи её бренд, адрес, цену и расстояние).\nСписок АЗС:\n$stationsInfo"
-                UserContext(text, stationsList.firstOrNull()?.id)
-            } ?: UserContext("", null)
+            val stationsInfo = if (stationsList.isNotEmpty()) {
+                stationsList.joinToString("\n") { station ->
+                    val fuel = station.fuelTypes.firstOrNull()
+                    val price = fuel?.price ?: 0.0
+                    val status = PriceReliabilityCalculator.calculateFuelAvailability(station, fuel?.type)
+                    val statusStr = when (status) {
+                        FuelAvailabilityStatus.AVAILABLE -> "🟢 есть топливо"
+                        FuelAvailabilityStatus.NO_FUEL -> "🔴 нет топлива"
+                        FuelAvailabilityStatus.UNKNOWN -> "⚪ нет данных"
+                    }
+                    "[${station.id}] ${station.brand} (${station.name}), ${station.address}, ${Format.price(price)}₽ ($statusStr)"
+                }
+            } else "нет доступных АЗС"
+
+            val text = "Пользователь: $lat, $lon, город: $city.\nПравило для AI: При вопросе о ближайшей АЗС определи РЕАЛЬНО ближайшую станцию (по расстоянию). Назови её бренд, адрес и статус топлива. Если у неё статус NO_FUEL (🔴 нет топлива), обязательно напиши \"⚠️ по меткам нет топлива\" и предложи ближайшую альтернативную АЗС С ТОПЛИВОМ (укажи её бренд, адрес, цену и расстояние).\nСписок АЗС:\n$stationsInfo"
+            UserContext(text, stationsList.firstOrNull()?.id)
         } catch (e: Exception) {
             Timber.tag(TAG).w("Failed to build user context: %s", e.message)
             UserContext("", null)
