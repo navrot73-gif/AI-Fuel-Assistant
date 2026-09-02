@@ -28,6 +28,8 @@ import com.navrot.aifuelassistant.data.datasource.StationLoader
 import com.navrot.aifuelassistant.data.datasource.StationLoaderImpl
 import com.navrot.aifuelassistant.data.datasource.OverpassFuelProvider
 import com.navrot.aifuelassistant.data.datasource.OverpassFuelProviderImpl
+import com.navrot.aifuelassistant.data.datasource.RussiabaseProvider
+import com.navrot.aifuelassistant.data.datasource.RussiabaseProviderImpl
 import com.navrot.aifuelassistant.data.datasource.StationPriceApplier
 import com.navrot.aifuelassistant.data.datasource.StationPriceApplierImpl
 import com.navrot.aifuelassistant.data.providers.BenzonavtProvider
@@ -191,6 +193,15 @@ object AppModule {
 
     @Provides
     @Singleton
+    fun provideRussiabaseProvider(
+        okHttpClient: OkHttpClient,
+        @ApplicationContext context: Context
+    ): RussiabaseProvider {
+        return RussiabaseProviderImpl(okHttpClient, context)
+    }
+
+    @Provides
+    @Singleton
     fun provideGasStationRepository(
         stationLoader: StationLoader,
         stationCache: StationCache,
@@ -199,6 +210,7 @@ object AppModule {
         userPriceRepository: UserPriceRepository,
         benzonavtProvider: BenzonavtProvider,
         overpassFuelProvider: OverpassFuelProvider,
+        russiabaseProvider: RussiabaseProvider,
         getBestStationsUseCase: GetBestStationsUseCase,
         @ApplicationScope appScope: CoroutineScope
     ): GasStationRepositoryInterface {
@@ -210,6 +222,7 @@ object AppModule {
             userPrices = userPriceRepository,
             benzonavtProvider = benzonavtProvider,
             overpassFuelProvider = overpassFuelProvider,
+            russiabaseProvider = russiabaseProvider,
             getBestStationsUseCase = getBestStationsUseCase,
             appScope = appScope
         )

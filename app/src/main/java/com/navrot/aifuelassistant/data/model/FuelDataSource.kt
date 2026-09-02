@@ -13,5 +13,6 @@ enum class FuelDataSource {
     PHOTO_EVIDENCE,
     BENZONAVT,
     OVERPASS,
+    RUSSIABASE,
     DEMO
 }

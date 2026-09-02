@@ -107,6 +107,7 @@ object PriceReliabilityCalculator {
     private fun isNetworkSource(source: FuelDataSource): Boolean {
         return source in setOf(
             FuelDataSource.BENZONAVT,
+            FuelDataSource.RUSSIABASE,
             FuelDataSource.GDEBENZ,
             FuelDataSource.TWO_GIS,
             FuelDataSource.YANDEX,

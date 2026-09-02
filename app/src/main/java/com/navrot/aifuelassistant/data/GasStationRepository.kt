@@ -3,6 +3,9 @@ package com.navrot.aifuelassistant.data
 import android.content.Context
 import com.navrot.aifuelassistant.data.datasource.OverpassFuelProvider
 import com.navrot.aifuelassistant.data.datasource.OverpassFuelProviderImpl
+import com.navrot.aifuelassistant.data.datasource.RussiabaseMatcher
+import com.navrot.aifuelassistant.data.datasource.RussiabaseProvider
+import com.navrot.aifuelassistant.data.datasource.RussiabaseProviderImpl
 import com.navrot.aifuelassistant.data.datasource.StationCache
 import com.navrot.aifuelassistant.data.datasource.StationCacheImpl
 import com.navrot.aifuelassistant.data.datasource.StationFilterAndSorter
@@ -23,6 +26,8 @@ import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.geo.GeoUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.first
@@ -35,6 +40,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import timber.log.Timber
+import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
@@ -47,7 +53,7 @@ import javax.inject.Singleton
  *  - [StationFilterAndSorter]: поиск, фильтрация по городу/расстоянию и сортировка
  */
 @Singleton
-class GasStationRepository constructor(
+class GasStationRepository @Inject constructor(
     private val stationLoader: StationLoader,
     private val stationCache: StationCache,
     private val stationPriceApplier: StationPriceApplier,
@@ -55,6 +61,7 @@ class GasStationRepository constructor(
     private val userPrices: UserPriceRepository,
     private val benzonavtProvider: BenzonavtProvider,
     private val overpassFuelProvider: OverpassFuelProvider,
+    private val russiabaseProvider: RussiabaseProvider,
     private val getBestStationsUseCase: GetBestStationsUseCase,
     private val appScope: CoroutineScope
 ) : GasStationRepositoryInterface {
@@ -69,7 +76,8 @@ class GasStationRepository constructor(
         getBestStationsUseCase: GetBestStationsUseCase,
         benzonavtProvider: BenzonavtProvider,
         appScope: CoroutineScope,
-        overpassFuelProvider: OverpassFuelProvider = OverpassFuelProviderImpl(httpClient)
+        overpassFuelProvider: OverpassFuelProvider = OverpassFuelProviderImpl(httpClient),
+        russiabaseProvider: RussiabaseProvider = RussiabaseProviderImpl(httpClient, context)
     ) : this(
         stationLoader = StationLoaderImpl(
             httpClient = httpClient,
@@ -83,12 +91,13 @@ class GasStationRepository constructor(
         userPrices = userPrices,
         benzonavtProvider = benzonavtProvider,
         overpassFuelProvider = overpassFuelProvider,
+        russiabaseProvider = russiabaseProvider,
         getBestStationsUseCase = getBestStationsUseCase,
         appScope = appScope
     )
 
     /**
-     * Конструктор для тестов без параметра overpassFuelProvider.
+     * Конструктор для тестов без параметров от сетевых провайдеров.
      */
     constructor(
         context: Context,
@@ -104,7 +113,8 @@ class GasStationRepository constructor(
         getBestStationsUseCase = getBestStationsUseCase,
         benzonavtProvider = benzonavtProvider,
         appScope = appScope,
-        overpassFuelProvider = OverpassFuelProviderImpl(httpClient)
+        overpassFuelProvider = OverpassFuelProviderImpl(httpClient),
+        russiabaseProvider = RussiabaseProviderImpl(httpClient, context)
     )
 
     companion object {
@@ -333,19 +343,35 @@ class GasStationRepository constructor(
         logStationStatusSummary(baseNearby)
         emit(baseNearby)
 
-        val overpassStations = try {
-            overpassFuelProvider.fetchStations(lat, lon, radiusKm * 1000.0)
-        } catch (e: Exception) {
-            Timber.tag(TAG).w("Overpass fetch failed in getNearbyStationsFlow: %s", e.message)
-            emptyList()
-        }
-        val addedCount = overpassStations.size
-        val elapsed = System.currentTimeMillis() - initTimestamp
-        Timber.tag(TAG).i("t+%dms enrichment done (%d added)", elapsed, addedCount)
+        val city = GeoUtils.hardcodedDetectCity(lat, lon)
 
-        if (overpassStations.isNotEmpty()) {
-            val merged = mergeStations(baseStations, overpassStations)
-            val withPrices = stationPriceApplier.applyAllPrices(merged)
+        val (overpassStations, russiabaseObservations) = coroutineScope {
+            val overpassDeferred = async {
+                try {
+                    overpassFuelProvider.fetchStations(lat, lon, radiusKm * 1000.0)
+                } catch (e: Exception) {
+                    Timber.tag(TAG).w("Overpass fetch failed in getNearbyStationsFlow: %s", e.message)
+                    emptyList()
+                }
+            }
+            val russiabaseDeferred = async {
+                try {
+                    russiabaseProvider.fetchObservations(city, listOf("ai95", "dt"))
+                } catch (e: Exception) {
+                    Timber.tag(TAG).w("Russiabase fetch failed in getNearbyStationsFlow: %s", e.message)
+                    emptyList()
+                }
+            }
+            overpassDeferred.await() to russiabaseDeferred.await()
+        }
+
+        val elapsed = System.currentTimeMillis() - initTimestamp
+        Timber.tag(TAG).i("t+%dms enrichment done (overpass: %d, russiabase: %d)", elapsed, overpassStations.size, russiabaseObservations.size)
+
+        if (overpassStations.isNotEmpty() || russiabaseObservations.isNotEmpty()) {
+            val mergedOverpass = mergeStations(baseStations, overpassStations)
+            val mergedWithRussiabase = RussiabaseMatcher.applyObservations(mergedOverpass, russiabaseObservations)
+            val withPrices = stationPriceApplier.applyAllPrices(mergedWithRussiabase)
             val nearbyEnriched = stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, withPrices)
 
             Timber.tag(TAG).i("merged %d", nearbyEnriched.size)
