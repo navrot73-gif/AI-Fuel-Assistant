@@ -191,7 +191,15 @@ class AiChatDelegate @Inject constructor(
             val lon = location?.longitude ?: _userLocation.value?.second ?: 61.4368
             val city = GeoUtils.hardcodedDetectCity(lat, lon)
 
-            val initialStations = if (stationsFallback.isNotEmpty()) {
+            val nearbyStations = try {
+                gasStationRepository.getNearbyStations(lat, lon, 50.0)
+            } catch (e: Exception) {
+                emptyList()
+            }
+
+            val initialStations = if (nearbyStations.isNotEmpty()) {
+                nearbyStations
+            } else if (stationsFallback.isNotEmpty()) {
                 stationsFallback
             } else {
                 try {
@@ -201,22 +209,7 @@ class AiChatDelegate @Inject constructor(
                 }
             }
 
-            var stationsList = if (initialStations.isNotEmpty()) {
-                initialStations.sortedBy { GeoUtils.calculateDistance(lat, lon, it.latitude, it.longitude) }
-            } else {
-                emptyList()
-            }
-
-            if (stationsList.isEmpty()) {
-                stationsList = withTimeoutOrNull(3000L) {
-                    try {
-                        gasStationRepository.getAllStations()
-                            .sortedBy { GeoUtils.calculateDistance(lat, lon, it.latitude, it.longitude) }
-                    } catch (e: Exception) {
-                        emptyList()
-                    }
-                } ?: emptyList()
-            }
+            val stationsList = initialStations.sortedBy { GeoUtils.calculateDistance(lat, lon, it.latitude, it.longitude) }
 
             val stationsInfo = if (stationsList.isNotEmpty()) {
                 stationsList.joinToString("\n") { station ->
@@ -228,11 +221,12 @@ class AiChatDelegate @Inject constructor(
                         FuelAvailabilityStatus.NO_FUEL -> if (station.dataSources.contains(FuelDataSource.RUSSIABASE)) "🔴 нет топлива (по данным Russiabase)" else "🔴 нет топлива"
                         FuelAvailabilityStatus.UNKNOWN -> "⚪ нет данных"
                     }
-                    "[${station.id}] ${station.brand} (${station.name}), ${station.address}, ${Format.price(price)}₽ ($statusStr)"
+                    val formattedPrice = if (price > 0.0) "${Format.price(price)}₽" else "цена не указана"
+                    "${station.brand}, ${station.address} — $formattedPrice, $statusStr [ROUTE:${station.id}]"
                 }
             } else "нет доступных АЗС"
 
-            val text = "Пользователь: $lat, $lon, город: $city.\nПравило для AI: При вопросе о ближайшей АЗС определи РЕАЛЬНО ближайшую станцию (по расстоянию). Назови её бренд, адрес и статус топлива. Если у неё статус NO_FUEL (🔴 нет топлива), обязательно напиши \"⚠️ по данным Russiabase топлива нет\" и предложи ближайшую альтернативную АЗС С ТОПЛИВОМ (укажи её бренд, адрес, цену и расстояние).\nСписок АЗС:\n$stationsInfo"
+            val text = "Пользователь: $lat, $lon, город: $city.\nПравило для AI: При вопросе о ближайшей АЗС определи РЕАЛЬНО ближайшую станцию (по расстоянию). Формат ответа строго: \"Бренд, адрес — цена, статус топлива\" (без [id], без дублирования адреса или города, например: \"Газпромнефть, ул. Курчатова, 2/1 — 62₽, 🟢 есть топливо\"). Если у ближайшей статус NO_FUEL (🔴 нет топлива), обязательно напиши \"⚠️ по данным Russiabase топлива нет\" и предложи ближайшую альтернативную АЗС С ТОПЛИВОМ (укажи её бренд, адрес, цену и расстояние).\nСписок АЗС:\n$stationsInfo"
             UserContext(text, stationsList.firstOrNull()?.id)
         } catch (e: Exception) {
             Timber.tag(TAG).w("Failed to build user context: %s", e.message)
@@ -283,7 +277,7 @@ class AiChatDelegate @Inject constructor(
                     val rawAnswer = withTimeout(20_000L) {
                         aiRouter.ask(fullPrompt, history = history)
                     }
-                    val routeTagRegex = Regex("\\[ROUTE:(\\d+)\\]")
+                    val routeTagRegex = Regex("\\[ROUTE:(-?\\d+)\\]")
                     val match = routeTagRegex.find(rawAnswer)
 
                     if (match != null) {

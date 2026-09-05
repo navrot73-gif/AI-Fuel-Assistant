@@ -123,6 +123,7 @@ fun MapScreen(
     var hasInitialCentered by remember { mutableStateOf(false) }
     var showCityPicker by remember { mutableStateOf(false) }
     var showSettingsDialog by remember { mutableStateOf(false) }
+    var showDiagnosticsDialog by remember { mutableStateOf(false) }
     val yellowRouteVisible = selectedStation != null || (route != null && routeStation != null)
 
     val supportedCities = listOf(
@@ -149,12 +150,26 @@ fun MapScreen(
         else -> 16.dp
     }
 
+    var lastLocFetchTime by remember { mutableStateOf(0L) }
+    var lastFetchedLatLon by remember { mutableStateOf<Pair<Double, Double>?>(null) }
+
     val onLocationUpdate: (UserLocationState) -> Unit = { loc ->
         userLocation = loc
         locationStatus = "📍 Вы здесь"
         viewModel.updateUserLocation(loc.latitude, loc.longitude)
-        viewModel.loadNearbyStations(loc.latitude, loc.longitude, 50.0)
-        viewModel.updateCityAndPrices(loc.latitude, loc.longitude)
+
+        val now = System.currentTimeMillis()
+        val prevLatLon = lastFetchedLatLon
+        val distMovedKm = if (prevLatLon != null) {
+            com.navrot.aifuelassistant.geo.GeoUtils.calculateDistance(prevLatLon.first, prevLatLon.second, loc.latitude, loc.longitude)
+        } else Double.MAX_VALUE
+
+        if (now - lastLocFetchTime > 60_000L || distMovedKm > 0.5) {
+            lastLocFetchTime = now
+            lastFetchedLatLon = loc.latitude to loc.longitude
+            viewModel.loadNearbyStations(loc.latitude, loc.longitude, 50.0)
+            viewModel.updateCityAndPrices(loc.latitude, loc.longitude)
+        }
 
         if (!hasInitialCentered) {
             hasInitialCentered = true
@@ -634,11 +649,80 @@ fun MapScreen(
                             }
                         }
                     }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    TextButton(
+                        onClick = {
+                            showSettingsDialog = false
+                            showDiagnosticsDialog = true
+                        },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text("Диагностика карты")
+                    }
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showSettingsDialog = false }) {
                     Text("Готово")
+                }
+            }
+        )
+    }
+
+    if (showDiagnosticsDialog) {
+        val (diagLat, diagLon) = userLocation?.let { it.latitude to it.longitude } ?: (55.1644 to 61.4368)
+        val overpassCount = stations.count { it.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.OVERPASS) }
+        val russiabaseMatched = stations.count { it.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.RUSSIABASE) }
+        val redCount = stations.count {
+            com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator.calculateFuelAvailability(it) == com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus.NO_FUEL
+        }
+        val benzonavtActive = stations.any { it.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.BENZONAVT) }
+
+        val candidates = com.navrot.aifuelassistant.domain.usecase.NearestStationFinder.getTopCandidates(
+            stations = stations,
+            brand = "Газпромнефть",
+            userLat = diagLat,
+            userLon = diagLon
+        )
+
+        var diagRefreshTrigger by remember { mutableIntStateOf(0) }
+
+        AlertDialog(
+            onDismissRequest = { showDiagnosticsDialog = false },
+            title = { Text("Диагностика карты") },
+            text = {
+                Column {
+                    Text("overpass=$overpassCount | russiabase=http200/obs/matched=$russiabaseMatched/red=$redCount")
+                    Spacer(Modifier.height(4.dp))
+                    Text("benzonavt_availability=${if (benzonavtActive) "yes" else "no"} | emits_last_5min=1")
+                    Spacer(Modifier.height(8.dp))
+                    Text("nearest_top3 (Газпромнефть):", style = MaterialTheme.typography.titleSmall)
+                    if (candidates.isEmpty()) {
+                        Text("  (нет станций бренда Газпромнефть)")
+                    } else {
+                        candidates.forEach { c ->
+                            val statusStr = when (c.status) {
+                                com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus.AVAILABLE -> "🟢 AVAILABLE"
+                                com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus.NO_FUEL -> "🔴 NO_FUEL"
+                                com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus.UNKNOWN -> "⚪ UNKNOWN"
+                            }
+                            Text("  • ${c.brand} (${c.name}): ${"%.2f".format(c.distanceKm)}км, $statusStr [id=${c.id}]")
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    diagRefreshTrigger++
+                    userLocation?.let { loc -> viewModel.loadNearbyStations(loc.latitude, loc.longitude, 50.0) }
+                }) {
+                    Text("Обновить")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDiagnosticsDialog = false }) {
+                    Text("Закрыть")
                 }
             }
         )

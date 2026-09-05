@@ -346,6 +346,9 @@ class GasStationRepository @Inject constructor(
 
         val city = GeoUtils.hardcodedDetectCity(lat, lon)
 
+        var russiabaseStatus = "not_fetched"
+        var benzonavtStatus = "not_fetched"
+
         val (overpassStations, russiabaseObservations) = coroutineScope {
             val overpassDeferred = async {
                 try {
@@ -357,8 +360,11 @@ class GasStationRepository @Inject constructor(
             }
             val russiabaseDeferred = async {
                 try {
-                    russiabaseProvider.fetchObservations(city, listOf("ai95", "dt"), lat, lon)
+                    val obs = russiabaseProvider.fetchObservations(city, listOf("ai95", "dt"), lat, lon)
+                    russiabaseStatus = if (obs.isNotEmpty()) "ok (${obs.size} obs)" else "empty"
+                    obs
                 } catch (e: Exception) {
+                    russiabaseStatus = "error (${e.message})"
                     Timber.tag(TAG).w("Russiabase fetch failed in getNearbyStationsFlow: %s", e.message)
                     emptyList()
                 }
@@ -382,6 +388,12 @@ class GasStationRepository @Inject constructor(
             )
             val withPrices = stationPriceApplier.applyAllPrices(mergedWithRussiabase)
             val nearbyEnriched = stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, withPrices)
+
+            benzonavtStatus = if (withPrices.any { st -> st.dataSources.contains(FuelDataSource.BENZONAVT) }) "active" else "inactive"
+            val redCount = nearbyEnriched.count { st ->
+                PriceReliabilityCalculator.calculateFuelAvailability(st) == FuelAvailabilityStatus.NO_FUEL
+            }
+            Timber.tag(TAG).i("red sources: russiabase=%s, benzonavt=%s, marks=%d", russiabaseStatus, benzonavtStatus, redCount)
 
             Timber.tag(TAG).i("merged %d", nearbyEnriched.size)
             logStationStatusSummary(nearbyEnriched)

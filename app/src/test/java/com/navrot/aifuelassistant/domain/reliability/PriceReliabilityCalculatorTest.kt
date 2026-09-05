@@ -133,4 +133,32 @@ class PriceReliabilityCalculatorTest {
         // Base 95 + 10 + 5 = 110 -> max 100
         assertEquals(100, reliability.percent)
     }
+
+    @Test
+    fun `calculateFuelAvailability returns NO_FUEL when benzonavt fuel price is available false`() {
+        val station = GasStation(
+            id = 5,
+            name = "Benzonavt Out Of Fuel Station",
+            brand = "Газпромнефть",
+            address = "ул. Ленина 10",
+            latitude = 55.0,
+            longitude = 37.0,
+            fuelTypes = listOf(
+                FuelPrice(
+                    type = "АИ-95",
+                    price = 60.0,
+                    available = false, // Benzonavt reported unavailable / no fuel
+                    source = FuelDataSource.BENZONAVT,
+                    updatedAt = nowMs
+                )
+            ),
+            dataSources = setOf(FuelDataSource.BENZONAVT),
+            queueTime = 0,
+            reliability = 90
+        )
+
+        val status = PriceReliabilityCalculator.calculateFuelAvailability(station, "АИ-95", currentTimeMs = nowMs)
+
+        assertEquals(FuelAvailabilityStatus.NO_FUEL, status)
+    }
 }

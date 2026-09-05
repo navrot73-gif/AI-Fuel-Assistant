@@ -168,4 +168,56 @@ class AiChatDelegateTest {
 
         assertEquals(1, delegate.pendingRouteStationId.value)
     }
+
+    @Test
+    fun `buildUserContext includes OSM-only stations with negative ids and excludes raw id tags from answer prompt guidance`() = kotlinx.coroutines.test.runTest {
+        val delegate = createDelegate()
+
+        val mockRecommendationDelegate = mock<StationRecommendationDelegate>()
+        val staticStation = GasStation(
+            id = 101,
+            name = "Газпромнефть Статическая",
+            brand = "Газпромнефть",
+            address = "ул. Курчатова, 2/1",
+            latitude = 55.16,
+            longitude = 61.43,
+            fuelTypes = listOf(FuelPrice("АИ-95", 62.0, available = true)),
+            queueTime = 0,
+            reliability = 90
+        )
+        val osmOnlyStation = GasStation(
+            id = -5001,
+            name = "Газпромнефть OSM",
+            brand = "Газпромнефть",
+            address = "Свердловский тракт, 12в",
+            latitude = 55.15001,
+            longitude = 61.40001,
+            fuelTypes = listOf(FuelPrice("АИ-95", 61.5, available = true)),
+            queueTime = 0,
+            reliability = 90
+        )
+
+        org.mockito.kotlin.whenever(mockGasStationRepository.getNearbyStations(55.15, 61.40, 50.0))
+            .thenReturn(listOf(osmOnlyStation, staticStation))
+        org.mockito.kotlin.whenever(mockRecommendationDelegate.stations)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow(listOf(osmOnlyStation, staticStation)))
+
+        var capturedPrompt = ""
+        org.mockito.kotlin.whenever(mockAiRouter.ask(org.mockito.kotlin.any(), org.mockito.kotlin.anyOrNull(), org.mockito.kotlin.anyOrNull(), org.mockito.kotlin.any(), org.mockito.kotlin.any()))
+            .thenAnswer { invocation ->
+                capturedPrompt = invocation.getArgument(0)
+                "Газпромнефть, Свердловский тракт, 12в — 61.5₽, 🟢 есть топливо [ROUTE:-5001]"
+            }
+
+        delegate.updateUserLocation(55.15, 61.40)
+        delegate.setUserQuestion("где ближайшая Газпромнефть")
+        delegate.askUserQuestion(this, mockRecommendationDelegate)
+        testScheduler.advanceUntilIdle()
+
+        assertTrue(capturedPrompt.contains("Свердловский тракт, 12в"))
+        assertTrue(capturedPrompt.contains("[ROUTE:-5001]"))
+        assertFalse(capturedPrompt.contains("[-5001] Газпромнефть"))
+        assertEquals("Газпромнефть, Свердловский тракт, 12в — 61.5₽, 🟢 есть топливо", delegate.userAnswer.value)
+        assertEquals(-5001, delegate.pendingRouteStationId.value)
+    }
 }
