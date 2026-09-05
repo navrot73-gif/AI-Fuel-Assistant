@@ -71,6 +71,14 @@ class GasStationRepositoryTest {
     private val userPrices: UserPriceRepository = mock()
     private val benzonavtProvider: BenzonavtProvider = mock()
     private val getBestStationsUseCase: GetBestStationsUseCase = mock()
+    private val fakeRussiabaseProvider = object : com.navrot.aifuelassistant.data.datasource.RussiabaseProvider {
+        override suspend fun fetchObservations(
+            citySlug: String,
+            fuels: List<String>,
+            lat: Double?,
+            lon: Double?
+        ): List<com.navrot.aifuelassistant.data.datasource.FuelObservation> = emptyList()
+    }
 
     private lateinit var repository: GasStationRepository
 
@@ -100,7 +108,8 @@ class GasStationRepositoryTest {
             userPrices = userPrices,
             getBestStationsUseCase = getBestStationsUseCase,
             benzonavtProvider = benzonavtProvider,
-            appScope = appScope
+            appScope = appScope,
+            russiabaseProvider = fakeRussiabaseProvider
         )
     }
 
@@ -721,7 +730,8 @@ class GasStationRepositoryTest {
             getBestStationsUseCase = getBestStationsUseCase,
             benzonavtProvider = benzonavtProvider,
             appScope = appScope,
-            overpassFuelProvider = fakeOfflineOverpassProvider
+            overpassFuelProvider = fakeOfflineOverpassProvider,
+            russiabaseProvider = fakeRussiabaseProvider
         )
 
         val startMs = System.currentTimeMillis()
@@ -757,7 +767,8 @@ class GasStationRepositoryTest {
             getBestStationsUseCase = getBestStationsUseCase,
             benzonavtProvider = benzonavtProvider,
             appScope = appScope,
-            overpassFuelProvider = fakeHangingOverpassProvider
+            overpassFuelProvider = fakeHangingOverpassProvider,
+            russiabaseProvider = fakeRussiabaseProvider
         )
 
         testRepo.getAllStations() // warm up cache to avoid network timeout
@@ -802,7 +813,8 @@ class GasStationRepositoryTest {
             getBestStationsUseCase = getBestStationsUseCase,
             benzonavtProvider = benzonavtProvider,
             appScope = appScope,
-            overpassFuelProvider = fakeOverpassProvider
+            overpassFuelProvider = fakeOverpassProvider,
+            russiabaseProvider = fakeRussiabaseProvider
         )
 
         testRepo.getAllStations() // warm up cache

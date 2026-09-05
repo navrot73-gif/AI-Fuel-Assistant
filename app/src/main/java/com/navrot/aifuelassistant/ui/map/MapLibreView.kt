@@ -331,6 +331,25 @@ fun MapLibreView(
         val styleBuilder = buildStyleBuilder(sourceKey, isDarkMode)
         map.setStyle(styleBuilder) { style ->
             Timber.tag("MapLibreView").d("onDidFinishLoadingStyle completed callback for %s", sourceKey)
+
+            // Fix 1: Apply Russian-only labels to ALL symbol layers (strip name_en / Latin duplicates)
+            try {
+                for (layer in style.layers) {
+                    if (layer is org.maplibre.android.style.layers.SymbolLayer) {
+                        layer.setProperties(
+                            PropertyFactory.textField(
+                                org.maplibre.android.style.expressions.Expression.coalesce(
+                                    org.maplibre.android.style.expressions.Expression.get("name:ru"),
+                                    org.maplibre.android.style.expressions.Expression.get("name")
+                                )
+                            )
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.tag("MapLibreView").w(e, "Error applying Russian labels to symbol layers")
+            }
+
             updateMarkers(map)
             updateRouteLayer(style)
 

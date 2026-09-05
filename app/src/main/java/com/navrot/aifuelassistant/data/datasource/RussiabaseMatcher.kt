@@ -12,11 +12,14 @@ object RussiabaseMatcher {
 
     fun applyObservations(
         stations: List<GasStation>,
-        observations: List<FuelObservation>
+        observations: List<FuelObservation>,
+        mode: String = "slug",
+        region: String = "468",
+        httpCode: Int = 200
     ): List<GasStation> {
         if (observations.isEmpty() || stations.isEmpty()) {
             if (observations.isNotEmpty()) {
-                Timber.tag("GasStationRepo").i("russiabase: http=200, observations=%d, matched=0, red=0", observations.size)
+                Timber.tag("GasStationRepo").i("russiabase: mode=%s, region=%s, http=%d, observations=%d, matched=0, red=0", mode, region, httpCode, observations.size)
             }
             return stations
         }
@@ -55,7 +58,10 @@ object RussiabaseMatcher {
         }
 
         Timber.tag("GasStationRepo").i(
-            "russiabase: http=200, observations=%d, matched=%d, red=%d",
+            "russiabase: mode=%s, region=%s, http=%d, observations=%d, matched=%d, red=%d",
+            mode,
+            region,
+            httpCode,
             observations.size,
             matchedIds.size,
             redCount

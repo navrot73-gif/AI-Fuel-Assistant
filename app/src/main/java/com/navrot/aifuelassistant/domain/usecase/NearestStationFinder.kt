@@ -12,7 +12,37 @@ data class NearestBrandResult(
     val alternativeWithFuel: GasStation?
 )
 
+data class StationCandidate(
+    val id: Int,
+    val brand: String,
+    val name: String,
+    val distanceKm: Double,
+    val status: FuelAvailabilityStatus
+)
+
 object NearestStationFinder {
+
+    /**
+     * Returns top candidates for brand query sorted by distance.
+     */
+    fun getTopCandidates(
+        stations: List<GasStation>,
+        brand: String,
+        userLat: Double,
+        userLon: Double,
+        fuelType: String? = null,
+        limit: Int = 3
+    ): List<StationCandidate> {
+        return stations.filter {
+            it.matchesBrand(brand) ||
+            it.brand.contains(brand, ignoreCase = true) ||
+            it.name.contains(brand, ignoreCase = true)
+        }.map { st ->
+            val dist = GeoUtils.calculateDistance(userLat, userLon, st.latitude, st.longitude)
+            val status = PriceReliabilityCalculator.calculateFuelAvailability(st, fuelType)
+            StationCandidate(st.id, st.brand, st.name, dist, status)
+        }.sortedBy { it.distanceKm }.take(limit)
+    }
 
     /**
      * Finds the nearest station matching the specified brand across the full merged list of stations (including OSM-only).
@@ -27,7 +57,9 @@ object NearestStationFinder {
         fuelType: String? = null
     ): NearestBrandResult? {
         val matchingBrandStations = stations.filter {
-            it.matchesBrand(brand) || it.name.contains(brand, ignoreCase = true)
+            it.matchesBrand(brand) ||
+            it.brand.contains(brand, ignoreCase = true) ||
+            it.name.contains(brand, ignoreCase = true)
         }
         if (matchingBrandStations.isEmpty()) return null
 

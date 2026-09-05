@@ -28,7 +28,9 @@ data class FuelObservation(
 interface RussiabaseProvider {
     suspend fun fetchObservations(
         citySlug: String,
-        fuels: List<String> = listOf("ai95", "dt")
+        fuels: List<String> = listOf("ai95", "dt"),
+        lat: Double? = null,
+        lon: Double? = null
     ): List<FuelObservation>
 }
 
@@ -182,13 +184,14 @@ class RussiabaseProviderImpl @Inject constructor(
 
     override suspend fun fetchObservations(
         citySlug: String,
-        fuels: List<String>
+        fuels: List<String>,
+        lat: Double?,
+        lon: Double?
     ): List<FuelObservation> = withContext(Dispatchers.IO) {
         val normalizedCity = citySlug.trim().lowercase()
-        if (normalizedCity.isBlank()) return@withContext emptyList()
 
-        val raionId = getRaionForCity(normalizedCity) ?: run {
-            Timber.tag(TAG).d("City %s not mapped in russiabase_regions.json, skipping", normalizedCity)
+        val raionId = getRaionForCityOrCoords(normalizedCity, lat, lon) ?: run {
+            Timber.tag(TAG).d("City %s (lat=%s, lon=%s) not mapped in russiabase_regions.json, skipping", normalizedCity, lat, lon)
             return@withContext emptyList()
         }
 
@@ -258,17 +261,54 @@ class RussiabaseProviderImpl @Inject constructor(
         emptyList()
     }
 
-    private fun getRaionForCity(citySlug: String): Int? {
-        val context = this.context ?: return if (citySlug == "chelyabinsk") 468 else null
+    private fun getRaionForCityOrCoords(citySlug: String, lat: Double?, lon: Double?): Int? {
+        val context = this.context
+        if (context == null) {
+            if (citySlug == "chelyabinsk" || citySlug == "nearby" || citySlug == "рядом" || citySlug.isBlank()) return 468
+            if (lat != null && lon != null && lat in 54.8..55.5 && lon in 61.0..61.8) return 468
+            return null
+        }
+
         return try {
             val jsonString = context.assets.open("russiabase_regions.json").bufferedReader().use { it.readText() }
             val root = JSONObject(jsonString)
-            if (root.has(citySlug)) {
-                root.getInt(citySlug)
-            } else null
+
+            val isNearbyMode = citySlug.isBlank() || citySlug == "nearby" || citySlug == "рядом" || citySlug.contains("район")
+
+            if (!isNearbyMode && root.has(citySlug)) {
+                val value = root.get(citySlug)
+                return when (value) {
+                    is Int -> value
+                    is JSONObject -> value.optInt("raion")
+                    else -> null
+                }
+            }
+
+            // If nearby mode or citySlug not found directly, check by lat/lon against bboxes
+            if (lat != null && lon != null) {
+                val keys = root.keys()
+                while (keys.hasNext()) {
+                    val key = keys.next()
+                    val value = root.get(key)
+                    if (value is JSONObject && value.has("bbox") && value.has("raion")) {
+                        val bboxArr = value.getJSONArray("bbox")
+                        if (bboxArr.length() >= 4) {
+                            val minLat = bboxArr.getDouble(0)
+                            val minLon = bboxArr.getDouble(1)
+                            val maxLat = bboxArr.getDouble(2)
+                            val maxLon = bboxArr.getDouble(3)
+                            if (lat in minLat..maxLat && lon in minLon..maxLon) {
+                                return value.getInt("raion")
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (citySlug == "chelyabinsk" || isNearbyMode) 468 else null
         } catch (e: Exception) {
             Timber.tag(TAG).w(e, "Error reading russiabase_regions.json asset")
-            if (citySlug == "chelyabinsk") 468 else null
+            if (citySlug == "chelyabinsk" || citySlug == "nearby" || citySlug == "рядом" || citySlug.isBlank()) 468 else null
         }
     }
 

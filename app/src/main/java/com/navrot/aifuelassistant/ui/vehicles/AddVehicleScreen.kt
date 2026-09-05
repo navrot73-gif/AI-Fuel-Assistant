@@ -6,6 +6,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -267,9 +268,12 @@ private fun PhotoUploadSection(
             NetworkImage(
                 url = photoUrl,
                 contentDescription = "Превью фото авто",
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
                 modifier = Modifier
                     .size(80.dp)
                     .clip(RoundedCornerShape(12.dp))
+                    .background(androidx.compose.ui.graphics.Color(0xFF17222B))
+                    .padding(4.dp)
             )
             Column(
                 modifier = Modifier.weight(1f),
