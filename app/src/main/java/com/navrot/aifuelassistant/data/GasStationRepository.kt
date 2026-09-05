@@ -357,7 +357,7 @@ class GasStationRepository @Inject constructor(
             }
             val russiabaseDeferred = async {
                 try {
-                    russiabaseProvider.fetchObservations(city, listOf("ai95", "dt"))
+                    russiabaseProvider.fetchObservations(city, listOf("ai95", "dt"), lat, lon)
                 } catch (e: Exception) {
                     Timber.tag(TAG).w("Russiabase fetch failed in getNearbyStationsFlow: %s", e.message)
                     emptyList()
@@ -371,7 +371,15 @@ class GasStationRepository @Inject constructor(
 
         if (overpassStations.isNotEmpty() || russiabaseObservations.isNotEmpty()) {
             val mergedOverpass = mergeStations(baseStations, overpassStations)
-            val mergedWithRussiabase = RussiabaseMatcher.applyObservations(mergedOverpass, russiabaseObservations)
+            val isNearbyMode = city.isBlank() || city == "nearby" || city == "рядом" || city.contains("район")
+            val modeStr = if (isNearbyMode) "nearby" else "slug"
+            val mergedWithRussiabase = RussiabaseMatcher.applyObservations(
+                mergedOverpass,
+                russiabaseObservations,
+                mode = modeStr,
+                region = "468",
+                httpCode = 200
+            )
             val withPrices = stationPriceApplier.applyAllPrices(mergedWithRussiabase)
             val nearbyEnriched = stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, withPrices)
 
