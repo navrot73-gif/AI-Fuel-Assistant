@@ -225,8 +225,9 @@ class RussiabaseProviderImpl @Inject constructor(
                 val url = "$BASE_URL?raion=$raionId&mark=$mark"
                 val request = Request.Builder()
                     .url(url)
-                    .header("User-Agent", "AIFuelAssistant/1.0")
+                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) Chrome/126")
                     .header("Accept", "text/html,application/xhtml+xml")
+                    .header("Accept-Language", "ru")
                     .build()
 
                 russiabaseHttpClient.newCall(request).execute().use { response ->
@@ -235,7 +236,12 @@ class RussiabaseProviderImpl @Inject constructor(
                         val parsed = RussiabaseHtmlParser.parseHtml(html, mark)
                         allObservations.addAll(parsed)
                     } else {
-                        Timber.tag(TAG).w("Russiabase request failed for mark %s: HTTP %d", mark, response.code)
+                        val bodySnippet = try {
+                            response.body?.string()?.take(200) ?: ""
+                        } catch (e: Exception) {
+                            ""
+                        }
+                        Timber.tag(TAG).e("Russiabase request failed for mark %s: HTTP %d, body=%s", mark, response.code, bodySnippet)
                     }
                 }
             }

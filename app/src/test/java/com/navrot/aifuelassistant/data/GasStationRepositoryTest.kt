@@ -868,6 +868,38 @@ class GasStationRepositoryTest {
 
     // ==================== Конкурентный доступ (sanity) ====================
 
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun `getNearbyStationsFlow emits 0 redundant emissions when inputs do not change over virtual time`() = runBlocking {
+        val testRepo = GasStationRepository(
+            context = context,
+            httpClient = httpClient,
+            userPrices = userPrices,
+            getBestStationsUseCase = getBestStationsUseCase,
+            benzonavtProvider = benzonavtProvider,
+            appScope = appScope,
+            overpassFuelProvider = object : OverpassFuelProvider {
+                override suspend fun fetchStations(lat: Double, lon: Double, radiusMeters: Double): List<GasStation> = emptyList()
+            },
+            russiabaseProvider = fakeRussiabaseProvider
+        )
+
+        val emissions = mutableListOf<List<GasStation>>()
+        val job = launch {
+            testRepo.getNearbyStationsFlow(55.1600, 61.4000, 10.0).collect {
+                emissions.add(it)
+            }
+        }
+
+        kotlinx.coroutines.delay(1000L)
+        val countAfterInit = emissions.size
+        kotlinx.coroutines.delay(5000L)
+        val countAfterDelay = emissions.size
+        job.cancel()
+
+        assertEquals("No extra emissions should occur after initial load when inputs are unchanged", countAfterInit, countAfterDelay)
+    }
+
     @Test
     fun `concurrent getAllStations calls do not corrupt cache`() = runBlocking {
         // Запускаем несколько конкурентных вызовов ensureLoaded.
