@@ -705,6 +705,7 @@ fun MapScreen(
         val aiPath = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.aiPath
         val tileSrc = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.activeTileSource
         val tileSt = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tileStatus
+        val tilesErrCount = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tilesErrorsCount
         val fallbacksStr = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.fallbackChainLogs.joinToString(" -> ")
             .ifEmpty { "none" }
 
@@ -717,7 +718,7 @@ fun MapScreen(
                     Spacer(Modifier.height(4.dp))
                     Text("city_resolve=${cityResolve}ms (source=$citySource) | ai_path=$aiPath", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(4.dp))
-                    Text("tiles: source=$tileSrc, status=$tileSt, fallbacks=$fallbacksStr", style = MaterialTheme.typography.bodyMedium)
+                    Text("tiles: source=$tileSrc, status=$tileSt, errors_count=$tilesErrCount, fallbacks=$fallbacksStr", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(8.dp))
                     Text("overpass=$overpassCount | russiabase=http200/obs/matched=$russiabaseMatched/red=$redCount")
                     Spacer(Modifier.height(4.dp))

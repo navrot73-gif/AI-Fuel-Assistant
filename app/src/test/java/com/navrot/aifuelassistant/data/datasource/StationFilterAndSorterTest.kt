@@ -182,6 +182,21 @@ class StationFilterAndSorterTest {
     }
 
     @Test
+    fun `regional bbox filter excludes Moscow stations`() {
+        val moscowStation = createStation(1, "Moscow Station", "Lukoil", "Москва, Ленинградский пр-т, 62", 55.8072, 37.5394, 60.0, 5)
+        val chelyabinskStation = createStation(2, "Chelyabinsk Station", "Gazpromneft", "Челябинск, ул. Курчатова, 2/1", 55.1603, 61.4007, 61.5, 8)
+
+        val stations = listOf(moscowStation, chelyabinskStation)
+        val filtered = stations.filter { st ->
+            StationFilterAndSorterImpl.isInRegionBbox(st.latitude, st.longitude)
+        }
+
+        assertEquals(1, filtered.size)
+        assertEquals(2, filtered.first().id)
+        assertTrue(filtered.none { it.address.contains("Москва") })
+    }
+
+    @Test
     fun `getStationsNearLocation filters by radius and sorts by distance`() {
         val centerLat = 55.1598
         val centerLon = 61.4026

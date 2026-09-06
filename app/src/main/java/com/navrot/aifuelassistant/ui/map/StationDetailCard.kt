@@ -162,7 +162,26 @@ fun StationDetailCard(
                         }
                     }
 
-                    if (!activeLimitNote.isNullOrBlank()) {
+                    val hasBenzonavtPrice = station.fuelTypes.any { it.source == FuelDataSource.BENZONAVT || it.price > 0.0 }
+                    val hasRussiabaseNoFuel = station.fuelTypes.any { it.source == FuelDataSource.RUSSIABASE && !it.available }
+                    val isConflictingSources = hasBenzonavtPrice && hasRussiabaseNoFuel
+
+                    if (isConflictingSources) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        val ageMin = if (station.updatedAt > 0L) maxOf(1L, (System.currentTimeMillis() - station.updatedAt) / (60 * 1000L)) else 15L
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = FueldeckColors.CoralSoft
+                        ) {
+                            Text(
+                                text = "⚠️ источники расходятся, проверено толпой $ageMin мин назад",
+                                fontSize = 11.sp,
+                                color = FueldeckColors.Coral,
+                                fontWeight = FontWeight.SemiBold,
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                            )
+                        }
+                    } else if (!activeLimitNote.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(6.dp))
                         Surface(
                             shape = RoundedCornerShape(8.dp),

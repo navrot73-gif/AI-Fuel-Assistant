@@ -7,6 +7,7 @@ import com.navrot.aifuelassistant.data.model.GasStation
 object PriceReliabilityCalculator {
 
     const val FRESHNESS_THRESHOLD_MS = 8 * 60 * 60 * 1000L // 8 часов
+    const val RUSSIABASE_FRESHNESS_THRESHOLD_MS = 24 * 60 * 60 * 1000L // 24 часа
 
     fun calculateFuelAvailability(
         station: GasStation,
@@ -28,6 +29,13 @@ object PriceReliabilityCalculator {
         if (timestamp <= 0L) return FuelAvailabilityStatus.UNKNOWN
 
         val diffMs = maxOf(0L, currentTimeMs - timestamp)
+
+        // Priority Fix 4: Explicit "Отсутствует" / "АЗС закрыта" from Russiabase/user marks (freshness <= 24h) OVERRIDES green Benzonavt price
+        val isExplicitNoFuel = !fuelPrice.available
+        if (isExplicitNoFuel && diffMs <= RUSSIABASE_FRESHNESS_THRESHOLD_MS) {
+            return FuelAvailabilityStatus.NO_FUEL
+        }
+
         return if (diffMs <= FRESHNESS_THRESHOLD_MS) {
             if (fuelPrice.available) FuelAvailabilityStatus.AVAILABLE else FuelAvailabilityStatus.NO_FUEL
         } else {

@@ -219,7 +219,10 @@ class GasStationRepository @Inject constructor(
             }
         }
 
-        val withUser = stationPriceApplier.applyUserPrices(stations)
+        val filteredRegional = stations.filter { st ->
+            StationFilterAndSorterImpl.isInRegionBbox(st.latitude, st.longitude)
+        }
+        val withUser = stationPriceApplier.applyUserPrices(filteredRegional)
         cachedStations = withUser
         val emit2Duration = System.currentTimeMillis() - startT
         com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit2Ms = emit2Duration

@@ -87,6 +87,42 @@ class StationResolverRoutingTest {
     }
 
     @Test
+    fun `resolveQuery for Gazpromneft Sverdlovsky Trakt finds station with dist under 5km and nearestByBrand finds it`() = runTest {
+        val gpnSverdlovsky = GasStation(
+            id = 201,
+            name = "Газпромнефть №201",
+            brand = "Газпромнефть",
+            address = "Челябинск, Свердловский тракт, 12В",
+            latitude = 55.1800,
+            longitude = 61.4150,
+            fuelTypes = listOf(
+                FuelPrice("АИ-92", 61.05, available = true),
+                FuelPrice("АИ-95", 66.54, available = false)
+            ),
+            queueTime = 0,
+            reliability = 90
+        )
+
+        whenever(mockRepository.getNearbyStations(any(), any(), any()))
+            .thenReturn(listOf(gpnSverdlovsky, kurchatovaStation, sverdlovskyStation))
+        whenever(mockRepository.getAllStations())
+            .thenReturn(listOf(gpnSverdlovsky, kurchatovaStation, sverdlovskyStation))
+
+        val resolved = resolver.resolveQuery("Газпромнефть Свердловский тракт", userLat, userLon)
+        assertNotNull("Resolved station should not be null", resolved)
+        assertTrue("Address should contain Свердловский: ${resolved?.address}", resolved?.address?.contains("Свердловский") == true)
+
+        val distKm = com.navrot.aifuelassistant.geo.GeoUtils.calculateDistance(
+            userLat, userLon, resolved!!.latitude, resolved.longitude
+        )
+        assertTrue("Distance should be under 5km, got $distKm", distKm < 5.0)
+
+        val nearestGpn = resolver.nearestByBrand("Газпромнефть", userLat, userLon)
+        assertNotNull("Nearest GPN should not be null", nearestGpn)
+        assertEquals("Газпромнефть", nearestGpn?.brand)
+    }
+
+    @Test
     fun `resolveQuery for Sverdlovsky Trakt finds station and mock OSRM builds route to it`() = runTest {
         val resolved = resolver.resolveQuery("Свердловский тракт", userLat, userLon)
         assertNotNull(resolved)
