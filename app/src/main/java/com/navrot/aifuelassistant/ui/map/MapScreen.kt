@@ -691,6 +691,9 @@ fun MapScreen(
         val emit1 = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit1Ms
         val emit2 = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit2Ms
         val enrichment = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.enrichmentMs
+        val cityResolve = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.cityResolveMs
+        val citySource = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.cityResolveSource
+        val aiPath = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.aiPath
         val tileSrc = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.activeTileSource
         val tileSt = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tileStatus
         val fallbacksStr = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.fallbackChainLogs.joinToString(" -> ")
@@ -702,6 +705,8 @@ fun MapScreen(
             text = {
                 Column {
                     Text("startup: emit1=${emit1}ms, emit2=${emit2}ms, enrichment=${enrichment}ms", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(4.dp))
+                    Text("city_resolve=${cityResolve}ms (source=$citySource) | ai_path=$aiPath", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(4.dp))
                     Text("tiles: source=$tileSrc, status=$tileSt, fallbacks=$fallbacksStr", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(8.dp))

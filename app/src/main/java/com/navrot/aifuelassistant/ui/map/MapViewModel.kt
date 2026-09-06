@@ -170,6 +170,9 @@ class MapViewModel @Inject constructor(
         .stateIn(viewModelScope, SharingStarted.Lazily, 0.0)
 
     init {
+        val elapsedMs = System.currentTimeMillis() - com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.t0Ms
+        Timber.tag("StartupTimeline").i("T+%dms activity_created", elapsedMs)
+
         // Warmup: pre-fetch prices for default city (chelyabinsk) so cache is hot
         // when user location is resolved.
         viewModelScope.launch {

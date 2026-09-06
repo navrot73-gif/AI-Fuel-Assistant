@@ -61,8 +61,7 @@ class StationPriceApplierImpl @Inject constructor(
     ): GasStation {
         var changed = false
         val newFuelTypes = station.fuelTypes.map { fuel ->
-            val info = benzonavt[fuel.type]
-                ?: benzonavt.entries.firstOrNull { it.key.equals(fuel.type, ignoreCase = true) }?.value
+            val info = findPriceInfoForFuel(fuel.type, benzonavt)
                 ?: return@map fuel
             val benzonavtTs = parseUpdatedAt(info.updatedAt)
             val effectiveTs = if (benzonavtTs > 0L) benzonavtTs else System.currentTimeMillis()
@@ -90,6 +89,17 @@ class StationPriceApplierImpl @Inject constructor(
             fuelTypes = newFuelTypes,
             dataSources = station.dataSources + FuelDataSource.BENZONAVT
         )
+    }
+
+    private fun findPriceInfoForFuel(fuelType: String, benzonavt: Map<String, FuelPriceInfo>): FuelPriceInfo? {
+        benzonavt[fuelType]?.let { return it }
+        val mappedTarget = RussiabaseHtmlParser.mapMarkToFuelType(fuelType)
+        for ((key, value) in benzonavt) {
+            if (key.equals(fuelType, ignoreCase = true) || RussiabaseHtmlParser.mapMarkToFuelType(key).equals(mappedTarget, ignoreCase = true)) {
+                return value
+            }
+        }
+        return null
     }
 
     private fun parseUpdatedAt(value: String): Long {

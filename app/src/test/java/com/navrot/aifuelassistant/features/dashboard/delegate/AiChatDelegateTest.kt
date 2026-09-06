@@ -220,4 +220,47 @@ class AiChatDelegateTest {
         assertEquals("Газпромнефть, Свердловский тракт, 12в — 61.5₽, 🟢 есть топливо", delegate.userAnswer.value)
         assertEquals(-5001, delegate.pendingRouteStationId.value)
     }
+
+    @Test
+    fun `askUserQuestion for route query falls back to local intent when LLM throws error`() = kotlinx.coroutines.test.runTest {
+        val mockContext = mock<Context>()
+        val mockPrefs = mock<android.content.SharedPreferences>()
+        org.mockito.kotlin.whenever(mockContext.getSharedPreferences(org.mockito.kotlin.any(), org.mockito.kotlin.any())).thenReturn(mockPrefs)
+        org.mockito.kotlin.whenever(mockPrefs.getString(org.mockito.kotlin.any(), org.mockito.kotlin.any())).thenReturn("[]")
+
+        val delegate = AiChatDelegate(
+            aiRouter = mockAiRouter,
+            routeStateManager = mockRouteStateManager,
+            gasStationRepository = mockGasStationRepository,
+            applicationContext = mockContext
+        )
+
+        val mockRecommendationDelegate = mock<StationRecommendationDelegate>()
+        val station = GasStation(
+            id = 55,
+            name = "Газпромнефть",
+            brand = "Газпромнефть",
+            address = "ул. Свердловский тракт, 5",
+            latitude = 55.18,
+            longitude = 61.38,
+            fuelTypes = listOf(FuelPrice("АИ-95", 61.0, available = true)),
+            queueTime = 0,
+            reliability = 90
+        )
+        org.mockito.kotlin.whenever(mockRecommendationDelegate.stations).thenReturn(kotlinx.coroutines.flow.MutableStateFlow(listOf(station)))
+        org.mockito.kotlin.whenever(mockAiRouter.ask(org.mockito.kotlin.any(), org.mockito.kotlin.anyOrNull(), org.mockito.kotlin.anyOrNull(), org.mockito.kotlin.any(), org.mockito.kotlin.any()))
+            .thenThrow(RuntimeException("LLM offline"))
+
+        delegate.updateUserLocation(55.18, 61.38)
+        delegate.setUserQuestion("Построй маршрут на Газпромнефть")
+        delegate.askUserQuestion(this, mockRecommendationDelegate)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("local", com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.aiPath)
+        assertNull(delegate.error.value)
+        assertNotNull(delegate.userAnswer.value)
+        assertTrue(delegate.userAnswer.value!!.contains("Газпромнефть"))
+        assertEquals(55, delegate.pendingRouteStationId.value)
+        assertEquals(com.navrot.aifuelassistant.features.dashboard.DashboardViewModel.PendingRouteMode.ROUTE, delegate.pendingRouteMode.value)
+    }
 }

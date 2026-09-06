@@ -274,9 +274,11 @@ class AiChatDelegate @Inject constructor(
 
                     val history = _chatMessages.value.takeLast(6)
 
-                    val rawAnswer = withTimeout(20_000L) {
+                    val rawAnswer = withTimeout(15_000L) {
                         aiRouter.ask(fullPrompt, history = history)
                     }
+                    com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.aiPath = "llm"
+
                     val routeTagRegex = Regex("\\[ROUTE:(-?\\d+)\\]")
                     val match = routeTagRegex.find(rawAnswer)
 
@@ -299,31 +301,22 @@ class AiChatDelegate @Inject constructor(
                         addChatMessage(ChatMessage(role = "ai", text = answer, ts = System.currentTimeMillis()))
                         detectIntent(question, recommendationDelegate)
                     }
-                } catch (e: TimeoutCancellationException) {
-                    val userMsg = ErrorMessageMapper.mapToUserMessage(
-                        java.net.SocketTimeoutException("AI timeout"),
-                        ErrorContext.AI
-                    )
-                    _error.value = userMsg
-                    addChatMessage(
-                        ChatMessage(
-                            role = "ai",
-                            text = userMsg,
-                            ts = System.currentTimeMillis()
-                        )
-                    )
-                    detectIntent(question, recommendationDelegate)
                 } catch (e: Exception) {
-                    val userMsg = ErrorMessageMapper.mapToUserMessage(e, ErrorContext.AI)
-                    _error.value = userMsg
-                    addChatMessage(
-                        ChatMessage(
-                            role = "ai",
-                            text = userMsg,
-                            ts = System.currentTimeMillis()
+                    com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.aiPath = "local"
+                    val isIntentQuery = isRouteOrIntentQuery(question)
+                    if (isIntentQuery) {
+                        handleLocalIntentFallback(question, recommendationDelegate)
+                    } else {
+                        val userMsg = ErrorMessageMapper.mapToUserMessage(e, ErrorContext.AI)
+                        _error.value = userMsg
+                        addChatMessage(
+                            ChatMessage(
+                                role = "ai",
+                                text = userMsg,
+                                ts = System.currentTimeMillis()
+                            )
                         )
-                    )
-                    detectIntent(question, recommendationDelegate)
+                    }
                 }
             } catch (topLevelError: Exception) {
                 Timber.tag(TAG).e(topLevelError, "Unhandled error in askUserQuestion")
@@ -339,6 +332,49 @@ class AiChatDelegate @Inject constructor(
                 _isAnalyzing.value = false
             }
         }
+    }
+
+    suspend fun handleLocalIntentFallback(
+        question: String,
+        recommendationDelegate: StationRecommendationDelegate
+    ) {
+        detectIntent(question, recommendationDelegate)
+        val selectedStationId = _pendingRouteStationId.value
+        val currentStations = recommendationDelegate.stations.value
+        val station = currentStations.firstOrNull { it.id == selectedStationId }
+            ?: currentStations.firstOrNull()
+
+        if (station != null) {
+            val fuel = station.fuelTypes.firstOrNull()
+            val price = fuel?.price ?: 0.0
+            val status = PriceReliabilityCalculator.calculateFuelAvailability(station, fuel?.type)
+            val statusStr = when (status) {
+                FuelAvailabilityStatus.AVAILABLE -> "🟢 есть топливо"
+                FuelAvailabilityStatus.NO_FUEL -> "🔴 нет топлива"
+                FuelAvailabilityStatus.UNKNOWN -> "⚪ нет данных"
+            }
+            val formattedPrice = if (price > 0.0) "${Format.price(price)}₽" else "цена не указана"
+            val text = "Маршрут до АЗС: ${station.brand}, ${station.address} — $formattedPrice, $statusStr"
+            _userAnswer.value = text
+            addChatMessage(ChatMessage(role = "ai", text = text, ts = System.currentTimeMillis()))
+            _pendingRouteStationId.value = station.id
+            routeStateManager.setPendingRouteStationId(station.id)
+            _pendingRouteMode.value = PendingRouteMode.ROUTE
+        } else {
+            val text = "Маршрут до ближайшей АЗС подбирается..."
+            _userAnswer.value = text
+            addChatMessage(ChatMessage(role = "ai", text = text, ts = System.currentTimeMillis()))
+        }
+    }
+
+    fun isRouteOrIntentQuery(question: String): Boolean {
+        val lowerQuestion = question.lowercase()
+        val brands = listOf("газпром", "роснефть", "татнефть", "смарт", "шелл", "лукойл")
+        val mentionedBrand = brands.find { lowerQuestion.contains(it) }
+        val hasRouteKeyword = listOf("маршрут", "построй", "доведи", "ближайшая", "дешевле", "заправка", "азс").any { lowerQuestion.contains(it) }
+        val hasFuelKeyword = listOf("топливо", "цена", "наличие").any { lowerQuestion.contains(it) }
+        val hasSpecificFuelType = Regex("где.*92|где.*95|где.*98|где.*дт").containsMatchIn(lowerQuestion)
+        return hasRouteKeyword || hasSpecificFuelType || hasFuelKeyword || mentionedBrand != null
     }
 
     private suspend fun detectIntent(

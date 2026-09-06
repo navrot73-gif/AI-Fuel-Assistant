@@ -46,6 +46,7 @@ import org.mockito.kotlin.whenever
 
 private class FakeGeocodingProvider : GeocodingProvider {
     var geocodeImpl: (suspend (String) -> GeocodingResult)? = null
+    var reverseGeocodeImpl: (suspend (Double, Double) -> GeocodingResult)? = null
     var lastQuery: String? = null
 
     override suspend fun geocode(query: String): GeocodingResult {
@@ -54,7 +55,7 @@ private class FakeGeocodingProvider : GeocodingProvider {
     }
 
     override suspend fun reverseGeocode(lat: Double, lon: Double): GeocodingResult {
-        return GeocodingResult(GeoPoint(lat, lon), "Fake")
+        return reverseGeocodeImpl?.invoke(lat, lon) ?: GeocodingResult(GeoPoint(lat, lon), "Fake")
     }
 }
 
@@ -423,5 +424,18 @@ class MapViewModelSearchTest {
         viewModel.toggleDarkMode()
 
         verify(userPreferencesRepository).setDarkMode(true)
+    }
+
+    @Test
+    fun `updateCityAndPrices uses cache or hardcode immediately when Nominatim fails or times out`() = runTest {
+        whenever(userPreferencesRepository.cachedCity).thenReturn(kotlinx.coroutines.flow.flowOf("Челябинск"))
+        geocodingProvider.reverseGeocodeImpl = { _, _ -> throw GeoException.NetworkError("Dead Nominatim") }
+
+        viewModel.updateCityAndPrices(55.16, 61.43)
+        advanceUntilIdle()
+
+        assertEquals("Челябинск", viewModel.currentCity.value)
+        assertEquals("cache", com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.cityResolveSource)
+        assertTrue(com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.cityResolveMs <= 100L)
     }
 }
