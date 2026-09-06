@@ -37,7 +37,23 @@ object MapDiagnosticsTracker {
     var tileStatus: String = "ok"
 
     @Volatile
+    var tilesErrorsCount: Int = 0
+
+    @Volatile
+    var lastTileErrorTimestamp: Long = 0L
+
+    @Volatile
     var fallbackChainLogs: List<String> = emptyList()
+
+    fun incrementTileError() {
+        tilesErrorsCount++
+        lastTileErrorTimestamp = System.currentTimeMillis()
+    }
+
+    fun isTileStatusOk(): Boolean {
+        val now = System.currentTimeMillis()
+        return (now - lastTileErrorTimestamp) > 30_000L
+    }
 
     fun resetStartupTimings() {
         t0Ms = System.currentTimeMillis()
