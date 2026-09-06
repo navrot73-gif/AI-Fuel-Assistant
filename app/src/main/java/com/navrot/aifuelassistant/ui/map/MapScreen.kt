@@ -679,14 +679,22 @@ fun MapScreen(
         }
         val benzonavtActive = stations.any { it.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.BENZONAVT) }
 
+        var diagRefreshTrigger by remember { mutableIntStateOf(0) }
+        var routeTestResult by remember { mutableStateOf("загрузка...") }
+        LaunchedEffect(diagRefreshTrigger) {
+            val resolved = viewModel.stationResolver.resolveQuery("Газпромнефть Свердловский тракт", diagLat, diagLon)
+            routeTestResult = if (resolved != null) {
+                val dist = com.navrot.aifuelassistant.geo.GeoUtils.calculateDistance(diagLat, diagLon, resolved.latitude, resolved.longitude)
+                "id=${resolved.id}, адрес=${resolved.address}, dist=${"%.2f".format(dist)}км"
+            } else "не найдено"
+        }
+
         val candidates = com.navrot.aifuelassistant.domain.usecase.NearestStationFinder.getTopCandidates(
             stations = stations,
             brand = "Газпромнефть",
             userLat = diagLat,
             userLon = diagLon
         )
-
-        var diagRefreshTrigger by remember { mutableIntStateOf(0) }
 
         val emit1 = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit1Ms
         val emit2 = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit2Ms
@@ -713,6 +721,8 @@ fun MapScreen(
                     Text("overpass=$overpassCount | russiabase=http200/obs/matched=$russiabaseMatched/red=$redCount")
                     Spacer(Modifier.height(4.dp))
                     Text("benzonavt_availability=${if (benzonavtActive) "yes" else "no"} | emits_last_5min=1")
+                    Spacer(Modifier.height(8.dp))
+                    Text("route_test: $routeTestResult", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.height(8.dp))
                     Text("nearest_top3 (Газпромнефть):", style = MaterialTheme.typography.titleSmall)
                     if (candidates.isEmpty()) {
