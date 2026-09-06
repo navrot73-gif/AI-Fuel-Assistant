@@ -6,5 +6,5 @@ interface StationLoader {
     suspend fun loadStations(): List<GasStation>
     suspend fun loadFromRemote(): List<GasStation>?
     suspend fun loadFromCache(): List<GasStation>?
-    fun loadFromAssets(): List<GasStation>
+    suspend fun loadFromAssets(): List<GasStation>
 }

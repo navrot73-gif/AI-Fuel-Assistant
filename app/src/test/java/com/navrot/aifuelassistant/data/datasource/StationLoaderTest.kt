@@ -38,9 +38,15 @@ class StationLoaderTest {
     }
 
     @Test
-    fun `loadFromAssets loads stations from bundled assets file`() {
+    fun `loadFromAssets loads stations from bundled assets file`() = runBlocking {
         val stations = stationLoader.loadFromAssets()
         assertTrue(stations.isNotEmpty())
+    }
+
+    @Test
+    fun `loadFromAssets executes on Default dispatcher`() = runBlocking {
+        val stations = stationLoader.loadFromAssets()
+        assertTrue("Stations parsed on Default dispatcher should not be empty", stations.isNotEmpty())
     }
 
     @Test

@@ -199,10 +199,15 @@ class GasStationRepository @Inject constructor(
     private suspend fun ensureLoaded(): List<GasStation> = loadMutex.withLock {
         cachedStations?.let { return@withLock it }
 
+        val startT = System.currentTimeMillis()
+        val cacheStations = stationLoader.loadFromCache()
+        val emit1Duration = System.currentTimeMillis() - startT
+        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit1Ms = emit1Duration
+
         val isFirstLoad = lastRemoteCheckMs == 0L
         val stations: List<GasStation> = if (isFirstLoad) {
             // First load MUST be zero network: read strictly from cache or assets
-            val local = stationLoader.loadFromCache() ?: stationLoader.loadFromAssets()
+            val local = cacheStations ?: stationLoader.loadFromAssets()
             if (local.isNotEmpty()) local else stationLoader.loadStations()
         } else {
             val now = System.currentTimeMillis()
@@ -210,13 +215,16 @@ class GasStationRepository @Inject constructor(
                 lastRemoteCheckMs = now
                 stationLoader.loadStations()
             } else {
-                stationLoader.loadFromCache() ?: stationLoader.loadFromAssets()
+                cacheStations ?: stationLoader.loadFromAssets()
             }
         }
 
         val withUser = stationPriceApplier.applyUserPrices(stations)
         cachedStations = withUser
-        val sourceStr = if (stationLoader.loadFromCache() != null) "cache" else "assets"
+        val emit2Duration = System.currentTimeMillis() - startT
+        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit2Ms = emit2Duration
+
+        val sourceStr = if (cacheStations != null) { "cache" } else "assets"
         val elapsed = System.currentTimeMillis() - initTimestamp
         Timber.tag(TAG).i("t+%dms first emit (%d stations, source=%s)", elapsed, withUser.size, sourceStr)
 
@@ -335,24 +343,44 @@ class GasStationRepository @Inject constructor(
     }
 
     override fun getNearbyStationsFlow(lat: Double, lon: Double, radiusKm: Double): Flow<List<GasStation>> = flow {
+        val flowStartMs = System.currentTimeMillis()
+
+        // Emit #1: In-memory cache or Room/Disk Cache (or empty list if cache empty) <= 100ms
+        val initialLocal = cachedStations ?: stationLoader.loadFromCache() ?: emptyList()
+        val emit1Duration = System.currentTimeMillis() - flowStartMs
+        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit1Ms = emit1Duration
+
+        val initialWithPrices = stationPriceApplier.applyAllPrices(initialLocal)
+        val initialNearby = stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, initialWithPrices)
+        emit(initialNearby)
+
+        // Emit #2: Assets bundle parsing <= 3s
         val baseStations = ensureLoaded()
+        val emit2Duration = System.currentTimeMillis() - flowStartMs
+        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit2Ms = emit2Duration
+
         val baseWithPrices = stationPriceApplier.applyAllPrices(baseStations)
         val baseNearby = stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, baseWithPrices)
 
         val elapsedFirst = System.currentTimeMillis() - initTimestamp
         Timber.tag(TAG).i("t+%dms first pins (%d)", elapsedFirst, baseNearby.size)
         logStationStatusSummary(baseNearby)
-        emit(baseNearby)
+        if (baseNearby != initialNearby) {
+            emit(baseNearby)
+        }
 
         val city = GeoUtils.hardcodedDetectCity(lat, lon)
 
         var russiabaseStatus = "not_fetched"
         var benzonavtStatus = "not_fetched"
 
+        val enrichmentStartTime = System.currentTimeMillis()
         val (overpassStations, russiabaseObservations) = coroutineScope {
             val overpassDeferred = async {
                 try {
-                    overpassFuelProvider.fetchStations(lat, lon, radiusKm * 1000.0)
+                    withTimeoutOrNull(3000L) {
+                        overpassFuelProvider.fetchStations(lat, lon, radiusKm * 1000.0)
+                    } ?: emptyList()
                 } catch (e: Exception) {
                     Timber.tag(TAG).w("Overpass fetch failed in getNearbyStationsFlow: %s", e.message)
                     emptyList()
@@ -360,9 +388,11 @@ class GasStationRepository @Inject constructor(
             }
             val russiabaseDeferred = async {
                 try {
-                    val obs = russiabaseProvider.fetchObservations(city, listOf("ai95", "dt"), lat, lon)
-                    russiabaseStatus = if (obs.isNotEmpty()) "ok (${obs.size} obs)" else "empty"
-                    obs
+                    withTimeoutOrNull(3000L) {
+                        val obs = russiabaseProvider.fetchObservations(city, listOf("ai95", "dt"), lat, lon)
+                        russiabaseStatus = if (obs.isNotEmpty()) "ok (${obs.size} obs)" else "empty"
+                        obs
+                    } ?: emptyList()
                 } catch (e: Exception) {
                     russiabaseStatus = "error (${e.message})"
                     Timber.tag(TAG).w("Russiabase fetch failed in getNearbyStationsFlow: %s", e.message)
@@ -371,6 +401,9 @@ class GasStationRepository @Inject constructor(
             }
             overpassDeferred.await() to russiabaseDeferred.await()
         }
+
+        val enrichmentDuration = System.currentTimeMillis() - enrichmentStartTime
+        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.enrichmentMs = enrichmentDuration
 
         val elapsed = System.currentTimeMillis() - initTimestamp
         Timber.tag(TAG).i("t+%dms enrichment (%d added)", elapsed, overpassStations.size)
@@ -424,7 +457,9 @@ class GasStationRepository @Inject constructor(
     }
 
     override suspend fun getNearbyStations(lat: Double, lon: Double, radiusKm: Double): List<GasStation> = withContext(Dispatchers.IO) {
-        getNearbyStationsFlow(lat, lon, radiusKm).first()
+        val stations = ensureLoaded()
+        val withPrices = stationPriceApplier.applyAllPrices(stations)
+        stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, withPrices)
     }
 
     override suspend fun getStationsByCity(city: String): List<GasStation> = withContext(Dispatchers.IO) {

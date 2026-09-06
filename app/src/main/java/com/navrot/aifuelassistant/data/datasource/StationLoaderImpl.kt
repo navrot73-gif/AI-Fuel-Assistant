@@ -49,8 +49,8 @@ class StationLoaderImpl @Inject constructor(
         stationCache.loadFromCache()
     }
 
-    override fun loadFromAssets(): List<GasStation> {
-        return try {
+    override suspend fun loadFromAssets(): List<GasStation> = withContext(Dispatchers.Default) {
+        try {
             val jsonString = context.assets.open("stations.json").bufferedReader().use { it.readText() }
             jsonParser.parseJson(jsonString)
         } catch (e: Exception) {
