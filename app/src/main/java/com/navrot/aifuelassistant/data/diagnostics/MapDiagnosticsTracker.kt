@@ -7,6 +7,9 @@ package com.navrot.aifuelassistant.data.diagnostics
 object MapDiagnosticsTracker {
 
     @Volatile
+    var t0Ms: Long = System.currentTimeMillis()
+
+    @Volatile
     var emit1Ms: Long = 0L
 
     @Volatile
@@ -14,6 +17,15 @@ object MapDiagnosticsTracker {
 
     @Volatile
     var enrichmentMs: Long = 0L
+
+    @Volatile
+    var cityResolveMs: Long = 0L
+
+    @Volatile
+    var cityResolveSource: String = "cache"
+
+    @Volatile
+    var aiPath: String = "local"
 
     @Volatile
     var activeTileSource: String = "openfreemap"
@@ -25,9 +37,13 @@ object MapDiagnosticsTracker {
     var fallbackChainLogs: List<String> = emptyList()
 
     fun resetStartupTimings() {
+        t0Ms = System.currentTimeMillis()
         emit1Ms = 0L
         emit2Ms = 0L
         enrichmentMs = 0L
+        cityResolveMs = 0L
+        cityResolveSource = "cache"
+        aiPath = "local"
     }
 
     fun recordTileFallback(log: String) {

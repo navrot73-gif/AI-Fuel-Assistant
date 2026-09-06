@@ -95,6 +95,10 @@ class StationRecommendationDelegate @Inject constructor(
             }
         if (_bestStation.value != best) {
             _bestStation.value = best
+            if (best != null) {
+                val elapsed = System.currentTimeMillis() - com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.t0Ms
+                Timber.tag("StartupTimeline").i("T+%dms recommendation_shown (%s)", elapsed, best.name)
+            }
         }
     }
 }

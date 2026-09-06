@@ -256,11 +256,22 @@ class DashboardViewModelTest {
     }
 
     @Test
-    fun `askUserQuestion on AI error keeps user message and handles intent`() = runTest {
+    fun `askUserQuestion on AI error keeps user message and handles intent locally for route query`() = runTest {
         whenever(mockRecordRepo.getAll()).thenReturn(flowOf(emptyList()))
         whenever(mockRecordRepo.getByVehicleId(any())).thenReturn(flowOf(emptyList()))
         whenever(mockVehicleRepo.getAllVehicles()).thenReturn(flowOf(emptyList()))
-        whenever(mockStationRepo.getAllStations()).thenReturn(emptyList())
+        val testStation = com.navrot.aifuelassistant.data.model.GasStation(
+            id = 5,
+            name = "АЗС 1",
+            brand = "Газпром",
+            address = "ул. Ленина",
+            latitude = 55.0,
+            longitude = 61.0,
+            fuelTypes = emptyList(),
+            queueTime = 0,
+            reliability = 100
+        )
+        whenever(mockStationRepo.getAllStations()).thenReturn(listOf(testStation))
         whenever(mockAiRouter.ask(any(), anyOrNull(), anyOrNull(), any(), any())).thenThrow(RuntimeException("401 Unauthorized"))
 
         val vm = createViewModel()
@@ -275,12 +286,12 @@ class DashboardViewModelTest {
         assertEquals("user", messages[0].role)
         assertEquals("Построй маршрут на АЗС", messages[0].text)
         assertEquals("ai", messages[1].role)
-        assertEquals("Что-то пошло не так. Попробуйте ещё раз.", messages[1].text)
-        assertEquals("Что-то пошло не так. Попробуйте ещё раз.", vm.error.value)
+        assertTrue(messages[1].text.contains("Маршрут до АЗС"))
+        assertNull(vm.error.value)
     }
 
     @Test
-    fun `askUserQuestion on Worker timeout posts AI fallback message and executes local intent`() = runTest {
+    fun `askUserQuestion on Worker timeout posts local intent response`() = runTest {
         whenever(mockRecordRepo.getAll()).thenReturn(flowOf(emptyList()))
         whenever(mockRecordRepo.getByVehicleId(any())).thenReturn(flowOf(emptyList()))
         whenever(mockVehicleRepo.getAllVehicles()).thenReturn(flowOf(emptyList()))
@@ -312,7 +323,7 @@ class DashboardViewModelTest {
         assertEquals("user", messages[0].role)
         assertEquals("Построй маршрут на Лукойл", messages[0].text)
         assertEquals("ai", messages[1].role)
-        assertEquals("AI-помощник временно недоступен. Попробуйте позже.", messages[1].text)
+        assertTrue(messages[1].text.contains("Лукойл"))
         assertEquals(99, vm.pendingRouteStationId.value)
         assertEquals(com.navrot.aifuelassistant.features.dashboard.DashboardViewModel.PendingRouteMode.ROUTE, vm.pendingRouteMode.value)
     }

@@ -14,12 +14,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import timber.log.Timber
 import java.util.concurrent.atomic.AtomicInteger
 import javax.inject.Inject
 
 import com.navrot.aifuelassistant.data.UserPreferencesRepository
+import com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker
 import com.navrot.aifuelassistant.ui.map.TileWarmupService
 
 class MapSearchDelegate @Inject constructor(
@@ -47,23 +50,68 @@ class MapSearchDelegate @Inject constructor(
     }
 
     /**
-     * Определяет город (reverse geocoding, Nominatim; fallback — хардкод),
-     * сохраняет slug для BenzonavtProvider и пересчитывает цены на станциях.
+     * Сначала синхронно/быстро берёт кэш (DataStore, ≤100 мс) или хардкод → эмит СРАЗУ.
+     * Nominatim — ТОЛЬКО фоновое освежение с таймаутом ≤3 сек.
      */
     fun updateCityAndPrices(scope: CoroutineScope, lat: Double, lon: Double) {
         scope.launch {
+            val startTs = System.currentTimeMillis()
+            val cached = try {
+                withTimeoutOrNull(100L) {
+                    userPreferencesRepository?.cachedCity?.firstOrNull()
+                }
+            } catch (_: Exception) {
+                null
+            }
+
+            val initialCity = if (!cached.isNullOrBlank()) {
+                cached
+            } else {
+                GeoUtils.hardcodedDetectCity(lat, lon)
+            }
+
+            val cacheTimeMs = System.currentTimeMillis() - startTs
+            val cacheSource = if (!cached.isNullOrBlank()) "cache" else "hardcode"
+            _currentCity.value = initialCity
+            val slug = GeoUtils.toCitySlug(initialCity)
+            benzonavtProvider.setCity(slug)
+
+            MapDiagnosticsTracker.cityResolveMs = cacheTimeMs
+            MapDiagnosticsTracker.cityResolveSource = cacheSource
+
+            val elapsedMs = System.currentTimeMillis() - MapDiagnosticsTracker.t0Ms
+            Timber.tag("StartupTimeline").i("T+%dms city_resolved (source=%s, city=%s)", elapsedMs, cacheSource, initialCity)
+
             try {
-                val cityName = GeoUtils.detectCity(lat, lon, geocodingProvider)
-                _currentCity.value = cityName
-                userPreferencesRepository?.setCachedCity(cityName)
-                val slug = GeoUtils.toCitySlug(cityName)
-                benzonavtProvider.setCity(slug)
                 repository.refreshPrices()
                 tileWarmupService.startPrefetch(lat, lon)
-            } catch (e: java.io.IOException) {
-                Timber.tag(TAG).w("Network error updating city and prices: %s", e.message)
             } catch (e: Exception) {
-                Timber.tag(TAG).w("Failed to update city and prices: %s", e.message)
+                Timber.tag(TAG).w("Failed initial price refresh/tile prefetch: %s", e.message)
+            }
+
+            // Фоновое обновление города через Nominatim (таймаут ≤3 сек)
+            try {
+                val netCity = withTimeoutOrNull(3000L) {
+                    val result = geocodingProvider.reverseGeocode(lat, lon)
+                    result.displayName.split(",").firstOrNull()?.trim()
+                }
+                if (!netCity.isNullOrBlank() && netCity != initialCity) {
+                    val netTimeMs = System.currentTimeMillis() - startTs
+                    _currentCity.value = netCity
+                    userPreferencesRepository?.setCachedCity(netCity)
+                    val newSlug = GeoUtils.toCitySlug(netCity)
+                    benzonavtProvider.setCity(newSlug)
+
+                    MapDiagnosticsTracker.cityResolveMs = netTimeMs
+                    MapDiagnosticsTracker.cityResolveSource = "network"
+
+                    val netElapsedMs = System.currentTimeMillis() - MapDiagnosticsTracker.t0Ms
+                    Timber.tag("StartupTimeline").i("T+%dms city_resolved (source=network, city=%s)", netElapsedMs, netCity)
+
+                    repository.refreshPrices()
+                }
+            } catch (e: Exception) {
+                Timber.tag(TAG).w("Background city resolution failed/timed out: %s", e.message)
             }
         }
     }

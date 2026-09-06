@@ -91,4 +91,42 @@ class StationPriceApplierTest {
         val result = applier.applyAllPrices(base)
         assertEquals(52.0, result.first().fuelTypes.first().price, 0.001)
     }
+
+    @Test
+    fun `applyBenzonavtToStation updates OSM Gazpromneft Sverdlovsky to NO_FUEL when Benzonavt indicates no fuel`() {
+        val osmStation = GasStation(
+            id = -9999,
+            name = "Газпромнефть",
+            brand = "Газпромнефть",
+            address = "Свердловский тракт, 5",
+            latitude = 55.18,
+            longitude = 61.38,
+            fuelTypes = listOf(
+                FuelPrice(type = "AI-95", price = 0.0, available = true, source = FuelDataSource.OVERPASS, updatedAt = 0L)
+            ),
+            queueTime = 0,
+            reliability = 90,
+            dataSources = setOf(FuelDataSource.OVERPASS),
+            osmId = "osm:12345"
+        )
+        val futureIso = java.time.OffsetDateTime.now().plusHours(1).toString()
+        val benzonavt = mapOf(
+            "AI-95" to FuelPriceInfo(
+                median = 0.0,
+                min = 0.0,
+                max = 0.0,
+                sourceCount = 0,
+                updatedAt = futureIso,
+                available = false
+            )
+        )
+
+        val updated = applier.applyBenzonavtToStation(osmStation, benzonavt, "chelyabinsk")
+
+        val updatedFuel = updated.fuelTypes.first()
+        assertEquals(false, updatedFuel.available)
+        assertEquals(FuelDataSource.BENZONAVT, updatedFuel.source)
+        val status = com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator.calculateFuelAvailability(updated)
+        assertEquals(com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus.NO_FUEL, status)
+    }
 }
