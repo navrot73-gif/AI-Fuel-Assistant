@@ -699,6 +699,7 @@ fun MapScreen(
         val emit1 = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit1Ms
         val emit2 = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit2Ms
         val enrichment = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.enrichmentMs
+        val enrichmentWall = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.enrichmentWallMs
         val cityResolve = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.cityResolveMs
         val citySource = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.cityResolveSource
         val aiPath = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.aiPath
@@ -712,7 +713,7 @@ fun MapScreen(
             title = { Text("Диагностика карты") },
             text = {
                 Column {
-                    Text("startup: emit1=${emit1}ms, emit2=${emit2}ms, enrichment=${enrichment}ms", style = MaterialTheme.typography.bodyMedium)
+                    Text("startup: emit1=${emit1}ms, emit2=${emit2}ms, enrichment=${enrichment}ms, enrichment_wall=${enrichmentWall}ms", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(4.dp))
                     Text("city_resolve=${cityResolve}ms (source=$citySource) | ai_path=$aiPath", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(4.dp))

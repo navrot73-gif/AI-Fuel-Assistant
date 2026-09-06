@@ -19,6 +19,9 @@ object MapDiagnosticsTracker {
     var enrichmentMs: Long = 0L
 
     @Volatile
+    var enrichmentWallMs: Long = 0L
+
+    @Volatile
     var cityResolveMs: Long = 0L
 
     @Volatile
@@ -41,6 +44,7 @@ object MapDiagnosticsTracker {
         emit1Ms = 0L
         emit2Ms = 0L
         enrichmentMs = 0L
+        enrichmentWallMs = 0L
         cityResolveMs = 0L
         cityResolveSource = "cache"
         aiPath = "local"
