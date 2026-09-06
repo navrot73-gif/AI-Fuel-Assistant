@@ -219,15 +219,135 @@ class AiChatDelegateTest {
             }
 
         delegate.updateUserLocation(55.15, 61.40)
-        delegate.setUserQuestion("где ближайшая Газпромнефть")
+        delegate.setUserQuestion("Расскажи про олефиновые добавки")
         delegate.askUserQuestion(this, mockRecommendationDelegate)
         testScheduler.advanceUntilIdle()
 
         assertTrue(capturedPrompt.contains("Свердловский тракт, 12в"))
         assertTrue(capturedPrompt.contains("[ROUTE:-5001]"))
         assertFalse(capturedPrompt.contains("[-5001] Газпромнефть"))
-        assertEquals("Газпромнефть, Свердловский тракт, 12в — 61.5₽, 🟢 есть топливо", delegate.userAnswer.value)
-        assertEquals(-5001, delegate.pendingRouteStationId.value)
+    }
+
+    @Test
+    fun `intent nearest Gazpromneft with LLM mock returning Kurchatova results in Sverdlovsky local override and ai_path local`() = kotlinx.coroutines.test.runTest {
+        val delegate = createDelegate()
+        val mockRecommendationDelegate = mock<StationRecommendationDelegate>()
+
+        val sverdlovskyStation = GasStation(
+            id = 12,
+            name = "Газпромнефть Свердловский",
+            brand = "Газпромнефть",
+            address = "Свердловский тракт, 12в",
+            latitude = 55.1847,
+            longitude = 61.4098,
+            fuelTypes = listOf(FuelPrice("АИ-95", 61.5, available = true)),
+            queueTime = 0,
+            reliability = 90
+        )
+        val kurchatovaStation = GasStation(
+            id = 10,
+            name = "Газпромнефть Курчатова",
+            brand = "Газпромнефть",
+            address = "ул. Курчатова, 2/1",
+            latitude = 55.1500,
+            longitude = 61.4200,
+            fuelTypes = listOf(FuelPrice("АИ-95", 62.0, available = true)),
+            queueTime = 0,
+            reliability = 90
+        )
+
+        val stationsList = listOf(sverdlovskyStation, kurchatovaStation)
+        org.mockito.kotlin.whenever(mockGasStationRepository.getNearbyStations(org.mockito.kotlin.any(), org.mockito.kotlin.any(), org.mockito.kotlin.any()))
+            .thenReturn(stationsList)
+        org.mockito.kotlin.whenever(mockRecommendationDelegate.stations)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow(stationsList))
+
+        // Mock LLM to return Kurchatova station
+        org.mockito.kotlin.whenever(mockAiRouter.ask(org.mockito.kotlin.any(), org.mockito.kotlin.anyOrNull(), org.mockito.kotlin.anyOrNull(), org.mockito.kotlin.any(), org.mockito.kotlin.any()))
+            .thenReturn("Газпромнефть, ул. Курчатова, 2/1 — 62₽, 🟢 есть топливо [ROUTE:10]")
+
+        delegate.updateUserLocation(55.18, 61.40)
+        delegate.setUserQuestion("ближайшая Газпромнефть")
+        delegate.askUserQuestion(this, mockRecommendationDelegate)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("local", com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.aiPath)
+        assertEquals(12, delegate.pendingRouteStationId.value)
+        assertTrue(delegate.userAnswer.value!!.contains("Свердловский"))
+    }
+
+    @Test
+    fun `route query for Sverdlovsky Trakt finds station by address about 3km away`() = kotlinx.coroutines.test.runTest {
+        val delegate = createDelegate()
+        val mockRecommendationDelegate = mock<StationRecommendationDelegate>()
+
+        val sverdlovskyStation = GasStation(
+            id = 12,
+            name = "Татнефть Свердловский",
+            brand = "Татнефть",
+            address = "Свердловский тракт, 40/1",
+            latitude = 55.1847,
+            longitude = 61.4098,
+            fuelTypes = listOf(FuelPrice("АИ-95", 60.0, available = true)),
+            queueTime = 0,
+            reliability = 90
+        )
+        val stationsList = listOf(sverdlovskyStation)
+        org.mockito.kotlin.whenever(mockGasStationRepository.getNearbyStations(org.mockito.kotlin.any(), org.mockito.kotlin.any(), org.mockito.kotlin.any()))
+            .thenReturn(stationsList)
+        org.mockito.kotlin.whenever(mockRecommendationDelegate.stations)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow(stationsList))
+
+        delegate.updateUserLocation(55.1644, 61.4368)
+        delegate.setUserQuestion("маршрут до АЗС на Свердловском тракте")
+        delegate.askUserQuestion(this, mockRecommendationDelegate)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals("local", com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.aiPath)
+        assertEquals(12, delegate.pendingRouteStationId.value)
+        assertTrue(delegate.userAnswer.value!!.contains("Свердловский"))
+    }
+
+    @Test
+    fun `nearestByBrand UNKNOWN status beats AVAILABLE status when closer`() = kotlinx.coroutines.test.runTest {
+        val resolver = StationResolver(mockGasStationRepository)
+        val userLat = 55.1644
+        val userLon = 61.4368
+
+        val unknownCloseStation = GasStation(
+            id = 101,
+            name = "Газпромнефть Ближняя",
+            brand = "Газпромнефть",
+            address = "ул. Ближняя, 5",
+            latitude = 55.1800,
+            longitude = 61.4000,
+            fuelTypes = listOf(FuelPrice("АИ-95", 60.0, available = false, updatedAt = 0L)),
+            queueTime = 0,
+            reliability = 50
+        )
+
+        val availableFarStation = GasStation(
+            id = 102,
+            name = "Газпромнефть Дальняя",
+            brand = "Газпромнефть",
+            address = "ул. Дальняя, 100",
+            latitude = 55.2500,
+            longitude = 61.5000,
+            fuelTypes = listOf(FuelPrice("АИ-95", 62.0, available = true, updatedAt = System.currentTimeMillis())),
+            queueTime = 0,
+            reliability = 90
+        )
+
+        val stations = listOf(unknownCloseStation, availableFarStation)
+        org.mockito.kotlin.whenever(mockGasStationRepository.getNearbyStations(userLat, userLon, 50.0))
+            .thenReturn(stations)
+
+        val result = resolver.nearestByBrand("газпромнефть", userLat, userLon, fallbackStations = stations)
+
+        assertNotNull(result)
+        assertEquals(101, result?.id)
+        val dist = com.navrot.aifuelassistant.geo.GeoUtils.calculateDistance(userLat, userLon, result!!.latitude, result.longitude)
+        assertTrue("Distance should be ~3.35 km", dist in 2.5..4.0)
     }
 
     @Test

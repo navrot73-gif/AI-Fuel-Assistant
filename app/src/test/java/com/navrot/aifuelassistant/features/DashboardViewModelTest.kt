@@ -35,6 +35,14 @@ class DashboardViewModelTest {
         Dispatchers.setMain(testDispatcher)
         whenever(mockContext.getSharedPreferences(any(), any())).thenReturn(mockPrefs)
         whenever(mockPrefs.getString(any(), any())).thenReturn("[]")
+        kotlinx.coroutines.runBlocking {
+            whenever(mockRecordRepo.getAll()).thenReturn(flowOf(emptyList()))
+            whenever(mockRecordRepo.getByVehicleId(any())).thenReturn(flowOf(emptyList()))
+            whenever(mockVehicleRepo.getAllVehicles()).thenReturn(flowOf(emptyList()))
+            whenever(mockStationRepo.getAllStations()).thenReturn(emptyList())
+            whenever(mockStationRepo.getNearbyStations(any(), any(), any())).thenReturn(emptyList())
+            whenever(mockStationRepo.searchStations(any())).thenReturn(emptyList())
+        }
     }
 
     @After
@@ -200,12 +208,12 @@ class DashboardViewModelTest {
         whenever(mockVehicleRepo.getAllVehicles()).thenReturn(flowOf(emptyList()))
         whenever(mockStationRepo.getAllStations()).thenReturn(emptyList())
         whenever(mockAiRouter.ask(any(), anyOrNull(), anyOrNull(), any(), any()))
-            .thenReturn("Едем на заправку GetPetrol.\n[ROUTE:5]")
+            .thenReturn("Советуем заправку GetPetrol.\n[ROUTE:5]")
 
         val vm = createViewModel()
         advanceUntilIdle()
 
-        vm.setUserQuestion("Построй маршрут до GetPetrol")
+        vm.setUserQuestion("Посоветуй как подготовить автомобиль к зимним поездкам")
         vm.askUserQuestion()
         advanceUntilIdle()
 
@@ -216,12 +224,12 @@ class DashboardViewModelTest {
         assertEquals(2, messages.size)
         assertEquals("user", messages[0].role)
         assertEquals("ai", messages[1].role)
-        assertEquals("Едем на заправку GetPetrol.", messages[1].text)
+        assertEquals("Советуем заправку GetPetrol.", messages[1].text)
         assertFalse(messages[1].text.contains("[ROUTE:5]"))
     }
 
     @Test
-    fun `askUserQuestion without ROUTE tag uses fallback detectIntent`() = runTest {
+    fun `askUserQuestion for station route query handles intent locally without calling LLM`() = runTest {
         val testStation = com.navrot.aifuelassistant.data.model.GasStation(
             id = 42,
             name = "Лукойл",
@@ -237,8 +245,6 @@ class DashboardViewModelTest {
         whenever(mockRecordRepo.getByVehicleId(any())).thenReturn(flowOf(emptyList()))
         whenever(mockVehicleRepo.getAllVehicles()).thenReturn(flowOf(emptyList()))
         whenever(mockStationRepo.getAllStations()).thenReturn(listOf(testStation))
-        whenever(mockAiRouter.ask(any(), anyOrNull(), anyOrNull(), any(), any()))
-            .thenReturn("Попробуйте заправиться на Лукойле.")
 
         val vm = createViewModel()
         advanceUntilIdle()
@@ -252,7 +258,8 @@ class DashboardViewModelTest {
 
         val messages = vm.chatMessages.value
         assertEquals(2, messages.size)
-        assertEquals("Попробуйте заправиться на Лукойле.", messages[1].text)
+        assertTrue(messages[1].text.contains("Лукойл"))
+        verifyNoInteractions(mockAiRouter)
     }
 
     @Test
@@ -349,7 +356,7 @@ class DashboardViewModelTest {
             )
         }
 
-        vm.setUserQuestion("Где дешевле заправиться?")
+        vm.setUserQuestion("Расскажи о преимуществах синтетического масла")
         vm.askUserQuestion()
         advanceUntilIdle()
 
@@ -359,6 +366,6 @@ class DashboardViewModelTest {
         val passedHistory = captor.firstValue
         assertEquals(6, passedHistory.size)
         assertEquals("Message 4", passedHistory[0].text)
-        assertEquals("Где дешевле заправиться?", passedHistory.last().text)
+        assertEquals("Расскажи о преимуществах синтетического масла", passedHistory.last().text)
     }
 }
