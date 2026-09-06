@@ -7,6 +7,7 @@ import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.RouteStateManager
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.domain.stations.StationResolver
 import com.navrot.aifuelassistant.features.dashboard.ChatMessage
 import org.junit.Assert.*
 import org.junit.Before
@@ -34,6 +35,11 @@ class AiChatDelegateTest {
         // Clear shared preferences before each test
         context.getSharedPreferences("chat_history", Context.MODE_PRIVATE).edit().clear().commit()
         context.getSharedPreferences("chat_history_encrypted", Context.MODE_PRIVATE).edit().clear().commit()
+        kotlinx.coroutines.runBlocking {
+            org.mockito.kotlin.whenever(mockGasStationRepository.getNearbyStations(org.mockito.kotlin.any(), org.mockito.kotlin.any(), org.mockito.kotlin.any())).thenReturn(emptyList())
+            org.mockito.kotlin.whenever(mockGasStationRepository.getAllStations()).thenReturn(emptyList())
+            org.mockito.kotlin.whenever(mockGasStationRepository.searchStations(org.mockito.kotlin.any())).thenReturn(emptyList())
+        }
     }
 
     private fun createDelegate(): AiChatDelegate {
@@ -41,6 +47,7 @@ class AiChatDelegateTest {
             aiRouter = mockAiRouter,
             routeStateManager = mockRouteStateManager,
             gasStationRepository = mockGasStationRepository,
+            stationResolver = StationResolver(mockGasStationRepository),
             applicationContext = context
         )
     }
@@ -89,6 +96,7 @@ class AiChatDelegateTest {
             aiRouter = mockAiRouter,
             routeStateManager = mockRouteStateManager,
             gasStationRepository = mockGasStationRepository,
+            stationResolver = StationResolver(mockGasStationRepository),
             applicationContext = mockContext
         )
 
@@ -130,6 +138,7 @@ class AiChatDelegateTest {
             aiRouter = mockAiRouter,
             routeStateManager = mockRouteStateManager,
             gasStationRepository = mockGasStationRepository,
+            stationResolver = StationResolver(mockGasStationRepository),
             applicationContext = mockContext
         )
 
@@ -232,6 +241,7 @@ class AiChatDelegateTest {
             aiRouter = mockAiRouter,
             routeStateManager = mockRouteStateManager,
             gasStationRepository = mockGasStationRepository,
+            stationResolver = StationResolver(mockGasStationRepository),
             applicationContext = mockContext
         )
 

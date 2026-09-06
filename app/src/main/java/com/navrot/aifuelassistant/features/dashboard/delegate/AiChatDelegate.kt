@@ -36,10 +36,13 @@ import timber.log.Timber
 import javax.inject.Inject
 import kotlin.coroutines.resume
 
+import com.navrot.aifuelassistant.domain.stations.StationResolver
+
 class AiChatDelegate @Inject constructor(
     private val aiRouter: AiRouter,
     private val routeStateManager: RouteStateManager,
     private val gasStationRepository: GasStationRepositoryInterface,
+    private val stationResolver: StationResolver,
     @ApplicationContext private val applicationContext: Context
 ) {
     private val _userQuestion = MutableStateFlow("")
@@ -340,18 +343,25 @@ class AiChatDelegate @Inject constructor(
     ) {
         detectIntent(question, recommendationDelegate)
         val selectedStationId = _pendingRouteStationId.value
+        val userLat = _userLocation.value?.first ?: StationResolver.DEFAULT_LAT
+        val userLon = _userLocation.value?.second ?: StationResolver.DEFAULT_LON
         val currentStations = recommendationDelegate.stations.value
-        val station = currentStations.firstOrNull { it.id == selectedStationId }
+        val station = selectedStationId?.let { stationResolver.getStationById(it, userLat, userLon, currentStations) }
+            ?: stationResolver.resolveQuery(question, userLat, userLon, currentStations)
             ?: currentStations.firstOrNull()
 
         if (station != null) {
             val fuel = station.fuelTypes.firstOrNull()
             val price = fuel?.price ?: 0.0
             val status = PriceReliabilityCalculator.calculateFuelAvailability(station, fuel?.type)
-            val statusStr = when (status) {
+            var statusStr = when (status) {
                 FuelAvailabilityStatus.AVAILABLE -> "🟢 есть топливо"
                 FuelAvailabilityStatus.NO_FUEL -> "🔴 нет топлива"
                 FuelAvailabilityStatus.UNKNOWN -> "⚪ нет данных"
+            }
+            if (status == FuelAvailabilityStatus.NO_FUEL) {
+                val sourceName = if (station.dataSources.contains(FuelDataSource.RUSSIABASE)) "Russiabase" else "Benzonavt"
+                statusStr += " (⚠️ по данным $sourceName топлива нет)"
             }
             val formattedPrice = if (price > 0.0) "${Format.price(price)}₽" else "цена не указана"
             val text = "Маршрут до АЗС: ${station.brand}, ${station.address} — $formattedPrice, $statusStr"
@@ -425,24 +435,25 @@ class AiChatDelegate @Inject constructor(
             val currentStations = recommendationDelegate.stations.value
 
             if (hasRouteKeyword || hasSpecificFuelType || mentionedBrand != null) {
-                var selectedStation: GasStation? = null
+                var selectedStation: GasStation? = stationResolver.resolveQuery(
+                    text = question,
+                    lat = userLat,
+                    lon = userLon,
+                    fallbackStations = currentStations
+                )
 
-                if (mentionedBrand != null) {
-                    val matchingStations = currentStations.filter { st ->
-                        st.name.lowercase().contains(mentionedBrand) ||
-                                st.brand.lowercase().contains(mentionedBrand)
-                    }
-                    if (matchingStations.isNotEmpty()) {
-                        selectedStation = matchingStations.minByOrNull { st ->
-                            GeoUtils.calculateDistance(userLat, userLon, st.latitude, st.longitude)
-                        }
-                    }
+                if (selectedStation == null && mentionedBrand != null) {
+                    selectedStation = stationResolver.nearestByBrand(
+                        brand = mentionedBrand,
+                        lat = userLat,
+                        lon = userLon,
+                        fallbackStations = currentStations
+                    )
                 }
 
                 if (selectedStation == null) {
                     selectedStation = recommendationDelegate.bestStation.value
                         ?: currentStations.minByOrNull { GeoUtils.calculateDistance(userLat, userLon, it.latitude, it.longitude) }
-                        ?: currentStations.minByOrNull { it.fuelTypes.minByOrNull { ft -> ft.price }?.price ?: Double.MAX_VALUE }
                 }
 
                 selectedStation?.let { station ->
