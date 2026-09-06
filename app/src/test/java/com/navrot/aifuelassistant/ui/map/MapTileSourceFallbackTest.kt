@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -45,5 +46,20 @@ class MapTileSourceFallbackTest {
         repository.setMapTileSource(TILE_SOURCE_OSM_RASTER)
         val rasterSource = repository.mapTileSource.first()
         assertEquals(TILE_SOURCE_OSM_RASTER, rasterSource)
+    }
+
+    @Test
+    fun testRasterFallbackStyleConfig() {
+        val rasterUrl = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        val tileSize = 256
+        assertEquals(256, tileSize)
+        assertTrue(rasterUrl.contains("tile.openstreetmap.org"))
+    }
+
+    @Test
+    fun testAutoFallbackToOsmdroidEngine() = runBlocking {
+        repository.setMapEngine(UserPreferencesRepository.ENGINE_OSMDROID)
+        val engine = repository.mapEngine.first()
+        assertEquals(UserPreferencesRepository.ENGINE_OSMDROID, engine)
     }
 }

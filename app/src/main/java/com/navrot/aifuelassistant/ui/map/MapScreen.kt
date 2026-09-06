@@ -688,11 +688,23 @@ fun MapScreen(
 
         var diagRefreshTrigger by remember { mutableIntStateOf(0) }
 
+        val emit1 = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit1Ms
+        val emit2 = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit2Ms
+        val enrichment = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.enrichmentMs
+        val tileSrc = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.activeTileSource
+        val tileSt = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tileStatus
+        val fallbacksStr = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.fallbackChainLogs.joinToString(" -> ")
+            .ifEmpty { "none" }
+
         AlertDialog(
             onDismissRequest = { showDiagnosticsDialog = false },
             title = { Text("Диагностика карты") },
             text = {
                 Column {
+                    Text("startup: emit1=${emit1}ms, emit2=${emit2}ms, enrichment=${enrichment}ms", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(4.dp))
+                    Text("tiles: source=$tileSrc, status=$tileSt, fallbacks=$fallbacksStr", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(8.dp))
                     Text("overpass=$overpassCount | russiabase=http200/obs/matched=$russiabaseMatched/red=$redCount")
                     Spacer(Modifier.height(4.dp))
                     Text("benzonavt_availability=${if (benzonavtActive) "yes" else "no"} | emits_last_5min=1")

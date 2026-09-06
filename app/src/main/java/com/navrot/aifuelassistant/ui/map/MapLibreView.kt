@@ -131,7 +131,10 @@ fun MapLibreView(
                 Style.Builder().fromUri(url)
             }
             TILE_SOURCE_OSM_RASTER -> {
-                val rasterSource = RasterSource("osm-raster-source", TileSet("2.2.0", OSM_RASTER_URL), 256)
+                val tileSet = TileSet("2.2.0", OSM_RASTER_URL).apply {
+                    attribution = "© OpenStreetMap contributors"
+                }
+                val rasterSource = RasterSource("osm-raster-source", tileSet, 256)
                 val rasterLayer = RasterLayer("osm-raster-layer", "osm-raster-source")
                 if (darkMode) {
                     rasterLayer.setProperties(
@@ -290,6 +293,7 @@ fun MapLibreView(
     fun applyStyleWithFallback(map: MapLibreMap, sourceIndex: Int) {
         val sourceKey = tileSourceChain.getOrElse(sourceIndex) { TILE_SOURCE_OSM_RASTER }
         activeTileSource = sourceKey
+        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.activeTileSource = sourceKey
         Timber.tag("MapLibreView").d("Applying style for source [%d/%d]: %s (isDarkMode=%b)",
             sourceIndex + 1, tileSourceChain.size, sourceKey, isDarkMode)
 
@@ -304,10 +308,12 @@ fun MapLibreView(
                 org.maplibre.android.tile.TileOperation.LoadFromNetwork,
                 org.maplibre.android.tile.TileOperation.LoadFromCache -> {
                     tilesLoadedCount++
+                    com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tileStatus = "ok"
                     Timber.tag("MapLibreView").d("Tile loaded (%s) [%s]: z=%d (%d,%d), total: %d, url=%s",
                         tileOp.name, sourceKey, zoom, x, y, tilesLoadedCount, url)
                 }
                 org.maplibre.android.tile.TileOperation.Error -> {
+                    com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.recordTileFallback("$sourceKey:tile_error")
                     Timber.tag("MapLibreView").e("Tile error [%s]: z=%d (%d,%d), url=%s",
                         sourceKey, zoom, x, y, url)
                 }
@@ -317,6 +323,7 @@ fun MapLibreView(
 
         val failMapListener = MapView.OnDidFailLoadingMapListener { errorMessage ->
             hasFailedMapLoad = true
+            com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.recordTileFallback("$sourceKey:map_load_fail")
             Timber.tag("MapLibreView").e("onDidFailLoadingMap for source %s: %s", sourceKey, errorMessage)
         }
 
@@ -353,26 +360,40 @@ fun MapLibreView(
             updateMarkers(map)
             updateRouteLayer(style)
 
-            if (sourceKey == TILE_SOURCE_OSM_RASTER) {
-                // Osm raster fallback loaded successfully
-                scope.launch { userPrefsRepo.setMapTileSource(sourceKey) }
-            } else {
-                // Start 8-second timer to verify tile loading
-                fallbackTimerJob = scope.launch {
-                    delay(8000L)
-                    if (tilesLoadedCount == 0 || hasFailedMapLoad) {
-                        Timber.tag("MapLibreView").w("MapChange/Timeout: 8s passed with %d tiles (failed=%b) for source: %s, switching source",
-                            tilesLoadedCount, hasFailedMapLoad, sourceKey)
-                        mapView?.removeOnTileActionListener(tileActionListener)
-                        mapView?.removeOnDidFailLoadingMapListener(failMapListener)
-                        mapView?.removeOnDidFinishLoadingStyleListener(finishStyleListener)
-                        val nextIdx = (sourceIndex + 1) % tileSourceChain.size
+            // Start 6-second timer to verify tile loading for all sources
+            fallbackTimerJob = scope.launch {
+                delay(6000L)
+                if (tilesLoadedCount == 0 || hasFailedMapLoad) {
+                    Timber.tag("MapLibreView").w("MapChange/Timeout: 6s passed with %d tiles (failed=%b) for source: %s, switching source",
+                        tilesLoadedCount, hasFailedMapLoad, sourceKey)
+                    mapView?.removeOnTileActionListener(tileActionListener)
+                    mapView?.removeOnDidFailLoadingMapListener(failMapListener)
+                    mapView?.removeOnDidFinishLoadingStyleListener(finishStyleListener)
+
+                    com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.recordTileFallback("$sourceKey:timeout_6s")
+
+                    val nextIdx = sourceIndex + 1
+                    if (nextIdx < tileSourceChain.size) {
                         currentSourceIndex = nextIdx
                         applyStyleWithFallback(map, nextIdx)
                     } else {
-                        Timber.tag("MapLibreView").i("Tile source %s active and loaded %d tiles within timeout", sourceKey, tilesLoadedCount)
-                        userPrefsRepo.setMapTileSource(sourceKey)
+                        // All sources (vector + raster) failed -> AUTO-FALLBACK TO OSMDROID
+                        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tileStatus = "fail"
+                        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.recordTileFallback("all_sources_failed_fallback_osmdroid")
+                        Timber.tag("MapLibreView").e("All vector/raster tile sources failed! Auto-fallback to osmdroid engine.")
+
+                        android.widget.Toast.makeText(
+                            context,
+                            "Вектор недоступен — классика",
+                            android.widget.Toast.LENGTH_LONG
+                        ).show()
+
+                        userPrefsRepo.setMapEngine(UserPreferencesRepository.ENGINE_OSMDROID)
                     }
+                } else {
+                    Timber.tag("MapLibreView").i("Tile source %s active and loaded %d tiles within timeout", sourceKey, tilesLoadedCount)
+                    com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tileStatus = "ok"
+                    userPrefsRepo.setMapTileSource(sourceKey)
                 }
             }
         }
