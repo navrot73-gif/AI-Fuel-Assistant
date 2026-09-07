@@ -63,4 +63,26 @@ class RussiabaseHtmlParserTest {
         assertEquals("АИ-100", RussiabaseHtmlParser.mapMarkToFuelType("ai100"))
         assertEquals("ДТ", RussiabaseHtmlParser.mapMarkToFuelType("dt"))
     }
+
+    @Test
+    fun parseHtml_structuredTextBlockFixture_parsesCorrectly() {
+        val blockText = """
+            Газпромнефть №201 / Челябинск, Свердловский тракт, 12В / Аи-92 Доступно, Аи-95 Отсутствует, ДТ Доступно
+            Газпромнефть №260 / Челябинск, Курчатова, 2/1 / АЗС закрыта
+        """.trimIndent()
+
+        val observations = RussiabaseHtmlParser.parseHtml(blockText, "ai95")
+
+        val sverdlovskyAi95 = observations.find {
+            it.brand.contains("Газпромнефть") && it.address.contains("Свердловский") && it.fuelType == "АИ-95"
+        }
+        assertNotNull("Observation for Свердловский АИ-95 should be parsed", sverdlovskyAi95)
+        assertFalse("Свердловский АИ-95 should be unavailable (Отсутствует)", sverdlovskyAi95!!.available)
+
+        val kurchatovaObs = observations.filter {
+            it.brand.contains("Газпромнефть") && it.address.contains("Курчатова")
+        }
+        assertTrue("Observation for Курчатова (АЗС закрыта) should parse all fuels as unavailable", kurchatovaObs.isNotEmpty())
+        assertTrue(kurchatovaObs.all { !it.available })
+    }
 }

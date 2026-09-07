@@ -67,6 +67,8 @@ class AiChatDelegate @Inject constructor(
     private val _userLocation = MutableStateFlow<Pair<Double, Double>?>(null)
     val userLocation: StateFlow<Pair<Double, Double>?> = _userLocation.asStateFlow()
 
+    private var userLocationTimeMs: Long = 0L
+
     private val _chatMessages = MutableStateFlow<List<ChatMessage>>(emptyList())
     val chatMessages: StateFlow<List<ChatMessage>> = _chatMessages.asStateFlow()
 
@@ -120,6 +122,7 @@ class AiChatDelegate @Inject constructor(
 
     fun updateUserLocation(lat: Double, lon: Double) {
         _userLocation.value = lat to lon
+        userLocationTimeMs = System.currentTimeMillis()
     }
 
     fun setUserQuestion(text: String) {
@@ -435,7 +438,15 @@ class AiChatDelegate @Inject constructor(
                 stations = currentStations.filter { !it.isKnownClosed() },
                 userLat = userLat,
                 userLon = userLon,
-                fuelType = targetFuelType
+                fuelType = targetFuelType,
+                lastLocationTimeMs = if (_userLocation.value != null) userLocationTimeMs else 0L,
+                fetchFreshLocation = {
+                    val freshLoc = getLastLocation()?.let { it.latitude to it.longitude }
+                    if (freshLoc != null) {
+                        updateUserLocation(freshLoc.first, freshLoc.second)
+                    }
+                    freshLoc
+                }
             )
 
             var selectedStation: GasStation? = queryResult?.nearestStation

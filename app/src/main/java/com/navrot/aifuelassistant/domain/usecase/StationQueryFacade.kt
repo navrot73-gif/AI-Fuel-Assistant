@@ -81,14 +81,56 @@ object StationQueryFacade {
     }
 
     /**
+     * Resolves nearest brand station, optionally checking position age (>60s) and fetching fresh GPS fix (3s timeout).
+     */
+    suspend fun nearestByBrand(
+        stations: List<GasStation>,
+        brand: String,
+        userLat: Double,
+        userLon: Double,
+        lastLocationTimeMs: Long = System.currentTimeMillis(),
+        fetchFreshLocation: (suspend () -> Pair<Double, Double>?)? = null,
+        fuelType: String? = null
+    ): NearestBrandResult? {
+        if (stations.isEmpty()) return null
+        val now = System.currentTimeMillis()
+        var effectiveLat = userLat
+        var effectiveLon = userLon
+
+        if (now - lastLocationTimeMs > 60_000L && fetchFreshLocation != null) {
+            val fresh = kotlinx.coroutines.withTimeoutOrNull(3000L) {
+                try {
+                    fetchFreshLocation()
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            if (fresh != null) {
+                effectiveLat = fresh.first
+                effectiveLon = fresh.second
+            }
+        }
+
+        return NearestStationFinder.findNearestStationByBrand(
+            stations = stations,
+            brand = brand,
+            userLat = effectiveLat,
+            userLon = effectiveLon,
+            fuelType = fuelType
+        )
+    }
+
+    /**
      * Resolves a text query to a gas station result using address matching and fallback to brand/GPS nearest.
      */
-    fun resolveQuery(
+    suspend fun resolveQuery(
         text: String,
         stations: List<GasStation>,
         userLat: Double,
         userLon: Double,
-        fuelType: String? = null
+        fuelType: String? = null,
+        lastLocationTimeMs: Long = System.currentTimeMillis(),
+        fetchFreshLocation: (suspend () -> Pair<Double, Double>?)? = null
     ): NearestBrandResult? {
         if (stations.isEmpty()) return null
 
@@ -135,11 +177,13 @@ object StationQueryFacade {
         }
 
         val targetBrand = brand ?: "газпромнефть"
-        return NearestStationFinder.findNearestStationByBrand(
+        return nearestByBrand(
             stations = stations,
             brand = targetBrand,
             userLat = userLat,
             userLon = userLon,
+            lastLocationTimeMs = lastLocationTimeMs,
+            fetchFreshLocation = fetchFreshLocation,
             fuelType = fuelType
         )
     }

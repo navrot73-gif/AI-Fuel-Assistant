@@ -975,6 +975,36 @@ class GasStationRepositoryTest {
     }
 
     @Test
+    fun `enrichment times out and caps at 6 seconds wall clock time under mirror delay`() = runTest {
+        val slowOverpassProvider = object : OverpassFuelProvider {
+            override suspend fun fetchStations(lat: Double, lon: Double, radiusMeters: Double): List<GasStation> {
+                kotlinx.coroutines.delay(10_000L) // Exceeds 6s budget
+                return emptyList()
+            }
+        }
+
+        val testRepo = GasStationRepository(
+            context = context,
+            httpClient = httpClient,
+            userPrices = userPrices,
+            getBestStationsUseCase = getBestStationsUseCase,
+            benzonavtProvider = benzonavtProvider,
+            appScope = appScope,
+            overpassFuelProvider = slowOverpassProvider,
+            russiabaseProvider = fakeRussiabaseProvider
+        )
+
+        val startTime = testScheduler.currentTime
+        testRepo.triggerEnrichment(55.1600, 61.4000)
+        val elapsedVirtualMs = testScheduler.currentTime - startTime
+
+        assertTrue(
+            "Enrichment must complete in <= 6000ms virtual time when network delays, took $elapsedVirtualMs ms",
+            elapsedVirtualMs <= 6000L
+        )
+    }
+
+    @Test
     fun `protective test - cold start offline merged has at least 100 stations and second cached start has at least 100 stations`() = runBlocking {
         // Cold start offline (no network, empty cache)
         val coldStartStations = repository.getAllStations()
