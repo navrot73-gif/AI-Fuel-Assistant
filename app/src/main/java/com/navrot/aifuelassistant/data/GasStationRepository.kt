@@ -141,32 +141,34 @@ class GasStationRepository @Inject constructor(
         val city = GeoUtils.hardcodedDetectCity(lat, lon)
         var russiabaseStatus = "not_fetched"
 
-        val (overpassStations, russiabaseObservations) = coroutineScope {
-            val overpassDeferred = async {
-                try {
-                    withTimeoutOrNull(6000L) {
-                        overpassFuelProvider.fetchStations(lat, lon, 50000.0)
-                    } ?: emptyList()
-                } catch (e: Exception) {
-                    Timber.tag(TAG).w("Overpass fetch failed in triggerEnrichment: %s", e.message)
-                    emptyList()
+        val (overpassStations, russiabaseObservations) = withTimeoutOrNull(6000L) {
+            coroutineScope {
+                val overpassDeferred = async {
+                    try {
+                        withTimeoutOrNull(6000L) {
+                            overpassFuelProvider.fetchStations(lat, lon, 50000.0)
+                        } ?: emptyList()
+                    } catch (e: Exception) {
+                        Timber.tag(TAG).w("Overpass fetch failed in triggerEnrichment: %s", e.message)
+                        emptyList()
+                    }
                 }
-            }
-            val russiabaseDeferred = async {
-                try {
-                    withTimeoutOrNull(6000L) {
-                        val obs = russiabaseProvider.fetchObservations(city, listOf("ai95", "dt"), lat, lon)
-                        russiabaseStatus = if (obs.isNotEmpty()) "ok (${obs.size} obs)" else "empty"
-                        obs
-                    } ?: emptyList()
-                } catch (e: Exception) {
-                    russiabaseStatus = "error (${e.message})"
-                    Timber.tag(TAG).w("Russiabase fetch failed in triggerEnrichment: %s", e.message)
-                    emptyList()
+                val russiabaseDeferred = async {
+                    try {
+                        withTimeoutOrNull(3000L) {
+                            val obs = russiabaseProvider.fetchObservations(city, listOf("ai95", "dt"), lat, lon)
+                            russiabaseStatus = if (obs.isNotEmpty()) "ok (${obs.size} obs)" else "empty"
+                            obs
+                        } ?: emptyList()
+                    } catch (e: Exception) {
+                        russiabaseStatus = "error (${e.message})"
+                        Timber.tag(TAG).w("Russiabase fetch failed in triggerEnrichment: %s", e.message)
+                        emptyList()
+                    }
                 }
+                overpassDeferred.await() to russiabaseDeferred.await()
             }
-            overpassDeferred.await() to russiabaseDeferred.await()
-        }
+        } ?: (emptyList<GasStation>() to emptyList())
 
         val enrichmentDuration = System.currentTimeMillis() - enrichmentStartTime
         com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.enrichmentMs = enrichmentDuration
@@ -438,32 +440,34 @@ class GasStationRepository @Inject constructor(
         var benzonavtStatus = "not_fetched"
 
         val enrichmentStartTime = System.currentTimeMillis()
-        val (overpassStations, russiabaseObservations) = coroutineScope {
-            val overpassDeferred = async {
-                try {
-                    withTimeoutOrNull(3000L) {
-                        overpassFuelProvider.fetchStations(lat, lon, radiusKm * 1000.0)
-                    } ?: emptyList()
-                } catch (e: Exception) {
-                    Timber.tag(TAG).w("Overpass fetch failed in getNearbyStationsFlow: %s", e.message)
-                    emptyList()
+        val (overpassStations, russiabaseObservations) = withTimeoutOrNull(6000L) {
+            coroutineScope {
+                val overpassDeferred = async {
+                    try {
+                        withTimeoutOrNull(6000L) {
+                            overpassFuelProvider.fetchStations(lat, lon, radiusKm * 1000.0)
+                        } ?: emptyList()
+                    } catch (e: Exception) {
+                        Timber.tag(TAG).w("Overpass fetch failed in getNearbyStationsFlow: %s", e.message)
+                        emptyList()
+                    }
                 }
-            }
-            val russiabaseDeferred = async {
-                try {
-                    withTimeoutOrNull(3000L) {
-                        val obs = russiabaseProvider.fetchObservations(city, listOf("ai95", "dt"), lat, lon)
-                        russiabaseStatus = if (obs.isNotEmpty()) "ok (${obs.size} obs)" else "empty"
-                        obs
-                    } ?: emptyList()
-                } catch (e: Exception) {
-                    russiabaseStatus = "error (${e.message})"
-                    Timber.tag(TAG).w("Russiabase fetch failed in getNearbyStationsFlow: %s", e.message)
-                    emptyList()
+                val russiabaseDeferred = async {
+                    try {
+                        withTimeoutOrNull(3000L) {
+                            val obs = russiabaseProvider.fetchObservations(city, listOf("ai95", "dt"), lat, lon)
+                            russiabaseStatus = if (obs.isNotEmpty()) "ok (${obs.size} obs)" else "empty"
+                            obs
+                        } ?: emptyList()
+                    } catch (e: Exception) {
+                        russiabaseStatus = "error (${e.message})"
+                        Timber.tag(TAG).w("Russiabase fetch failed in getNearbyStationsFlow: %s", e.message)
+                        emptyList()
+                    }
                 }
+                overpassDeferred.await() to russiabaseDeferred.await()
             }
-            overpassDeferred.await() to russiabaseDeferred.await()
-        }
+        } ?: (emptyList<GasStation>() to emptyList())
 
         val enrichmentDuration = System.currentTimeMillis() - enrichmentStartTime
         com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.enrichmentMs = enrichmentDuration
