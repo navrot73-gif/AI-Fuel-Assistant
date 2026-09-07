@@ -39,6 +39,15 @@ object MapDiagnosticsTracker {
     @Volatile
     var fallbackChainLogs: List<String> = emptyList()
 
+    @Volatile
+    var registrySize: Int = 0
+
+    @Volatile
+    var benzonavtUnmatched: Int = 0
+
+    @Volatile
+    var russiabaseUnmatched: Int = 0
+
     fun resetStartupTimings() {
         t0Ms = System.currentTimeMillis()
         emit1Ms = 0L
@@ -48,6 +57,9 @@ object MapDiagnosticsTracker {
         cityResolveSource = "cache"
         aiPath = "local"
         routeTest = "загрузка..."
+        registrySize = 0
+        benzonavtUnmatched = 0
+        russiabaseUnmatched = 0
     }
 
     fun recordTileFallback(log: String) {
