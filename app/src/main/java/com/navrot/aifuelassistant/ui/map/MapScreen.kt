@@ -679,16 +679,6 @@ fun MapScreen(
         }
         val benzonavtActive = stations.any { it.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.BENZONAVT) }
 
-        var diagRefreshTrigger by remember { mutableIntStateOf(0) }
-        var routeTestResult by remember { mutableStateOf("загрузка...") }
-        LaunchedEffect(diagRefreshTrigger) {
-            val resolved = viewModel.stationResolver.resolveQuery("Газпромнефть Свердловский тракт", diagLat, diagLon)
-            routeTestResult = if (resolved != null) {
-                val dist = com.navrot.aifuelassistant.geo.GeoUtils.calculateDistance(diagLat, diagLon, resolved.latitude, resolved.longitude)
-                "id=${resolved.id}, адрес=${resolved.address}, dist=${"%.2f".format(dist)}км"
-            } else "не найдено"
-        }
-
         val candidates = com.navrot.aifuelassistant.domain.usecase.NearestStationFinder.getTopCandidates(
             stations = stations,
             brand = "Газпромнефть",
@@ -696,16 +686,16 @@ fun MapScreen(
             userLon = diagLon
         )
 
+        var diagRefreshTrigger by remember { mutableIntStateOf(0) }
+
         val emit1 = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit1Ms
         val emit2 = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit2Ms
         val enrichment = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.enrichmentMs
-        val enrichmentWall = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.enrichmentWallMs
         val cityResolve = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.cityResolveMs
         val citySource = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.cityResolveSource
         val aiPath = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.aiPath
         val tileSrc = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.activeTileSource
         val tileSt = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tileStatus
-        val tilesErrCount = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tilesErrorsCount
         val fallbacksStr = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.fallbackChainLogs.joinToString(" -> ")
             .ifEmpty { "none" }
 
@@ -714,17 +704,15 @@ fun MapScreen(
             title = { Text("Диагностика карты") },
             text = {
                 Column {
-                    Text("startup: emit1=${emit1}ms, emit2=${emit2}ms, enrichment=${enrichment}ms, enrichment_wall=${enrichmentWall}ms", style = MaterialTheme.typography.bodyMedium)
+                    Text("startup: emit1=${emit1}ms, emit2=${emit2}ms, enrichment=${enrichment}ms", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(4.dp))
                     Text("city_resolve=${cityResolve}ms (source=$citySource) | ai_path=$aiPath", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(4.dp))
-                    Text("tiles: source=$tileSrc, status=$tileSt, errors_count=$tilesErrCount, fallbacks=$fallbacksStr", style = MaterialTheme.typography.bodyMedium)
+                    Text("tiles: source=$tileSrc, status=$tileSt, fallbacks=$fallbacksStr", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(8.dp))
                     Text("overpass=$overpassCount | russiabase=http200/obs/matched=$russiabaseMatched/red=$redCount")
                     Spacer(Modifier.height(4.dp))
                     Text("benzonavt_availability=${if (benzonavtActive) "yes" else "no"} | emits_last_5min=1")
-                    Spacer(Modifier.height(8.dp))
-                    Text("route_test: $routeTestResult", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.height(8.dp))
                     Text("nearest_top3 (Газпромнефть):", style = MaterialTheme.typography.titleSmall)
                     if (candidates.isEmpty()) {

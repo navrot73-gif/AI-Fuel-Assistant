@@ -10,7 +10,6 @@ import com.navrot.aifuelassistant.data.RouteStateManager
 import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.data.model.GasStation
-import com.navrot.aifuelassistant.domain.stations.StationResolver
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.features.dashboard.delegate.AiChatDelegate
 import com.navrot.aifuelassistant.features.dashboard.delegate.DashboardMetricsDelegate
@@ -55,7 +54,6 @@ class DashboardViewModel @Inject constructor(
             aiRouter = aiRouter,
             routeStateManager = routeStateManager,
             gasStationRepository = gasStationRepository,
-            stationResolver = StationResolver(gasStationRepository),
             applicationContext = applicationContext
         )
     )

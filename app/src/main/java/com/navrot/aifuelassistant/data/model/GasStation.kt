@@ -1,6 +1,8 @@
 package com.navrot.aifuelassistant.data.model
 
 import android.os.Parcelable
+import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
+import com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator
 import kotlinx.parcelize.Parcelize
 
 @Parcelize
@@ -43,6 +45,9 @@ fun GasStation.matchesBrand(selectedBrand: String): Boolean {
 
 fun GasStation.isKnownClosed(currentTimeMs: Long = System.currentTimeMillis()): Boolean {
     val hours = this.openingHours?.trim() ?: return false
+    if (hours.equals("Closed", ignoreCase = true) || hours.equals("закрыта", ignoreCase = true)) {
+        return true
+    }
     if (hours.isBlank() || hours.equals("24/7", ignoreCase = true) || hours.equals("24 hours", ignoreCase = true)) {
         return false
     }

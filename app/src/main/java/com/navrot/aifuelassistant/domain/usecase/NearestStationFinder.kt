@@ -22,8 +22,10 @@ data class StationCandidate(
 
 object NearestStationFinder {
 
+    const val MAX_URBAN_RADIUS_KM = 60.0
+
     /**
-     * Returns top candidates for brand query sorted by distance.
+     * Returns top candidates for brand query sorted by distance within 60 km urban radius.
      */
     fun getTopCandidates(
         stations: List<GasStation>,
@@ -33,10 +35,13 @@ object NearestStationFinder {
         fuelType: String? = null,
         limit: Int = 3
     ): List<StationCandidate> {
-        return stations.filter {
-            it.matchesBrand(brand) ||
-            it.brand.contains(brand, ignoreCase = true) ||
-            it.name.contains(brand, ignoreCase = true)
+        return stations.filter { st ->
+            val dist = GeoUtils.calculateDistance(userLat, userLon, st.latitude, st.longitude)
+            dist <= MAX_URBAN_RADIUS_KM && (
+                st.matchesBrand(brand) ||
+                st.brand.contains(brand, ignoreCase = true) ||
+                st.name.contains(brand, ignoreCase = true)
+            )
         }.map { st ->
             val dist = GeoUtils.calculateDistance(userLat, userLon, st.latitude, st.longitude)
             val status = PriceReliabilityCalculator.calculateFuelAvailability(st, fuelType)
@@ -45,7 +50,7 @@ object NearestStationFinder {
     }
 
     /**
-     * Finds the nearest station matching the specified brand across the full merged list of stations (including OSM-only).
+     * Finds the nearest station matching the specified brand within 60 km urban radius across the full merged list of stations (including OSM-only).
      * If the nearest station does not have available fuel (status NO_FUEL or UNKNOWN, or price 0),
      * an alternative station with available fuel is provided.
      */
@@ -56,10 +61,13 @@ object NearestStationFinder {
         userLon: Double,
         fuelType: String? = null
     ): NearestBrandResult? {
-        val matchingBrandStations = stations.filter {
-            it.matchesBrand(brand) ||
-            it.brand.contains(brand, ignoreCase = true) ||
-            it.name.contains(brand, ignoreCase = true)
+        val matchingBrandStations = stations.filter { st ->
+            val dist = GeoUtils.calculateDistance(userLat, userLon, st.latitude, st.longitude)
+            dist <= MAX_URBAN_RADIUS_KM && (
+                st.matchesBrand(brand) ||
+                st.brand.contains(brand, ignoreCase = true) ||
+                st.name.contains(brand, ignoreCase = true)
+            )
         }
         if (matchingBrandStations.isEmpty()) return null
 

@@ -38,10 +38,13 @@ object RussiabaseMatcher {
                 val updatedFuelTypes = updateFuelPrices(current.fuelTypes, obs)
                 val updatedSources = current.dataSources + FuelDataSource.RUSSIABASE
                 val now = System.currentTimeMillis()
+                val isClosedReported = obs.statusText.contains("закрыта", ignoreCase = true)
+                val updatedOpeningHours = if (isClosedReported) "Closed" else current.openingHours
 
                 matchedStationMap[matchingStation.id] = current.copy(
                     fuelTypes = updatedFuelTypes,
                     dataSources = updatedSources,
+                    openingHours = updatedOpeningHours,
                     updatedAt = now
                 )
             }

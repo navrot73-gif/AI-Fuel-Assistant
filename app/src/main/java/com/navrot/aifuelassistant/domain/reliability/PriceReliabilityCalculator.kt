@@ -3,6 +3,7 @@ package com.navrot.aifuelassistant.domain.reliability
 import com.navrot.aifuelassistant.data.model.FuelDataSource
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.data.model.isKnownClosed
 
 object PriceReliabilityCalculator {
 
@@ -30,13 +31,17 @@ object PriceReliabilityCalculator {
 
         val diffMs = maxOf(0L, currentTimeMs - timestamp)
 
-        // Priority Fix 4: Explicit "Отсутствует" / "АЗС закрыта" from Russiabase/user marks (freshness <= 24h) OVERRIDES green Benzonavt price
-        val isExplicitNoFuel = !fuelPrice.available
-        if (isExplicitNoFuel && diffMs <= RUSSIABASE_FRESHNESS_THRESHOLD_MS) {
-            return FuelAvailabilityStatus.NO_FUEL
+        if (fuelPrice.source == FuelDataSource.RUSSIABASE || station.dataSources.contains(FuelDataSource.RUSSIABASE)) {
+            if (!fuelPrice.available || station.isKnownClosed()) {
+                if (diffMs <= RUSSIABASE_FRESHNESS_THRESHOLD_MS) {
+                    return FuelAvailabilityStatus.NO_FUEL
+                }
+            }
         }
 
-        return if (diffMs <= FRESHNESS_THRESHOLD_MS) {
+        val threshold = if (fuelPrice.source == FuelDataSource.RUSSIABASE) RUSSIABASE_FRESHNESS_THRESHOLD_MS else FRESHNESS_THRESHOLD_MS
+
+        return if (diffMs <= threshold) {
             if (fuelPrice.available) FuelAvailabilityStatus.AVAILABLE else FuelAvailabilityStatus.NO_FUEL
         } else {
             FuelAvailabilityStatus.UNKNOWN

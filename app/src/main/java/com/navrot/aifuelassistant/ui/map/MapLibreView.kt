@@ -299,7 +299,6 @@ fun MapLibreView(
 
         var fallbackTimerJob: Job? = null
         var tilesLoadedCount = 0
-        var tileErrorCount = 0
         var hasFailedMapLoad = false
 
         val mapView = mapViewRef[0]
@@ -309,45 +308,14 @@ fun MapLibreView(
                 org.maplibre.android.tile.TileOperation.LoadFromNetwork,
                 org.maplibre.android.tile.TileOperation.LoadFromCache -> {
                     tilesLoadedCount++
-                    if (com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.isTileStatusOk()) {
-                        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tileStatus = "ok"
-                    }
+                    com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tileStatus = "ok"
                     Timber.tag("MapLibreView").d("Tile loaded (%s) [%s]: z=%d (%d,%d), total: %d, url=%s",
                         tileOp.name, sourceKey, zoom, x, y, tilesLoadedCount, url)
                 }
                 org.maplibre.android.tile.TileOperation.Error -> {
-                    tileErrorCount++
-                    com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.incrementTileError()
-                    com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tileStatus = "error ($tileErrorCount)"
                     com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.recordTileFallback("$sourceKey:tile_error")
-                    Timber.tag("MapLibreView").e("Tile error [%s]: z=%d (%d,%d), url=%s, count=%d",
-                        sourceKey, zoom, x, y, url, tileErrorCount)
-
-                    if (tileErrorCount > 5) {
-                        mapView?.removeOnTileActionListener(null)
-                        fallbackTimerJob?.cancel()
-
-                        val nextIdx = sourceIndex + 1
-                        if (nextIdx < tileSourceChain.size) {
-                            Timber.tag("MapLibreView").w("tile_error > 5 on source %s, transitioning ONCE to next source index %d", sourceKey, nextIdx)
-                            currentSourceIndex = nextIdx
-                            applyStyleWithFallback(map, nextIdx)
-                        } else {
-                            com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tileStatus = "fail"
-                            com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.recordTileFallback("all_sources_failed_fallback_osmdroid")
-                            Timber.tag("MapLibreView").e("All tile sources failed with tile_error > 5! Auto-fallback to osmdroid engine.")
-
-                            android.widget.Toast.makeText(
-                                context,
-                                "Вектор недоступен — классика",
-                                android.widget.Toast.LENGTH_LONG
-                            ).show()
-
-                            scope.launch {
-                                userPrefsRepo.setMapEngine(UserPreferencesRepository.ENGINE_OSMDROID)
-                            }
-                        }
-                    }
+                    Timber.tag("MapLibreView").e("Tile error [%s]: z=%d (%d,%d), url=%s",
+                        sourceKey, zoom, x, y, url)
                 }
                 else -> {}
             }

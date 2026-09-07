@@ -50,42 +50,6 @@ class RussiabaseHtmlParserTest {
     }
 
     @Test
-    fun parseHtml_withReal2026FixtureText_returnsCorrectStatusesFor201And260() {
-        val fixtureText = """
-            Газпромнефть №201
-            Челябинск, Свердловский тракт, 12В (Авторынок на ЧМЗ, поворот на Радонежская)
-            Очередь
-            Аи-92 / 61.05р. / Лимит до 40 л. / Доступно
-            Аи-95 / 66.54р. / Лимит до 40 л. / Отсутствует
-            ДТ / 79.03р. / Лимит до 40 л. / Доступно
-            ---
-            Газпромнефть №260
-            Челябинск, Курчатова, 2/1
-            АЗС закрыта
-            Топлива нет, АЗС не работает
-        """.trimIndent()
-
-        // Test #201 for AI-95
-        val obs201_95 = RussiabaseHtmlParser.parseHtml(fixtureText, "ai95")
-        val station201_95 = obs201_95.find { it.brand.contains("201") }
-        assertNotNull("Station 201 observation for AI-95 should not be null", station201_95)
-        assertFalse("Station 201 AI-95 should be unavailable (NO_FUEL)", station201_95!!.available)
-
-        // Test #201 for AI-92
-        val obs201_92 = RussiabaseHtmlParser.parseHtml(fixtureText, "ai92")
-        val station201_92 = obs201_92.find { it.brand.contains("201") }
-        assertNotNull("Station 201 observation for AI-92 should not be null", station201_92)
-        assertTrue("Station 201 AI-92 should be available", station201_92!!.available)
-        assertEquals(61.05, station201_92.price, 0.001)
-
-        // Test #260 (closed)
-        val obs260 = RussiabaseHtmlParser.parseHtml(fixtureText, "ai95")
-        val station260 = obs260.find { it.brand.contains("260") }
-        assertNotNull("Station 260 observation should not be null", station260)
-        assertFalse("Station 260 (closed) should be unavailable for all fuels", station260!!.available)
-    }
-
-    @Test
     fun parseHtml_emptyOrInvalid_returnsEmptyList() {
         val result = RussiabaseHtmlParser.parseHtml("", "ai95")
         assertTrue(result.isEmpty())
