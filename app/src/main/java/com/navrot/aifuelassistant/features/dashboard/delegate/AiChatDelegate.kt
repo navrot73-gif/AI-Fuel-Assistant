@@ -14,6 +14,7 @@ import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.RouteStateManager
 import com.navrot.aifuelassistant.data.model.FuelDataSource
 import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.data.model.isKnownClosed
 import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
 import com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator
 import com.navrot.aifuelassistant.features.dashboard.ChatMessage
@@ -36,13 +37,10 @@ import timber.log.Timber
 import javax.inject.Inject
 import kotlin.coroutines.resume
 
-import com.navrot.aifuelassistant.domain.stations.StationResolver
-
 class AiChatDelegate @Inject constructor(
     private val aiRouter: AiRouter,
     private val routeStateManager: RouteStateManager,
     private val gasStationRepository: GasStationRepositoryInterface,
-    private val stationResolver: StationResolver,
     @ApplicationContext private val applicationContext: Context
 ) {
     private val _userQuestion = MutableStateFlow("")
@@ -269,14 +267,13 @@ class AiChatDelegate @Inject constructor(
                 _error.value = null
                 _userAnswer.value = null
 
-                // 1. Local-first intent detection: DO NOT call LLM for station/route intents
-                if (isRouteOrIntentQuery(question)) {
+                val isIntentQuery = isRouteOrIntentQuery(question)
+                if (isIntentQuery) {
                     com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.aiPath = "local"
                     handleLocalIntentFallback(question, recommendationDelegate)
                     return@launch
                 }
 
-                // 2. LLM — ONLY for free questions without station facts
                 try {
                     val context = buildUserContext(recommendationDelegate.stations.value)
                     val fullPrompt = if (context.text.isNotBlank()) {
@@ -288,83 +285,41 @@ class AiChatDelegate @Inject constructor(
                     val rawAnswer = withTimeout(15_000L) {
                         aiRouter.ask(fullPrompt, history = history)
                     }
-
-                    // Check if LLM returned a station answer and guard against server "Kurchatova"
-                    val userLat = _userLocation.value?.first ?: StationResolver.DEFAULT_LAT
-                    val userLon = _userLocation.value?.second ?: StationResolver.DEFAULT_LON
-                    val currentStations = recommendationDelegate.stations.value
-
-                    val resolverStation = stationResolver.resolveQuery(question, userLat, userLon, currentStations)
-                        ?: extractBrand(question, rawAnswer)?.let { stationResolver.nearestByBrand(it, userLat, userLon, currentStations) }
+                    com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.aiPath = "llm"
 
                     val routeTagRegex = Regex("\\[ROUTE:(-?\\d+)\\]")
                     val match = routeTagRegex.find(rawAnswer)
-                    val llmStationId = match?.groupValues?.get(1)?.toIntOrNull()
 
-                    val llmStation = llmStationId?.let { stationResolver.getStationById(it, userLat, userLon, currentStations) }
-                    val llmDist = if (llmStation != null) GeoUtils.calculateDistance(userLat, userLon, llmStation.latitude, llmStation.longitude) else Double.MAX_VALUE
-                    val resolverDist = if (resolverStation != null) GeoUtils.calculateDistance(userLat, userLon, resolverStation.latitude, resolverStation.longitude) else Double.MAX_VALUE
+                    if (match != null) {
+                        val stationId = match.groupValues[1].toIntOrNull()
+                        val cleanedAnswer = rawAnswer.replace(routeTagRegex, "").replace("**", "").replace("*", "").trim()
+                        _userAnswer.value = cleanedAnswer
+                        addChatMessage(ChatMessage(role = "ai", text = cleanedAnswer, ts = System.currentTimeMillis()))
 
-                    if (resolverStation != null && (llmStation == null || resolverDist < llmDist)) {
-                        // Guard override: resolver station is closer! Re-assign to local resolver result
-                        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.aiPath = "local"
-                        val fuel = resolverStation.fuelTypes.firstOrNull()
-                        val price = fuel?.price ?: 0.0
-                        val status = PriceReliabilityCalculator.calculateFuelAvailability(resolverStation, fuel?.type)
-                        var statusStr = when (status) {
-                            FuelAvailabilityStatus.AVAILABLE -> "🟢 есть топливо"
-                            FuelAvailabilityStatus.NO_FUEL -> "🔴 нет топлива"
-                            FuelAvailabilityStatus.UNKNOWN -> "⚪ нет данных"
-                        }
-                        if (status == FuelAvailabilityStatus.NO_FUEL) {
-                            val sourceName = if (resolverStation.dataSources.contains(FuelDataSource.RUSSIABASE)) "Russiabase" else "Benzonavt"
-                            statusStr += " (⚠️ по данным $sourceName топлива нет)"
-                        }
-                        val formattedPrice = if (price > 0.0) "${Format.price(price)}₽" else "цена не указана"
-                        val overriddenAnswer = "${resolverStation.brand}, ${resolverStation.address} — $formattedPrice, $statusStr"
-                        _userAnswer.value = overriddenAnswer
-                        addChatMessage(ChatMessage(role = "ai", text = overriddenAnswer, ts = System.currentTimeMillis()))
-                        _pendingRouteStationId.value = resolverStation.id
-                        routeStateManager.setPendingRouteStationId(resolverStation.id)
-                        _pendingRouteMode.value = PendingRouteMode.ROUTE
-                    } else {
-                        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.aiPath = "llm"
-                        if (match != null) {
-                            val stationId = match.groupValues[1].toIntOrNull()
-                            val cleanedAnswer = rawAnswer.replace(routeTagRegex, "").replace("**", "").replace("*", "").trim()
-                            _userAnswer.value = cleanedAnswer
-                            addChatMessage(ChatMessage(role = "ai", text = cleanedAnswer, ts = System.currentTimeMillis()))
-
-                            if (stationId != null) {
-                                _pendingRouteStationId.value = stationId
-                                routeStateManager.setPendingRouteStationId(stationId)
-                                _pendingRouteMode.value = PendingRouteMode.ROUTE
-                            } else {
-                                detectIntent(question, recommendationDelegate)
-                            }
+                        if (stationId != null) {
+                            _pendingRouteStationId.value = stationId
+                            routeStateManager.setPendingRouteStationId(stationId)
+                            _pendingRouteMode.value = PendingRouteMode.ROUTE
                         } else {
-                            val answer = rawAnswer.replace("**", "").replace("*", "")
-                            _userAnswer.value = answer
-                            addChatMessage(ChatMessage(role = "ai", text = answer, ts = System.currentTimeMillis()))
                             detectIntent(question, recommendationDelegate)
                         }
+                    } else {
+                        val answer = rawAnswer.replace("**", "").replace("*", "")
+                        _userAnswer.value = answer
+                        addChatMessage(ChatMessage(role = "ai", text = answer, ts = System.currentTimeMillis()))
+                        detectIntent(question, recommendationDelegate)
                     }
                 } catch (e: Exception) {
                     com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.aiPath = "local"
-                    val isIntentQuery = isRouteOrIntentQuery(question)
-                    if (isIntentQuery) {
-                        handleLocalIntentFallback(question, recommendationDelegate)
-                    } else {
-                        val userMsg = ErrorMessageMapper.mapToUserMessage(e, ErrorContext.AI)
-                        _error.value = userMsg
-                        addChatMessage(
-                            ChatMessage(
-                                role = "ai",
-                                text = userMsg,
-                                ts = System.currentTimeMillis()
-                            )
+                    val userMsg = ErrorMessageMapper.mapToUserMessage(e, ErrorContext.AI)
+                    _error.value = userMsg
+                    addChatMessage(
+                        ChatMessage(
+                            role = "ai",
+                            text = userMsg,
+                            ts = System.currentTimeMillis()
                         )
-                    }
+                    )
                 }
             } catch (topLevelError: Exception) {
                 Timber.tag(TAG).e(topLevelError, "Unhandled error in askUserQuestion")
@@ -388,25 +343,21 @@ class AiChatDelegate @Inject constructor(
     ) {
         detectIntent(question, recommendationDelegate)
         val selectedStationId = _pendingRouteStationId.value
-        val userLat = _userLocation.value?.first ?: StationResolver.DEFAULT_LAT
-        val userLon = _userLocation.value?.second ?: StationResolver.DEFAULT_LON
         val currentStations = recommendationDelegate.stations.value
-        val station = selectedStationId?.let { stationResolver.getStationById(it, userLat, userLon, currentStations) }
-            ?: stationResolver.resolveQuery(question, userLat, userLon, currentStations)
+        val station = currentStations.firstOrNull { it.id == selectedStationId }
             ?: currentStations.firstOrNull()
 
         if (station != null) {
-            val fuel = station.fuelTypes.firstOrNull()
+            val targetFuelType = extractFuelTypeFromQuestion(question) ?: "АИ-95"
+            val fuel = station.fuelTypes.find { it.type.equals(targetFuelType, ignoreCase = true) }
+                ?: station.fuelTypes.firstOrNull()
             val price = fuel?.price ?: 0.0
-            val status = PriceReliabilityCalculator.calculateFuelAvailability(station, fuel?.type)
-            var statusStr = when (status) {
+            val status = PriceReliabilityCalculator.calculateFuelAvailability(station, targetFuelType)
+            val isRussiabase = station.dataSources.contains(FuelDataSource.RUSSIABASE)
+            val statusStr = when (status) {
                 FuelAvailabilityStatus.AVAILABLE -> "🟢 есть топливо"
-                FuelAvailabilityStatus.NO_FUEL -> "🔴 нет топлива"
+                FuelAvailabilityStatus.NO_FUEL -> if (isRussiabase) "🔴 нет топлива (⚠️ по данным Russiabase топлива нет)" else "🔴 нет топлива"
                 FuelAvailabilityStatus.UNKNOWN -> "⚪ нет данных"
-            }
-            if (status == FuelAvailabilityStatus.NO_FUEL) {
-                val sourceName = if (station.dataSources.contains(FuelDataSource.RUSSIABASE)) "Russiabase" else "Benzonavt"
-                statusStr += " (⚠️ по данным $sourceName топлива нет)"
             }
             val formattedPrice = if (price > 0.0) "${Format.price(price)}₽" else "цена не указана"
             val text = "Маршрут до АЗС: ${station.brand}, ${station.address} — $formattedPrice, $statusStr"
@@ -422,36 +373,26 @@ class AiChatDelegate @Inject constructor(
         }
     }
 
-    private fun extractBrand(question: String, rawAnswer: String? = null): String? {
-        val brands = listOf(
-            "газпромнефть", "газпром", "роснефть", "татнефть", "башнефть",
-            "лукойл", "шелл", "shell", "смарт", "олекс", "новатек", "терминал",
-            "irbis", "опти"
-        )
-        val textToSearch = "${question.lowercase()} ${rawAnswer?.lowercase() ?: ""}"
-        return brands.find { textToSearch.contains(it) }
+    private fun extractFuelTypeFromQuestion(question: String): String? {
+        val lower = question.lowercase()
+        return when {
+            lower.contains("92") -> "АИ-92"
+            lower.contains("95") -> "АИ-95"
+            lower.contains("98") -> "АИ-98"
+            lower.contains("100") -> "АИ-100"
+            lower.contains("дт") || lower.contains("дизель") -> "ДТ"
+            else -> null
+        }
     }
 
     fun isRouteOrIntentQuery(question: String): Boolean {
         val lowerQuestion = question.lowercase()
-        val brands = listOf(
-            "газпромнефть", "газпром", "роснефть", "татнефть", "башнефть",
-            "лукойл", "шелл", "shell", "смарт", "олекс", "новатек", "терминал",
-            "irbis", "опти"
-        )
+        val brands = listOf("газпром", "роснефть", "татнефть", "смарт", "шелл", "лукойл")
         val mentionedBrand = brands.find { lowerQuestion.contains(it) }
-        val hasRouteKeyword = listOf(
-            "маршрут", "ближайш", "построй", "доведи", "покажи", "найди",
-            "где", "заправка", "азс", "направление", "ехать", "тракт",
-            "проспект", "улица", "ул", "шоссе", "дешевле"
-        ).any { lowerQuestion.contains(it) }
+        val hasRouteKeyword = listOf("маршрут", "построй", "доведи", "ближайшая", "дешевле", "заправка", "азс").any { lowerQuestion.contains(it) }
         val hasFuelKeyword = listOf("топливо", "цена", "наличие").any { lowerQuestion.contains(it) }
-        val hasSpecificFuelType = Regex("где.*92|где.*95|где.*98|где.*100|где.*дт|где.*газ").containsMatchIn(lowerQuestion)
-        val hasAddressToken = listOf(
-            "свердловский", "курчатова", "победы", "комсомольский", "ленина", "кирова"
-        ).any { lowerQuestion.contains(it) }
-
-        return hasRouteKeyword || hasSpecificFuelType || hasFuelKeyword || mentionedBrand != null || hasAddressToken
+        val hasSpecificFuelType = Regex("где.*92|где.*95|где.*98|где.*дт").containsMatchIn(lowerQuestion)
+        return hasRouteKeyword || hasSpecificFuelType || hasFuelKeyword || mentionedBrand != null
     }
 
     private suspend fun detectIntent(
@@ -460,88 +401,59 @@ class AiChatDelegate @Inject constructor(
     ) {
         routeStateManager.resetForNewIntent()
         val lowerQuestion = question.lowercase()
-        val brands = listOf(
-            "газпромнефть", "газпром", "роснефть", "татнефть", "башнефть",
-            "лукойл", "шелл", "shell", "смарт", "олекс", "новатек", "терминал",
-            "irbis", "опти"
-        )
+        val brands = listOf("газпром", "роснефть", "татнефть", "смарт", "шелл", "лукойл")
         val mentionedBrand = brands.find { lowerQuestion.contains(it) }
 
-        val hasRouteKeyword = listOf(
-            "маршрут", "ближайш", "построй", "доведи", "покажи", "найди",
-            "где", "заправка", "азс", "направление", "ехать", "тракт",
-            "проспект", "улица", "ул", "шоссе", "дешевле"
-        ).any { lowerQuestion.contains(it) }
+        val hasRouteKeyword = listOf("маршрут", "построй", "доведи", "ближайшая", "дешевле").any { lowerQuestion.contains(it) }
         val hasFuelKeyword = listOf("топливо", "цена", "наличие", "заправка").any { lowerQuestion.contains(it) }
-        val hasSpecificFuelType = Regex("где.*92|где.*95|где.*98|где.*100|где.*дт|где.*газ").containsMatchIn(lowerQuestion)
-        val hasAddressToken = listOf(
-            "свердловский", "курчатова", "победы", "комсомольский", "ленина", "кирова"
-        ).any { lowerQuestion.contains(it) }
+        val hasSpecificFuelType = Regex("где.*92|где.*95|где.*98|где.*дт").containsMatchIn(lowerQuestion)
 
-        if (hasRouteKeyword || hasSpecificFuelType || hasFuelKeyword || mentionedBrand != null || hasAddressToken) {
-            if (recommendationDelegate.stations.value.isEmpty()) {
-                val loc = _userLocation.value ?: getLastLocation()?.let { it.latitude to it.longitude }
-                val stationsList = if (loc != null) {
-                    try {
-                        withTimeoutOrNull(5000L) {
-                            gasStationRepository.getNearbyStations(loc.first, loc.second, 50.0)
-                        } ?: withTimeoutOrNull(5000L) {
-                            gasStationRepository.getAllStations()
-                        } ?: emptyList()
-                    } catch (e: Exception) {
-                        Timber.tag(TAG).w("Failed to fetch nearby stations in detectIntent: %s", e.message)
-                        try {
-                            withTimeoutOrNull(5000L) { gasStationRepository.getAllStations() } ?: emptyList()
-                        } catch (e: Exception) {
-                            Timber.tag(TAG).e(e, "Failed to fetch all stations fallback in detectIntent")
-                            emptyList()
-                        }
-                    }
-                } else {
-                    try {
-                        withTimeoutOrNull(5000L) { gasStationRepository.getAllStations() } ?: emptyList()
-                    } catch (e: Exception) {
-                        Timber.tag(TAG).e(e, "Failed to fetch all stations in detectIntent")
-                        emptyList()
-                    }
-                }
-                recommendationDelegate.setStations(stationsList)
+        val loc = _userLocation.value ?: getLastLocation()?.let { it.latitude to it.longitude }
+        val userLat = loc?.first ?: 55.1608
+        val userLon = loc?.second ?: 61.3989
+
+        if (recommendationDelegate.stations.value.isEmpty()) {
+            val stationsList = try {
+                withTimeoutOrNull(5000L) {
+                    gasStationRepository.getNearbyStations(userLat, userLon, 60.0)
+                } ?: withTimeoutOrNull(5000L) {
+                    gasStationRepository.getAllStations()
+                } ?: emptyList()
+            } catch (e: Exception) {
+                Timber.tag(TAG).w("Failed to fetch nearby stations in detectIntent: %s", e.message)
+                emptyList()
             }
+            recommendationDelegate.setStations(stationsList)
+        }
 
-            val userLat = _userLocation.value?.first ?: 0.0
-            val userLon = _userLocation.value?.second ?: 0.0
-            val currentStations = recommendationDelegate.stations.value
+        val currentStations = recommendationDelegate.stations.value
 
-            if (hasRouteKeyword || hasSpecificFuelType || mentionedBrand != null) {
-                var selectedStation: GasStation? = stationResolver.resolveQuery(
-                    text = question,
-                    lat = userLat,
-                    lon = userLon,
-                    fallbackStations = currentStations
+        if (hasRouteKeyword || hasSpecificFuelType || hasFuelKeyword || mentionedBrand != null) {
+            var selectedStation: GasStation? = null
+
+            if (mentionedBrand != null) {
+                val result = com.navrot.aifuelassistant.domain.usecase.NearestStationFinder.findNearestStationByBrand(
+                    stations = currentStations.filter { !it.isKnownClosed() },
+                    brand = mentionedBrand,
+                    userLat = userLat,
+                    userLon = userLon
                 )
-
-                if (selectedStation == null && mentionedBrand != null) {
-                    selectedStation = stationResolver.nearestByBrand(
-                        brand = mentionedBrand,
-                        lat = userLat,
-                        lon = userLon,
-                        fallbackStations = currentStations
-                    )
-                }
-
-                if (selectedStation == null) {
-                    selectedStation = recommendationDelegate.bestStation.value
-                        ?: currentStations.minByOrNull { GeoUtils.calculateDistance(userLat, userLon, it.latitude, it.longitude) }
-                }
-
-                selectedStation?.let { station ->
-                    _pendingRouteStationId.value = station.id
-                    routeStateManager.setPendingRouteStationId(station.id)
-                    _pendingRouteMode.value = PendingRouteMode.ROUTE
-                }
-            } else if (hasFuelKeyword) {
-                _pendingRouteMode.value = PendingRouteMode.CARD
+                selectedStation = result?.nearestStation
             }
+
+            if (selectedStation == null) {
+                selectedStation = recommendationDelegate.bestStation.value
+                    ?: currentStations.filter { !it.isKnownClosed() && GeoUtils.calculateDistance(userLat, userLon, it.latitude, it.longitude) <= 60.0 }
+                        .minByOrNull { GeoUtils.calculateDistance(userLat, userLon, it.latitude, it.longitude) }
+            }
+
+            selectedStation?.let { station ->
+                _pendingRouteStationId.value = station.id
+                routeStateManager.setPendingRouteStationId(station.id)
+                _pendingRouteMode.value = PendingRouteMode.ROUTE
+            }
+        } else if (hasFuelKeyword) {
+            _pendingRouteMode.value = PendingRouteMode.CARD
         }
     }
 

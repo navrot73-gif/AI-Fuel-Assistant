@@ -8,19 +8,6 @@ import javax.inject.Inject
 
 class StationFilterAndSorterImpl @Inject constructor() : StationFilterAndSorter {
 
-    companion object {
-        // Bbox for Chelyabinsk region (expanded to include Asha lon 57.27 and Magnitogorsk lat 53.38 while strictly excluding Moscow at lon 37.5)
-        const val CHELYABINSK_MIN_LAT = 53.0
-        const val CHELYABINSK_MAX_LAT = 56.5
-        const val CHELYABINSK_MIN_LON = 57.0
-        const val CHELYABINSK_MAX_LON = 63.0
-
-        fun isInRegionBbox(lat: Double, lon: Double): Boolean {
-            return lat in CHELYABINSK_MIN_LAT..CHELYABINSK_MAX_LAT &&
-                   lon in CHELYABINSK_MIN_LON..CHELYABINSK_MAX_LON
-        }
-    }
-
     override fun getStationsNearLocation(
         lat: Double,
         lon: Double,

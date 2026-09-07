@@ -37,25 +37,19 @@ interface RussiabaseProvider {
 object RussiabaseHtmlParser {
 
     fun mapMarkToFuelType(mark: String): String {
-        return when (mark.lowercase().trim()) {
-            "ai92", "аи92", "аи-92", "92" -> "АИ-92"
-            "ai95", "аи95", "аи-95", "95" -> "АИ-95"
-            "ai98", "аи98", "аи-98", "98" -> "АИ-98"
-            "ai100", "аи100", "аи-100", "100" -> "АИ-100"
-            "dt", "дт", "diesel" -> "ДТ"
+        val m = mark.lowercase().trim()
+        return when {
+            m.contains("92") -> "АИ-92"
+            m.contains("95") -> "АИ-95"
+            m.contains("98") -> "АИ-98"
+            m.contains("100") -> "АИ-100"
+            m.contains("dt") || m.contains("дт") || m.contains("diesel") || m.contains("дизель") -> "ДТ"
             else -> mark.uppercase().trim()
         }
     }
 
     /**
-     * Parses HTML or text blocks content from russiabase.ru price pages.
-     * Structural block format:
-     * 1) Name: "Газпромнефть №201" | "ООО «Башнефть-Розница» АЗС 74-020" | ...
-     * 2) Address: "Челябинск, Свердловский тракт, 12В..."
-     * 3) Block status: "АЗС закрыта" + "Топлива нет, АЗС не работает" -> ALL fuels NO_FUEL
-     *    OR "Открыто"/"Очередь"/"Уточнить статус" -> read fuel pairs
-     * 4) Fuel pairs: "Аи-92 / 61.05р. / Лимит до 40 л. / Доступно"
-     * 5) Freshness: "Отмечено пользователем N мин назад"
+     * Parses HTML content or structured text blocks from russiabase.ru price pages.
      */
     fun parseHtml(html: String, mark: String): List<FuelObservation> {
         val mappedFuelType = mapMarkToFuelType(mark)
@@ -63,27 +57,6 @@ object RussiabaseHtmlParser {
 
         if (html.isBlank()) return emptyList()
 
-        // 1. First attempt: Parse block structures separated by "---" or div blocks
-        val rawBlocks = if (html.contains("---")) {
-            html.split("---").map { it.trim() }.filter { it.isNotBlank() }
-        } else {
-            val divItemRegex = Regex("<div[^>]*class=\"[^\"]*(?:station|price-item|item)[^\"]*\"[^>]*>(.*?)</div>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
-            val matches = divItemRegex.findAll(html).map { cleanHtmlText(it.groupValues[1]) }.toList()
-            if (matches.isNotEmpty()) matches else listOf(html)
-        }
-
-        for (block in rawBlocks) {
-            val cleanBlockText = cleanHtmlText(block)
-            val lines = cleanBlockText.split("\n").map { it.trim() }.filter { it.isNotBlank() }
-            if (lines.size >= 2) {
-                val blockObs = parseStationBlock(lines, mappedFuelType)
-                observations.addAll(blockObs)
-            }
-        }
-
-        if (observations.isNotEmpty()) return observations
-
-        // 2. Fallback attempt: Parse HTML table rows <tr><td>
         val rowRegex = Regex("<tr[^>]*>(.*?)</tr>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
         val cellRegex = Regex("<td[^>]*>(.*?)</td>", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
 
@@ -108,77 +81,76 @@ object RussiabaseHtmlParser {
             }
         }
 
+        val blockObs = parseBlockText(html, mappedFuelType)
+        for (obs in blockObs) {
+            if (observations.none { it.brand == obs.brand && it.address == obs.address && it.fuelType == obs.fuelType }) {
+                observations.add(obs)
+            }
+        }
+
         return observations
     }
 
-    private fun parseStationBlock(lines: List<String>, requestedFuelType: String): List<FuelObservation> {
-        val name = lines[0].trim()
-        val address = lines[1].trim()
-
-        if (name.isBlank() || address.isBlank()) return emptyList()
-        if (name.equals("АЗС", true) || name.equals("Бренд", true) || address.equals("Адрес", true)) return emptyList()
-
-        val restText = lines.drop(2).joinToString(" ").lowercase()
-        val isClosedOrNoFuelAll = restText.contains("азс закрыта") ||
-                restText.contains("топлива нет") ||
-                restText.contains("азс не работает")
-
-        if (isClosedOrNoFuelAll) {
-            // Return NO_FUEL observation for requested fuel type
-            return listOf(
-                FuelObservation(
-                    brand = name,
-                    address = address,
-                    fuelType = requestedFuelType,
-                    price = 0.0,
-                    available = false,
-                    limitNote = null,
-                    statusText = "АЗС закрыта"
-                )
-            )
-        }
-
+    private fun parseBlockText(text: String, defaultFuelType: String): List<FuelObservation> {
         val observations = mutableListOf<FuelObservation>()
+        val cleanText = cleanHtmlText(text)
+        if (cleanText.isBlank()) return emptyList()
 
-        // Check each line from line 3 onwards for fuel pairs
-        for (i in 2 until lines.size) {
-            val line = lines[i]
-            val lineLower = line.lowercase()
+        val lines = cleanText.split(Regex("[\\n\\r]+")).map { it.trim() }.filter { it.isNotBlank() }
 
-            val fuelType = when {
-                lineLower.contains("аи-92") || lineLower.contains("аи92") -> "АИ-92"
-                lineLower.contains("аи-95") || lineLower.contains("аи95") -> "АИ-95"
-                lineLower.contains("аи-98") || lineLower.contains("аи98") -> "АИ-98"
-                lineLower.contains("аи-100") || lineLower.contains("аи100") -> "АИ-100"
-                lineLower.contains("дт") || lineLower.contains("дизель") -> "ДТ"
-                else -> null
-            }
+        for (line in lines) {
+            val parts = line.split(Regex("\\s+/\\s+|\\t|\\||—")).map { it.trim() }.filter { it.isNotBlank() }
+            if (parts.size >= 2) {
+                val brand = parts[0]
+                val address = parts[1]
+                if (brand.equals("АЗС", true) || brand.equals("Бренд", true) || address.equals("Адрес", true)) continue
 
-            if (fuelType != null) {
-                val isNotAvailable = lineLower.contains("отсутствует") ||
-                        lineLower.contains("возможно отсутствует") ||
-                        lineLower.contains("нет")
+                val statusBlock = parts.drop(2).joinToString(" ")
+                val lowerStatus = statusBlock.lowercase()
 
-                val priceRegex = Regex("(\\d+[.,]\\d{1,2})\\s*р")
-                val priceMatch = priceRegex.find(line)
-                val price = if (isNotAvailable) 0.0 else (priceMatch?.groupValues?.get(1)?.replace(',', '.')?.toDoubleOrNull() ?: 0.0)
-
-                val limitRegex = Regex("(лимит(?:\\s+до)?\\s+\\d+\\s*л)", RegexOption.IGNORE_CASE)
-                val limitMatch = limitRegex.find(line)
-                val limitNote = limitMatch?.value?.trim()
-
-                if (fuelType.equals(requestedFuelType, ignoreCase = true) || requestedFuelType.isBlank()) {
-                    observations.add(
-                        FuelObservation(
-                            brand = name,
-                            address = address,
-                            fuelType = fuelType,
-                            price = price,
-                            available = !isNotAvailable,
-                            limitNote = limitNote,
-                            statusText = if (isNotAvailable) "Отсутствует" else "Доступно"
+                val isStationClosed = lowerStatus.contains("азс закрыта") || lowerStatus.contains("топлива нет")
+                if (isStationClosed) {
+                    val allFuels = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ")
+                    for (f in allFuels) {
+                        observations.add(
+                            FuelObservation(
+                                brand = brand,
+                                address = address,
+                                fuelType = f,
+                                price = 0.0,
+                                available = false,
+                                statusText = "АЗС закрыта, Топлива нет"
+                            )
                         )
-                    )
+                    }
+                } else {
+                    val fuelPairRegex = Regex("(Аи-?\\s*\\d+|ДТ|Diesel|дизель)\\s*(?:(\\d+[.,]\\d{1,2})\\s*р\\.?)?\\s*(Доступно|Отсутствует|Возможно отсутствует|В наличии)", RegexOption.IGNORE_CASE)
+                    val matches = fuelPairRegex.findAll(statusBlock).toList()
+                    if (matches.isNotEmpty()) {
+                        for (m in matches) {
+                            val fuelMark = m.groupValues[1]
+                            val priceStr = m.groupValues[2]
+                            val availStr = m.groupValues[3].lowercase()
+
+                            val ft = mapMarkToFuelType(fuelMark)
+                            val avail = availStr.contains("доступно") || availStr.contains("в наличии")
+                            val price = if (avail && priceStr.isNotBlank()) priceStr.replace(',', '.').toDoubleOrNull() ?: 0.0 else 0.0
+
+                            observations.add(
+                                FuelObservation(
+                                    brand = brand,
+                                    address = address,
+                                    fuelType = ft,
+                                    price = price,
+                                    available = avail,
+                                    statusText = m.groupValues[3]
+                                )
+                            )
+                        }
+                    } else if (statusBlock.isNotBlank()) {
+                        val obs = parseRowData(brand, address, statusBlock, defaultFuelType)
+                        if (obs != null) observations.add(obs)
+                    }
                 }
             }
         }
@@ -231,17 +203,13 @@ object RussiabaseHtmlParser {
 
     private fun cleanHtmlText(html: String): String {
         return html.replace(Regex("<br\\s*/?>", RegexOption.IGNORE_CASE), "\n")
-            .replace(Regex("<p[^>]*>", RegexOption.IGNORE_CASE), "\n")
-            .replace(Regex("<div[^>]*>", RegexOption.IGNORE_CASE), "\n")
+            .replace(Regex("</p>"), "\n")
             .replace(Regex("<[^>]*>"), " ")
             .replace("&nbsp;", " ")
             .replace("&amp;", "&")
             .replace("&quot;", "\"")
             .replace("&#39;", "'")
-            .split("\n")
-            .map { line -> line.replace(Regex("[ \\t]+"), " ").trim() }
-            .filter { it.isNotBlank() }
-            .joinToString("\n")
+            .replace(Regex("[ \\t]+"), " ")
             .trim()
     }
 }

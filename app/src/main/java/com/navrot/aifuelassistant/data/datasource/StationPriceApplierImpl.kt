@@ -60,12 +60,20 @@ class StationPriceApplierImpl @Inject constructor(
         city: String
     ): GasStation {
         var changed = false
+        val now = System.currentTimeMillis()
         val newFuelTypes = station.fuelTypes.map { fuel ->
             val info = findPriceInfoForFuel(fuel.type, benzonavt)
                 ?: return@map fuel
             val benzonavtTs = parseUpdatedAt(info.updatedAt)
-            val effectiveTs = if (benzonavtTs > 0L) benzonavtTs else System.currentTimeMillis()
-            if (effectiveTs >= fuel.updatedAt) {
+            val effectiveTs = if (benzonavtTs > 0L) benzonavtTs else now
+
+            val isRussiabaseNoFuel = (fuel.source == FuelDataSource.RUSSIABASE || station.dataSources.contains(FuelDataSource.RUSSIABASE)) &&
+                    !fuel.available &&
+                    (now - fuel.updatedAt <= 24 * 60 * 60 * 1000L)
+
+            if (isRussiabaseNoFuel) {
+                fuel
+            } else if (effectiveTs >= fuel.updatedAt) {
                 changed = true
                 fuel.copy(
                     price = info.median,

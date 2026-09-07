@@ -37,9 +37,9 @@ class OverpassFuelProviderImpl @Inject constructor(
             "https://overpass.private.coffee/api/interpreter",
             "https://maps.mail.ru/osm/tools/overpass/api/interpreter"
         )
-        private const val MIRROR_TIMEOUT_MS = 3_000L
-        private const val TOTAL_ENRICHMENT_BUDGET_MS = 10_000L
-        private const val TIMEOUT_SECONDS = 3L
+        private const val MIRROR_TIMEOUT_MS = 2_000L
+        private const val TOTAL_ENRICHMENT_BUDGET_MS = 6_000L
+        private const val TIMEOUT_SECONDS = 2L
         private const val CACHE_TTL_MS = 24 * 60 * 60 * 1000L // 24 hours
         private const val CACHE_FILE_NAME = "overpass_cache.json"
     }
@@ -102,7 +102,7 @@ class OverpassFuelProviderImpl @Inject constructor(
                     out center;
                 """.trimIndent()
 
-                for (mirrorUrl in MIRRORS.take(2)) {
+                for (mirrorUrl in MIRRORS) {
                     val stations = withTimeoutOrNull(MIRROR_TIMEOUT_MS) {
                         try {
                             val requestBody = query.toRequestBody("text/plain; charset=utf-8".toMediaType())

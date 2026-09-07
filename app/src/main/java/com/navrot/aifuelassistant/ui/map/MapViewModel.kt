@@ -30,15 +30,12 @@ import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
 
-import com.navrot.aifuelassistant.domain.stations.StationResolver
-
 @HiltViewModel
 class MapViewModel @Inject constructor(
     private val searchDelegate: MapSearchDelegate,
     private val routeDelegate: MapRouteDelegate,
     private val filterDelegate: MapFilterDelegate,
     private val repository: GasStationRepositoryInterface,
-    val stationResolver: StationResolver,
     private val benzonavtProvider: BenzonavtProvider,
     private val tileWarmupService: TileWarmupService,
     private val networkMonitor: NetworkMonitor,
@@ -65,7 +62,6 @@ class MapViewModel @Inject constructor(
         routeDelegate = MapRouteDelegate(fuelApi, routeStateManager),
         filterDelegate = MapFilterDelegate(repository, getBestStationsUseCase),
         repository = repository,
-        stationResolver = StationResolver(repository),
         benzonavtProvider = benzonavtProvider,
         tileWarmupService = tileWarmupService,
         networkMonitor = networkMonitor,
