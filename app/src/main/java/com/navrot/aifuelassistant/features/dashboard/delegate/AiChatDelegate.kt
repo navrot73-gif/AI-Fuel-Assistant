@@ -429,17 +429,16 @@ class AiChatDelegate @Inject constructor(
         val currentStations = recommendationDelegate.stations.value
 
         if (hasRouteKeyword || hasSpecificFuelType || hasFuelKeyword || mentionedBrand != null) {
-            var selectedStation: GasStation? = null
+            val targetFuelType = extractFuelTypeFromQuestion(question)
+            val queryResult = com.navrot.aifuelassistant.domain.usecase.StationQueryFacade.resolveQuery(
+                text = question,
+                stations = currentStations.filter { !it.isKnownClosed() },
+                userLat = userLat,
+                userLon = userLon,
+                fuelType = targetFuelType
+            )
 
-            if (mentionedBrand != null) {
-                val result = com.navrot.aifuelassistant.domain.usecase.NearestStationFinder.findNearestStationByBrand(
-                    stations = currentStations.filter { !it.isKnownClosed() },
-                    brand = mentionedBrand,
-                    userLat = userLat,
-                    userLon = userLon
-                )
-                selectedStation = result?.nearestStation
-            }
+            var selectedStation: GasStation? = queryResult?.nearestStation
 
             if (selectedStation == null) {
                 selectedStation = recommendationDelegate.bestStation.value

@@ -264,12 +264,48 @@ class MapFilterDelegate @Inject constructor(
 
     fun updateBestAndCheapest(scope: CoroutineScope, lat: Double, lon: Double, radiusKm: Double) {
         scope.launch {
-            _bestStation.value = repository.getBestStations(
-                _selectedFuelTypes.value.first(), lat, lon, radiusKm
-            ).firstOrNull()
-            _cheapestStation.value = repository.getCheapestStation(
-                _selectedFuelTypes.value.first(), lat, lon, radiusKm
-            )
+            try {
+                _bestStation.value = repository.getBestStations(
+                    _selectedFuelTypes.value.first(), lat, lon, radiusKm
+                )?.firstOrNull()
+                _cheapestStation.value = repository.getCheapestStation(
+                    _selectedFuelTypes.value.first(), lat, lon, radiusKm
+                )
+            } catch (e: Exception) {
+                timber.log.Timber.tag("MapFilterDelegate").w("updateBestAndCheapest error: %s", e.message)
+            }
+        }
+    }
+
+    fun onLocationUpdated(scope: CoroutineScope, lat: Double, lon: Double) {
+        val mode = _sortMode.value
+        scope.launch {
+            try {
+                updateBestAndCheapest(scope, lat, lon, 50.0)
+                updateAiRecommendation(lat, lon)
+                if (_stations.value.isNotEmpty()) {
+                    val sorted = when (mode) {
+                        SortMode.NEARBY -> _stations.value.sortedBy {
+                            GeoUtils.calculateDistance(lat, lon, it.latitude, it.longitude)
+                        }
+                        SortMode.BEST -> repository.getBestStations(
+                            _selectedFuelTypes.value.firstOrNull() ?: "АИ-95", lat, lon, 50.0
+                        )
+                        SortMode.PRICE_ASC -> repository.getStationsSortedByPriceAsc(
+                            _selectedFuelTypes.value.firstOrNull() ?: "АИ-95", lat, lon, 50.0
+                        )
+                        SortMode.PRICE_DESC -> repository.getStationsSortedByPriceDesc(
+                            _selectedFuelTypes.value.firstOrNull() ?: "АИ-95", lat, lon, 50.0
+                        )
+                        SortMode.QUEUE -> repository.getStationsByQueue(
+                            _selectedFuelTypes.value.firstOrNull() ?: "АИ-95", lat, lon, 50.0
+                        )
+                    }
+                    _stations.value = sorted
+                }
+            } catch (e: Exception) {
+                timber.log.Timber.tag("MapFilterDelegate").w("onLocationUpdated error: %s", e.message)
+            }
         }
     }
 
