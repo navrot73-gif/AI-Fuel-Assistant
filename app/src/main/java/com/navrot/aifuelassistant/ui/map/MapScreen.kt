@@ -679,7 +679,7 @@ fun MapScreen(
         }
         val benzonavtActive = stations.any { it.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.BENZONAVT) }
 
-        val candidates = com.navrot.aifuelassistant.domain.usecase.NearestStationFinder.getTopCandidates(
+        val candidates = com.navrot.aifuelassistant.domain.usecase.StationQueryFacade.getTopCandidates(
             stations = stations,
             brand = "Газпромнефть",
             userLat = diagLat,
@@ -705,11 +705,17 @@ fun MapScreen(
             if (showDiagnosticsDialog) {
                 com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.routeTest = "загрузка..."
                 val res = kotlinx.coroutines.withTimeoutOrNull(3000L) {
-                    val targetStation = stations.firstOrNull()
+                    val (startLat, startLon) = userLocation?.let { it.latitude to it.longitude } ?: (55.1608 to 61.3989)
+                    val resolved = com.navrot.aifuelassistant.domain.usecase.StationQueryFacade.resolveQuery(
+                        text = "Газпромнефть Свердловский тракт 12",
+                        stations = stations,
+                        userLat = startLat,
+                        userLon = startLon
+                    )
+                    val targetStation = resolved?.nearestStation
                     if (targetStation != null) {
-                        val (startLat, startLon) = userLocation?.let { it.latitude to it.longitude } ?: (55.1608 to 61.3989)
                         val distKm = com.navrot.aifuelassistant.geo.GeoUtils.calculateDistance(startLat, startLon, targetStation.latitude, targetStation.longitude)
-                        "ok (${"%.1f".format(distKm)}км)"
+                        "${targetStation.brand}, ${targetStation.address} (${"%.1f".format(distKm)}км)"
                     } else null
                 }
                 com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.routeTest = res ?: "нет данных"
