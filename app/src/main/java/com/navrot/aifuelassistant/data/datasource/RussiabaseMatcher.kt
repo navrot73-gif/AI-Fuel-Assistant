@@ -26,6 +26,7 @@ object RussiabaseMatcher {
 
         val matchedStationMap = stations.associateBy { it.id }.toMutableMap()
         val matchedIds = mutableSetOf<Int>()
+        var unmatchedCount = 0
 
         for (obs in observations) {
             val matchingStation = stations.firstOrNull { station ->
@@ -47,8 +48,12 @@ object RussiabaseMatcher {
                     openingHours = updatedOpeningHours,
                     updatedAt = now
                 )
+            } else {
+                unmatchedCount++
             }
         }
+
+        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.russiabaseUnmatched = unmatchedCount
 
         val updatedStations = stations.map { matchedStationMap[it.id] ?: it }
 
@@ -178,9 +183,51 @@ object RussiabaseMatcher {
         return dp[m][n]
     }
 
+    fun applyBenzonavtObservations(
+        stations: List<GasStation>,
+        observations: List<FuelObservation>
+    ): List<GasStation> {
+        if (observations.isEmpty() || stations.isEmpty()) {
+            if (observations.isNotEmpty()) {
+                com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.benzonavtUnmatched = observations.size
+            }
+            return stations
+        }
+
+        val matchedStationMap = stations.associateBy { it.id }.toMutableMap()
+        val matchedIds = mutableSetOf<Int>()
+        var unmatchedCount = 0
+
+        for (obs in observations) {
+            val matchingStation = stations.firstOrNull { station ->
+                matchesBrandAndAddress(station, obs)
+            }
+
+            if (matchingStation != null) {
+                matchedIds.add(matchingStation.id)
+                val current = matchedStationMap[matchingStation.id] ?: matchingStation
+                val updatedFuelTypes = updateFuelPrices(current.fuelTypes, obs, FuelDataSource.BENZONAVT)
+                val updatedSources = current.dataSources + FuelDataSource.BENZONAVT
+                val now = System.currentTimeMillis()
+
+                matchedStationMap[matchingStation.id] = current.copy(
+                    fuelTypes = updatedFuelTypes,
+                    dataSources = updatedSources,
+                    updatedAt = now
+                )
+            } else {
+                unmatchedCount++
+            }
+        }
+
+        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.benzonavtUnmatched = unmatchedCount
+        return stations.map { matchedStationMap[it.id] ?: it }
+    }
+
     private fun updateFuelPrices(
         existingList: List<FuelPrice>,
-        obs: FuelObservation
+        obs: FuelObservation,
+        source: FuelDataSource = FuelDataSource.RUSSIABASE
     ): List<FuelPrice> {
         val now = System.currentTimeMillis()
         val targetType = obs.fuelType
@@ -201,7 +248,7 @@ object RussiabaseMatcher {
             newList[index] = existing.copy(
                 price = if (obs.available && obs.price > 0.0) obs.price else if (!obs.available) 0.0 else existing.price,
                 available = obs.available,
-                source = FuelDataSource.RUSSIABASE,
+                source = source,
                 updatedAt = now,
                 limitNote = obs.limitNote
             )
@@ -211,7 +258,7 @@ object RussiabaseMatcher {
                     type = targetType,
                     price = newPriceVal,
                     available = obs.available,
-                    source = FuelDataSource.RUSSIABASE,
+                    source = source,
                     updatedAt = now,
                     limitNote = obs.limitNote
                 )

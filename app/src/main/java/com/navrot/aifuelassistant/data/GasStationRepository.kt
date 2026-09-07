@@ -286,6 +286,7 @@ class GasStationRepository @Inject constructor(
 
         val withUser = stationPriceApplier.applyUserPrices(stations)
         cachedStations = withUser
+        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.registrySize = withUser.size
         val emit2Duration = System.currentTimeMillis() - startT
         com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit2Ms = emit2Duration
 

@@ -51,7 +51,34 @@ class StationPriceApplierImpl @Inject constructor(
         val city = benzonavtProvider.currentCity()
         val benzonavt = benzonavtProvider.fetchCityPrices(city)
         if (benzonavt.isEmpty()) return withUser
-        return withUser.map { station -> applyBenzonavtToStation(station, benzonavt, city) }
+
+        val (fuelCodeEntries, stationEntries) = benzonavt.entries.partition { (key, _) ->
+            isFuelCodeKey(key)
+        }
+
+        var result = withUser
+
+        if (stationEntries.isNotEmpty()) {
+            val observations = stationEntries.map { (key, info) ->
+                FuelObservation(
+                    brand = "",
+                    address = key,
+                    fuelType = "АИ-95",
+                    available = info.available,
+                    price = info.median
+                )
+            }
+            result = RussiabaseMatcher.applyBenzonavtObservations(result, observations)
+        } else {
+            com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.benzonavtUnmatched = 0
+        }
+
+        if (fuelCodeEntries.isNotEmpty()) {
+            val fuelMap = fuelCodeEntries.associate { it.key to it.value }
+            result = result.map { station -> applyBenzonavtToStation(station, fuelMap, city) }
+        }
+
+        return result
     }
 
     override fun applyBenzonavtToStation(
@@ -108,6 +135,11 @@ class StationPriceApplierImpl @Inject constructor(
             }
         }
         return null
+    }
+
+    private fun isFuelCodeKey(key: String): Boolean {
+        val norm = key.trim().lowercase().replace("-", "").replace(" ", "")
+        return norm in setOf("ai92", "ai95", "ai98", "ai100", "dt", "gas", "аи92", "аи95", "аи98", "аи100", "дт", "газ", "diesel")
     }
 
     private fun parseUpdatedAt(value: String): Long {

@@ -1474,33 +1474,6 @@
     "reliability": 88
   },
   {
-    "id": 68,
-    "name": "АЗС №68",
-    "brand": "Газпромнефть",
-    "address": "Челябинск, ул. Салавата Юлаева, 28",
-    "latitude": 55.264425,
-    "longitude": 61.475292,
-    "fuelTypes": [
-      {
-        "type": "АИ-92",
-        "price": 59.0,
-        "available": true
-      },
-      {
-        "type": "АИ-95",
-        "price": 65.0,
-        "available": true
-      },
-      {
-        "type": "ДТ",
-        "price": 75.0,
-        "available": true
-      }
-    ],
-    "queueTime": 14,
-    "reliability": 89
-  },
-  {
     "id": 69,
     "name": "АЗС №69",
     "brand": "Лукойл",

@@ -699,6 +699,9 @@ fun MapScreen(
         val fallbacksStr = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.fallbackChainLogs.joinToString(" -> ")
             .ifEmpty { "none" }
 
+        val registrySize = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.registrySize.let { if (it > 0) it else stations.size }
+        val benzonavtUnmatched = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.benzonavtUnmatched
+        val russiabaseUnmatched = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.russiabaseUnmatched
         val routeTest = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.routeTest
 
         LaunchedEffect(showDiagnosticsDialog, diagRefreshTrigger) {
@@ -732,6 +735,8 @@ fun MapScreen(
                     Text("city_resolve=${cityResolve}ms (source=$citySource) | ai_path=$aiPath | route_test=$routeTest", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(4.dp))
                     Text("tiles: source=$tileSrc, status=$tileSt, fallbacks=$fallbacksStr", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(4.dp))
+                    Text("registry_size=$registrySize, benzonavt_unmatched=$benzonavtUnmatched, russiabase_unmatched=$russiabaseUnmatched", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(8.dp))
                     Text("overpass=$overpassCount | russiabase=http200/obs/matched=$russiabaseMatched/red=$redCount")
                     Spacer(Modifier.height(4.dp))
