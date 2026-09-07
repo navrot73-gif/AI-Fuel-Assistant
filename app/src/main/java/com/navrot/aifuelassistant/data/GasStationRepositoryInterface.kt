@@ -49,4 +49,7 @@ interface GasStationRepositoryInterface {
 
     /** Получить время последнего обновления локального кэша АЗС (в мс) или null, если кэш отсутствует. */
     fun getLastCacheUpdateTime(): Long?
+
+    /** Запустить обогащение данных (Overpass + Russiabase) и обновить кэш станций. */
+    suspend fun triggerEnrichment(lat: Double, lon: Double): List<GasStation> = getAllStations()
 }

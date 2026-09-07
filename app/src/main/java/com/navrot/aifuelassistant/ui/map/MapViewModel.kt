@@ -232,6 +232,20 @@ class MapViewModel @Inject constructor(
         loadStationsByCity(cityName)
     }
 
+    fun triggerEnrichment(lat: Double, lon: Double) {
+        viewModelScope.launch {
+            _isLoading.value = true
+            try {
+                val enriched = repository.triggerEnrichment(lat, lon)
+                filterDelegate.updateStations(enriched)
+            } catch (e: Exception) {
+                Timber.tag(TAG).w("Diagnostics enrichment refresh failed: %s", e.message)
+            } finally {
+                _isLoading.value = false
+            }
+        }
+    }
+
     fun loadNearbyStations(lat: Double, lon: Double, radiusKm: Double = 50.0) {
         filterDelegate.loadNearbyStations(
             scope = viewModelScope,

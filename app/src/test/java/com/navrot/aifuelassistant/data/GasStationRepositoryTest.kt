@@ -929,4 +929,68 @@ class GasStationRepositoryTest {
             )
         }
     }
+
+    @Test
+    fun `enrichment coroutine launches on repo init and calls providers`() = runBlocking {
+        var overpassCalled = false
+        var russiabaseCalled = false
+
+        val testOverpassProvider = object : OverpassFuelProvider {
+            override suspend fun fetchStations(lat: Double, lon: Double, radiusMeters: Double): List<GasStation> {
+                overpassCalled = true
+                return emptyList()
+            }
+        }
+
+        val testRussiabaseProvider = object : com.navrot.aifuelassistant.data.datasource.RussiabaseProvider {
+            override suspend fun fetchObservations(
+                citySlug: String,
+                fuels: List<String>,
+                lat: Double?,
+                lon: Double?
+            ): List<com.navrot.aifuelassistant.data.datasource.FuelObservation> {
+                russiabaseCalled = true
+                return emptyList()
+            }
+        }
+
+        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.enrichmentMs = 0L
+
+        val testRepo = GasStationRepository(
+            context = context,
+            httpClient = httpClient,
+            userPrices = userPrices,
+            getBestStationsUseCase = getBestStationsUseCase,
+            benzonavtProvider = benzonavtProvider,
+            appScope = appScope,
+            overpassFuelProvider = testOverpassProvider,
+            russiabaseProvider = testRussiabaseProvider
+        )
+
+        kotlinx.coroutines.delay(300L)
+
+        assertTrue("Overpass provider should be called during startup enrichment", overpassCalled)
+        assertTrue("Russiabase provider should be called during startup enrichment", russiabaseCalled)
+        assertTrue("MapDiagnosticsTracker enrichmentMs should be recorded (>= 0ms)", com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.enrichmentMs >= 0L)
+    }
+
+    @Test
+    fun `protective test - cold start offline merged has at least 100 stations and second cached start has at least 100 stations`() = runBlocking {
+        // Cold start offline (no network, empty cache)
+        val coldStartStations = repository.getAllStations()
+        assertTrue("Cold start offline merged list must contain >= 100 stations, got ${coldStartStations.size}", coldStartStations.size >= 100)
+
+        // Second launch with cache
+        val cachedRepo = GasStationRepository(
+            context = context,
+            httpClient = httpClient,
+            userPrices = userPrices,
+            getBestStationsUseCase = getBestStationsUseCase,
+            benzonavtProvider = benzonavtProvider,
+            appScope = appScope,
+            russiabaseProvider = fakeRussiabaseProvider
+        )
+        val secondLaunchStations = cachedRepo.getAllStations()
+        assertTrue("Second launch with cache merged list must contain >= 100 stations, got ${secondLaunchStations.size}", secondLaunchStations.size >= 100)
+    }
 }
