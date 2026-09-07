@@ -28,6 +28,9 @@ object MapDiagnosticsTracker {
     var aiPath: String = "local"
 
     @Volatile
+    var routeTest: String = "загрузка..."
+
+    @Volatile
     var activeTileSource: String = "openfreemap"
 
     @Volatile
@@ -44,6 +47,7 @@ object MapDiagnosticsTracker {
         cityResolveMs = 0L
         cityResolveSource = "cache"
         aiPath = "local"
+        routeTest = "загрузка..."
     }
 
     fun recordTileFallback(log: String) {

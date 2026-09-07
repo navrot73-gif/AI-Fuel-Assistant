@@ -699,6 +699,23 @@ fun MapScreen(
         val fallbacksStr = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.fallbackChainLogs.joinToString(" -> ")
             .ifEmpty { "none" }
 
+        val routeTest = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.routeTest
+
+        LaunchedEffect(showDiagnosticsDialog, diagRefreshTrigger) {
+            if (showDiagnosticsDialog) {
+                com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.routeTest = "загрузка..."
+                val res = kotlinx.coroutines.withTimeoutOrNull(3000L) {
+                    val targetStation = stations.firstOrNull()
+                    if (targetStation != null) {
+                        val (startLat, startLon) = userLocation?.let { it.latitude to it.longitude } ?: (55.1608 to 61.3989)
+                        val distKm = com.navrot.aifuelassistant.geo.GeoUtils.calculateDistance(startLat, startLon, targetStation.latitude, targetStation.longitude)
+                        "ok (${"%.1f".format(distKm)}км)"
+                    } else null
+                }
+                com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.routeTest = res ?: "нет данных"
+            }
+        }
+
         AlertDialog(
             onDismissRequest = { showDiagnosticsDialog = false },
             title = { Text("Диагностика карты") },
@@ -706,7 +723,7 @@ fun MapScreen(
                 Column {
                     Text("startup: emit1=${emit1}ms, emit2=${emit2}ms, enrichment=${enrichment}ms", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(4.dp))
-                    Text("city_resolve=${cityResolve}ms (source=$citySource) | ai_path=$aiPath", style = MaterialTheme.typography.bodyMedium)
+                    Text("city_resolve=${cityResolve}ms (source=$citySource) | ai_path=$aiPath | route_test=$routeTest", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(4.dp))
                     Text("tiles: source=$tileSrc, status=$tileSt, fallbacks=$fallbacksStr", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(8.dp))
@@ -732,6 +749,7 @@ fun MapScreen(
             confirmButton = {
                 TextButton(onClick = {
                     diagRefreshTrigger++
+                    viewModel.triggerEnrichment(diagLat, diagLon)
                     userLocation?.let { loc -> viewModel.loadNearbyStations(loc.latitude, loc.longitude, 50.0) }
                 }) {
                     Text("Обновить")

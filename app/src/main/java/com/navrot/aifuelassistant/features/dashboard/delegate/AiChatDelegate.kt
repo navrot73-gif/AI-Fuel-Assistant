@@ -187,9 +187,9 @@ class AiChatDelegate @Inject constructor(
 
     private suspend fun buildUserContext(stationsFallback: List<GasStation>): UserContext {
         return try {
-            val location = getLastLocation()
-            val lat = location?.latitude ?: _userLocation.value?.first ?: 55.1644
-            val lon = location?.longitude ?: _userLocation.value?.second ?: 61.4368
+            val loc = _userLocation.value ?: getLastLocation()?.let { it.latitude to it.longitude }
+            val lat = loc?.first ?: 55.1608
+            val lon = loc?.second ?: 61.3989
             val city = GeoUtils.hardcodedDetectCity(lat, lon)
 
             val nearbyStations = try {

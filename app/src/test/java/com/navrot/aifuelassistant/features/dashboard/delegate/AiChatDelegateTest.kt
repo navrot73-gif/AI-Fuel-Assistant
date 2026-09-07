@@ -249,4 +249,45 @@ class AiChatDelegateTest {
         assertEquals(55, delegate.pendingRouteStationId.value)
         assertEquals(com.navrot.aifuelassistant.features.dashboard.DashboardViewModel.PendingRouteMode.ROUTE, delegate.pendingRouteMode.value)
     }
+
+    @Test
+    fun `nearest station query uses GPS coordinates even if geocode returns distant coordinates`() = kotlinx.coroutines.test.runTest {
+        val delegate = createDelegate()
+        val sverdlovsky = GasStation(
+            id = 6,
+            name = "Газпромнефть №201",
+            brand = "Газпромнефть",
+            address = "Свердловский тракт, 16/3",
+            latitude = 55.17,
+            longitude = 61.38,
+            fuelTypes = listOf(FuelPrice("АИ-95", 64.0, available = true)),
+            queueTime = 0,
+            reliability = 90
+        )
+        val distantGarbageGeocodeStation = GasStation(
+            id = 999,
+            name = "Газпромнефть Мусорный Геокод",
+            brand = "Газпромнефть",
+            address = "Москва, ул. Тверская 1",
+            latitude = 55.75,
+            longitude = 37.61,
+            fuelTypes = listOf(FuelPrice("АИ-95", 60.0, available = true)),
+            queueTime = 0,
+            reliability = 90
+        )
+
+        val mockRecommendationDelegate = mock<StationRecommendationDelegate>()
+        org.mockito.kotlin.whenever(mockRecommendationDelegate.stations)
+            .thenReturn(kotlinx.coroutines.flow.MutableStateFlow(listOf(distantGarbageGeocodeStation, sverdlovsky)))
+
+        // User GPS coordinates
+        delegate.updateUserLocation(55.1608, 61.3989)
+        delegate.setUserQuestion("где ближайшая Газпромнефть")
+        delegate.askUserQuestion(this, mockRecommendationDelegate)
+        testScheduler.advanceUntilIdle()
+
+        assertEquals(6, delegate.pendingRouteStationId.value)
+        assertTrue("Answer must refer to Sverdlovsky Trakt station based on GPS", delegate.userAnswer.value!!.contains("Свердловский"))
+        assertFalse("Answer must NOT select distant garbage geocode station", delegate.userAnswer.value!!.contains("Москва"))
+    }
 }

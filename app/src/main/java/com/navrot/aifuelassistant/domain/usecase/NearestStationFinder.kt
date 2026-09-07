@@ -35,14 +35,22 @@ object NearestStationFinder {
         fuelType: String? = null,
         limit: Int = 3
     ): List<StationCandidate> {
-        return stations.filter { st ->
+        var filtered = stations.filter { st ->
             val dist = GeoUtils.calculateDistance(userLat, userLon, st.latitude, st.longitude)
             dist <= MAX_URBAN_RADIUS_KM && (
                 st.matchesBrand(brand) ||
                 st.brand.contains(brand, ignoreCase = true) ||
                 st.name.contains(brand, ignoreCase = true)
             )
-        }.map { st ->
+        }
+        if (filtered.isEmpty()) {
+            filtered = stations.filter { st ->
+                st.matchesBrand(brand) ||
+                st.brand.contains(brand, ignoreCase = true) ||
+                st.name.contains(brand, ignoreCase = true)
+            }
+        }
+        return filtered.map { st ->
             val dist = GeoUtils.calculateDistance(userLat, userLon, st.latitude, st.longitude)
             val status = PriceReliabilityCalculator.calculateFuelAvailability(st, fuelType)
             StationCandidate(st.id, st.brand, st.name, dist, status)
@@ -51,6 +59,7 @@ object NearestStationFinder {
 
     /**
      * Finds the nearest station matching the specified brand within 60 km urban radius across the full merged list of stations (including OSM-only).
+     * If urban radius 60km filtering yields 0 stations, falls back to matching across the unfiltered station world.
      * If the nearest station does not have available fuel (status NO_FUEL or UNKNOWN, or price 0),
      * an alternative station with available fuel is provided.
      */
@@ -61,13 +70,20 @@ object NearestStationFinder {
         userLon: Double,
         fuelType: String? = null
     ): NearestBrandResult? {
-        val matchingBrandStations = stations.filter { st ->
+        var matchingBrandStations = stations.filter { st ->
             val dist = GeoUtils.calculateDistance(userLat, userLon, st.latitude, st.longitude)
             dist <= MAX_URBAN_RADIUS_KM && (
                 st.matchesBrand(brand) ||
                 st.brand.contains(brand, ignoreCase = true) ||
                 st.name.contains(brand, ignoreCase = true)
             )
+        }
+        if (matchingBrandStations.isEmpty()) {
+            matchingBrandStations = stations.filter { st ->
+                st.matchesBrand(brand) ||
+                st.brand.contains(brand, ignoreCase = true) ||
+                st.name.contains(brand, ignoreCase = true)
+            }
         }
         if (matchingBrandStations.isEmpty()) return null
 

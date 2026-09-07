@@ -127,6 +127,69 @@ class GasStationRepository @Inject constructor(
 
     init {
         Timber.tag(TAG).i("t0 init")
+        appScope.launch(Dispatchers.IO) {
+            try {
+                triggerEnrichment(55.1608, 61.3989)
+            } catch (e: Exception) {
+                Timber.tag(TAG).w("Startup background enrichment failed: %s", e.message)
+            }
+        }
+    }
+
+    override suspend fun triggerEnrichment(lat: Double, lon: Double): List<GasStation> = withContext(Dispatchers.IO) {
+        val enrichmentStartTime = System.currentTimeMillis()
+        val city = GeoUtils.hardcodedDetectCity(lat, lon)
+        var russiabaseStatus = "not_fetched"
+
+        val (overpassStations, russiabaseObservations) = coroutineScope {
+            val overpassDeferred = async {
+                try {
+                    withTimeoutOrNull(6000L) {
+                        overpassFuelProvider.fetchStations(lat, lon, 50000.0)
+                    } ?: emptyList()
+                } catch (e: Exception) {
+                    Timber.tag(TAG).w("Overpass fetch failed in triggerEnrichment: %s", e.message)
+                    emptyList()
+                }
+            }
+            val russiabaseDeferred = async {
+                try {
+                    withTimeoutOrNull(6000L) {
+                        val obs = russiabaseProvider.fetchObservations(city, listOf("ai95", "dt"), lat, lon)
+                        russiabaseStatus = if (obs.isNotEmpty()) "ok (${obs.size} obs)" else "empty"
+                        obs
+                    } ?: emptyList()
+                } catch (e: Exception) {
+                    russiabaseStatus = "error (${e.message})"
+                    Timber.tag(TAG).w("Russiabase fetch failed in triggerEnrichment: %s", e.message)
+                    emptyList()
+                }
+            }
+            overpassDeferred.await() to russiabaseDeferred.await()
+        }
+
+        val enrichmentDuration = System.currentTimeMillis() - enrichmentStartTime
+        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.enrichmentMs = enrichmentDuration
+
+        val baseStations = ensureLoaded()
+        if (overpassStations.isNotEmpty() || russiabaseObservations.isNotEmpty()) {
+            val mergedOverpass = mergeStations(baseStations, overpassStations)
+            val isNearbyMode = city.isBlank() || city == "nearby" || city == "рядом" || city.contains("район")
+            val modeStr = if (isNearbyMode) "nearby" else "slug"
+            val mergedWithRussiabase = RussiabaseMatcher.applyObservations(
+                mergedOverpass,
+                russiabaseObservations,
+                mode = modeStr,
+                region = "468",
+                httpCode = 200
+            )
+            val withPrices = stationPriceApplier.applyAllPrices(mergedWithRussiabase)
+            loadMutex.withLock {
+                cachedStations = withPrices
+            }
+            return@withContext withPrices
+        }
+        return@withContext baseStations
     }
 
     private val loadMutex = Mutex()
