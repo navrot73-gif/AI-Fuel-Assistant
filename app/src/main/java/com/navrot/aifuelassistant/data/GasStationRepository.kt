@@ -141,16 +141,23 @@ class GasStationRepository @Inject constructor(
         val city = GeoUtils.hardcodedDetectCity(lat, lon)
         var russiabaseStatus = "not_fetched"
 
+        val baseStations = ensureLoaded()
+
         val (overpassStations, russiabaseObservations) = withTimeoutOrNull(6000L) {
             coroutineScope {
                 val overpassDeferred = async {
-                    try {
-                        withTimeoutOrNull(6000L) {
-                            overpassFuelProvider.fetchStations(lat, lon, 50000.0)
-                        } ?: emptyList()
-                    } catch (e: Exception) {
-                        Timber.tag(TAG).w("Overpass fetch failed in triggerEnrichment: %s", e.message)
+                    if (baseStations.size >= 100) {
+                        Timber.tag(TAG).d("Registry size %d >= 100, skipping live Overpass fetch in triggerEnrichment", baseStations.size)
                         emptyList()
+                    } else {
+                        try {
+                            withTimeoutOrNull(6000L) {
+                                overpassFuelProvider.fetchStations(lat, lon, 50000.0)
+                            } ?: emptyList()
+                        } catch (e: Exception) {
+                            Timber.tag(TAG).w("Overpass fetch failed in triggerEnrichment: %s", e.message)
+                            emptyList()
+                        }
                     }
                 }
                 val russiabaseDeferred = async {
@@ -173,7 +180,6 @@ class GasStationRepository @Inject constructor(
         val enrichmentDuration = System.currentTimeMillis() - enrichmentStartTime
         com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.enrichmentMs = enrichmentDuration
 
-        val baseStations = ensureLoaded()
         if (overpassStations.isNotEmpty() || russiabaseObservations.isNotEmpty()) {
             val mergedOverpass = mergeStations(baseStations, overpassStations)
             val isNearbyMode = city.isBlank() || city == "nearby" || city == "рядом" || city.contains("район")
@@ -444,13 +450,18 @@ class GasStationRepository @Inject constructor(
         val (overpassStations, russiabaseObservations) = withTimeoutOrNull(6000L) {
             coroutineScope {
                 val overpassDeferred = async {
-                    try {
-                        withTimeoutOrNull(6000L) {
-                            overpassFuelProvider.fetchStations(lat, lon, radiusKm * 1000.0)
-                        } ?: emptyList()
-                    } catch (e: Exception) {
-                        Timber.tag(TAG).w("Overpass fetch failed in getNearbyStationsFlow: %s", e.message)
+                    if (baseStations.size >= 100) {
+                        Timber.tag(TAG).d("Registry size %d >= 100, skipping live Overpass fetch in getNearbyStationsFlow", baseStations.size)
                         emptyList()
+                    } else {
+                        try {
+                            withTimeoutOrNull(6000L) {
+                                overpassFuelProvider.fetchStations(lat, lon, radiusKm * 1000.0)
+                            } ?: emptyList()
+                        } catch (e: Exception) {
+                            Timber.tag(TAG).w("Overpass fetch failed in getNearbyStationsFlow: %s", e.message)
+                            emptyList()
+                        }
                     }
                 }
                 val russiabaseDeferred = async {

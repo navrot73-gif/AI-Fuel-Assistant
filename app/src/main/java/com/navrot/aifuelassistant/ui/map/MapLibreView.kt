@@ -109,11 +109,12 @@ fun MapLibreView(
     }
     var currentSourceIndex by remember { mutableIntStateOf(0) }
     var activeTileSource by remember { mutableStateOf(TILE_SOURCE_OPENFREEMAP) }
+    val failedSources = remember { mutableSetOf<String>() }
 
     // Load initial persisted tile source preference
     LaunchedEffect(Unit) {
         val savedSource = userPrefsRepo.mapTileSource.first()
-        if (savedSource != null && tileSourceChain.contains(savedSource)) {
+        if (savedSource != null && tileSourceChain.contains(savedSource) && !failedSources.contains(savedSource)) {
             activeTileSource = savedSource
             currentSourceIndex = tileSourceChain.indexOf(savedSource)
             Timber.tag("MapLibreView").d("Restored tile source preference: %s", savedSource)
@@ -335,11 +336,37 @@ fun MapLibreView(
         mapView?.addOnDidFailLoadingMapListener(failMapListener)
         mapView?.addOnDidFinishLoadingStyleListener(finishStyleListener)
 
+        fun switchToNextSource() {
+            failedSources.add(sourceKey)
+            mapView?.removeOnTileActionListener(tileActionListener)
+            mapView?.removeOnDidFailLoadingMapListener(failMapListener)
+            mapView?.removeOnDidFinishLoadingStyleListener(finishStyleListener)
+
+            val nextUnfailedIndex = tileSourceChain.indices.firstOrNull { it > sourceIndex && !failedSources.contains(tileSourceChain[it]) }
+            if (nextUnfailedIndex != null) {
+                currentSourceIndex = nextUnfailedIndex
+                applyStyleWithFallback(map, nextUnfailedIndex)
+            } else {
+                com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tileStatus = "fail"
+                com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.recordTileFallback("all_sources_failed_fallback_osmdroid")
+                Timber.tag("MapLibreView").e("All vector/raster tile sources failed! Auto-fallback to osmdroid engine.")
+
+                android.widget.Toast.makeText(
+                    context,
+                    "Вектор недоступен — классика",
+                    android.widget.Toast.LENGTH_LONG
+                ).show()
+
+                scope.launch {
+                    userPrefsRepo.setMapEngine(UserPreferencesRepository.ENGINE_OSMDROID)
+                }
+            }
+        }
+
         val styleBuilder = buildStyleBuilder(sourceKey, isDarkMode)
         map.setStyle(styleBuilder) { style ->
             Timber.tag("MapLibreView").d("onDidFinishLoadingStyle completed callback for %s", sourceKey)
 
-            // Fix 1: Apply Russian-only labels to ALL symbol layers (strip name_en / Latin duplicates)
             try {
                 for (layer in style.layers) {
                     if (layer is org.maplibre.android.style.layers.SymbolLayer) {
@@ -360,36 +387,14 @@ fun MapLibreView(
             updateMarkers(map)
             updateRouteLayer(style)
 
-            // Start 6-second timer to verify tile loading for all sources
+            // Start 6-second timer to verify tile loading for active source
             fallbackTimerJob = scope.launch {
                 delay(6000L)
                 if (tilesLoadedCount == 0 || hasFailedMapLoad) {
                     Timber.tag("MapLibreView").w("MapChange/Timeout: 6s passed with %d tiles (failed=%b) for source: %s, switching source",
                         tilesLoadedCount, hasFailedMapLoad, sourceKey)
-                    mapView?.removeOnTileActionListener(tileActionListener)
-                    mapView?.removeOnDidFailLoadingMapListener(failMapListener)
-                    mapView?.removeOnDidFinishLoadingStyleListener(finishStyleListener)
-
                     com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.recordTileFallback("$sourceKey:timeout_6s")
-
-                    val nextIdx = sourceIndex + 1
-                    if (nextIdx < tileSourceChain.size) {
-                        currentSourceIndex = nextIdx
-                        applyStyleWithFallback(map, nextIdx)
-                    } else {
-                        // All sources (vector + raster) failed -> AUTO-FALLBACK TO OSMDROID
-                        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tileStatus = "fail"
-                        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.recordTileFallback("all_sources_failed_fallback_osmdroid")
-                        Timber.tag("MapLibreView").e("All vector/raster tile sources failed! Auto-fallback to osmdroid engine.")
-
-                        android.widget.Toast.makeText(
-                            context,
-                            "Вектор недоступен — классика",
-                            android.widget.Toast.LENGTH_LONG
-                        ).show()
-
-                        userPrefsRepo.setMapEngine(UserPreferencesRepository.ENGINE_OSMDROID)
-                    }
+                    switchToNextSource()
                 } else {
                     Timber.tag("MapLibreView").i("Tile source %s active and loaded %d tiles within timeout", sourceKey, tilesLoadedCount)
                     com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tileStatus = "ok"
