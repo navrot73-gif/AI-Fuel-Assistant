@@ -124,6 +124,7 @@ object RussiabaseMatcher {
 
         norm = norm
             .replace('v', 'в')
+            .replace('b', 'в')
             .replace('a', 'а')
             .replace('c', 'с')
             .replace('e', 'е')
@@ -133,6 +134,9 @@ object RussiabaseMatcher {
             .replace('p', 'р')
             .replace('x', 'х')
             .replace('y', 'у')
+
+        // Normalize house numbers with suffix letters e.g. "12 В", "12-в", "12/в", "12В" -> "12в"
+        norm = norm.replace(Regex("(\\d+)[\\s\\-/–—_]+([а-яa-z])"), "$1$2")
 
         norm = norm
             .replace("г.", "")
@@ -156,8 +160,6 @@ object RussiabaseMatcher {
             .replace("корпус", "")
 
         norm = norm.replace(Regex("[.,\\\\/\\-–—_\"'()`]"), " ")
-
-        norm = norm.replace(Regex("(\\d+)\\s+([а-я])"), "$1$2")
 
         return norm.replace(Regex("\\s+"), " ").trim()
     }

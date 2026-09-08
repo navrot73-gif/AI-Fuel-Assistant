@@ -786,23 +786,12 @@ class GasStationRepositoryTest {
     }
 
     @Test
-    fun `getNearbyStationsFlow emits base then enriched list when Overpass succeeds`() = runBlocking {
-        val distinctOverpass = GasStation(
-            id = -99,
-            name = "Overpass New",
-            brand = "OSM",
-            address = "Chelyabinsk, OSM Street",
-            latitude = 55.5000,
-            longitude = 61.5000,
-            fuelTypes = listOf(FuelPrice("АИ-95", 55.0, true, FuelDataSource.OVERPASS, 0L)),
-            queueTime = 0,
-            reliability = 0,
-            dataSources = setOf(FuelDataSource.OVERPASS)
-        )
-
+    fun `getNearbyStationsFlow skips live Overpass when base registry is at least 100`() = runBlocking {
+        var overpassCalled = false
         val fakeOverpassProvider = object : OverpassFuelProvider {
             override suspend fun fetchStations(lat: Double, lon: Double, radiusMeters: Double): List<GasStation> {
-                return listOf(distinctOverpass)
+                overpassCalled = true
+                return emptyList()
             }
         }
 
@@ -817,7 +806,8 @@ class GasStationRepositoryTest {
             russiabaseProvider = fakeRussiabaseProvider
         )
 
-        testRepo.getAllStations() // warm up cache
+        val all = testRepo.getAllStations()
+        assertTrue("Base registry size should be >= 100", all.size >= 100)
 
         val emissions = mutableListOf<List<GasStation>>()
         val job = launch {
@@ -829,6 +819,73 @@ class GasStationRepositoryTest {
         kotlinx.coroutines.delay(200L)
         job.cancel()
 
+        assertTrue("Should have at least 1 emission", emissions.isNotEmpty())
+        assertFalse("Live Overpass should be skipped when base registry >= 100", overpassCalled)
+    }
+
+    @Test
+    fun `getNearbyStationsFlow queries Overpass when base registry is less than 100`() = runBlocking {
+        val smallBaseStation = GasStation(
+            id = 1,
+            name = "Small Base",
+            brand = "TestBrand",
+            address = "Test St 1",
+            latitude = 55.1600,
+            longitude = 61.4000,
+            fuelTypes = listOf(FuelPrice("АИ-95", 55.0, true)),
+            queueTime = 0,
+            reliability = 80
+        )
+        val distinctOverpass = GasStation(
+            id = -99,
+            name = "Overpass New",
+            brand = "OSM",
+            address = "Chelyabinsk, OSM Street",
+            latitude = 55.5000,
+            longitude = 61.5000,
+            fuelTypes = listOf(FuelPrice("АИ-95", 55.0, true, FuelDataSource.OVERPASS, 0L)),
+            queueTime = 0,
+            reliability = 0,
+            dataSources = setOf(FuelDataSource.OVERPASS)
+        )
+
+        var overpassCalled = false
+        val fakeOverpassProvider = object : OverpassFuelProvider {
+            override suspend fun fetchStations(lat: Double, lon: Double, radiusMeters: Double): List<GasStation> {
+                overpassCalled = true
+                return listOf(distinctOverpass)
+            }
+        }
+
+        val mockLoader = mock<com.navrot.aifuelassistant.data.datasource.StationLoader>()
+        whenever(mockLoader.loadFromCache()).doReturn(listOf(smallBaseStation))
+        whenever(mockLoader.loadFromAssets()).doReturn(listOf(smallBaseStation))
+        whenever(mockLoader.loadStations()).doReturn(listOf(smallBaseStation))
+
+        val testRepo = GasStationRepository(
+            stationLoader = mockLoader,
+            stationCache = mock(),
+            stationPriceApplier = com.navrot.aifuelassistant.data.datasource.StationPriceApplierImpl(userPrices, benzonavtProvider),
+            stationFilterAndSorter = com.navrot.aifuelassistant.data.datasource.StationFilterAndSorterImpl(),
+            userPrices = userPrices,
+            benzonavtProvider = benzonavtProvider,
+            overpassFuelProvider = fakeOverpassProvider,
+            russiabaseProvider = fakeRussiabaseProvider,
+            getBestStationsUseCase = getBestStationsUseCase,
+            appScope = appScope
+        )
+
+        val emissions = mutableListOf<List<GasStation>>()
+        val job = launch {
+            testRepo.getNearbyStationsFlow(55.1600, 61.4000, 50.0).collect {
+                emissions.add(it)
+            }
+        }
+
+        kotlinx.coroutines.delay(200L)
+        job.cancel()
+
+        assertTrue("Overpass should be called when registry < 100", overpassCalled)
         assertTrue("Should have at least 1 emission", emissions.isNotEmpty())
         assertTrue("Enriched list should contain overpass station", emissions.last().any { it.id == -99 })
     }
@@ -932,12 +989,10 @@ class GasStationRepositoryTest {
 
     @Test
     fun `enrichment coroutine launches on repo init and calls providers`() = runBlocking {
-        var overpassCalled = false
         var russiabaseCalled = false
 
         val testOverpassProvider = object : OverpassFuelProvider {
             override suspend fun fetchStations(lat: Double, lon: Double, radiusMeters: Double): List<GasStation> {
-                overpassCalled = true
                 return emptyList()
             }
         }
@@ -967,9 +1022,8 @@ class GasStationRepositoryTest {
             russiabaseProvider = testRussiabaseProvider
         )
 
-        kotlinx.coroutines.delay(300L)
+        testRepo.triggerEnrichment(55.1608, 61.3989)
 
-        assertTrue("Overpass provider should be called during startup enrichment", overpassCalled)
         assertTrue("Russiabase provider should be called during startup enrichment", russiabaseCalled)
         assertTrue("MapDiagnosticsTracker enrichmentMs should be recorded (>= 0ms)", com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.enrichmentMs >= 0L)
     }
