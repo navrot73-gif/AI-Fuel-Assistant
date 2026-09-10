@@ -163,9 +163,10 @@ object AppModule {
         okHttpClient: OkHttpClient,
         stationCache: StationCache,
         jsonParser: StationJsonParser,
-        @ApplicationContext context: Context
+        @ApplicationContext context: Context,
+        networkMonitor: NetworkMonitor
     ): StationLoader {
-        return StationLoaderImpl(okHttpClient, stationCache, jsonParser, context)
+        return StationLoaderImpl(okHttpClient, stationCache, jsonParser, context, networkMonitor)
     }
 
     @Provides

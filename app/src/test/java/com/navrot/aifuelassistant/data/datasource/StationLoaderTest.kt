@@ -50,6 +50,21 @@ class StationLoaderTest {
     }
 
     @Test
+    fun `loadStations returns local assets immediately without waiting for network`() = runBlocking {
+        val fakeNetworkMonitor = object : com.navrot.aifuelassistant.network.NetworkMonitor {
+            override val isOnline = kotlinx.coroutines.flow.MutableStateFlow(true)
+        }
+        val loaderWithMonitor = StationLoaderImpl(httpClient, stationCache, jsonParser, context, fakeNetworkMonitor)
+
+        val startMs = System.currentTimeMillis()
+        val stations = loaderWithMonitor.loadStations()
+        val durationMs = System.currentTimeMillis() - startMs
+
+        assertTrue("loadStations should return immediately (< 500ms)", durationMs < 500L)
+        assertTrue("loadStations should return local stations from assets", stations.isNotEmpty())
+    }
+
+    @Test
     fun `loadStations falls back to assets when remote fails and cache is empty`() = runBlocking {
         val stations = stationLoader.loadStations()
         assertTrue("Fallback to assets should return non-empty stations", stations.isNotEmpty())

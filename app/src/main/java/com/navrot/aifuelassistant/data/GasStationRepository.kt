@@ -305,7 +305,7 @@ class GasStationRepository @Inject constructor(
         val emit2Duration = System.currentTimeMillis() - startT
         com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit2Ms = emit2Duration
 
-        val sourceStr = if (cacheStations != null) { "cache" } else "assets"
+        val sourceStr = if (cacheStations != null && cacheStations.isNotEmpty()) { "cache" } else "assets"
         com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.firstEmitSource = sourceStr
         val elapsed = System.currentTimeMillis() - initTimestamp
         Timber.tag(TAG).i("t+%dms first emit (%d stations, source=%s)", elapsed, withUser.size, sourceStr)
@@ -427,14 +427,15 @@ class GasStationRepository @Inject constructor(
     override fun getNearbyStationsFlow(lat: Double, lon: Double, radiusKm: Double): Flow<List<GasStation>> = flow {
         val flowStartMs = System.currentTimeMillis()
 
-        // Emit #1: In-memory cache or Room/Disk Cache (or empty list if cache empty) <= 100ms
-        val initialLocal = cachedStations ?: stationLoader.loadFromCache() ?: emptyList()
+        // Emit #1: In-memory cache or Disk Cache or Assets <= 100ms
+        val initialDiskCache = if (cachedStations == null) stationLoader.loadFromCache() else null
+        val initialLocal = cachedStations ?: initialDiskCache ?: stationLoader.loadFromAssets()
         val emit1Duration = System.currentTimeMillis() - flowStartMs
         com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit1Ms = emit1Duration
         if (com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.firstEmitMs == 0L) {
             com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.firstEmitMs = emit1Duration
         }
-        val initialSourceStr = if (cachedStations != null) "cache" else if (initialLocal.isNotEmpty()) "disk_cache" else "assets"
+        val initialSourceStr = if (cachedStations != null) "cache" else if (initialDiskCache != null && initialDiskCache.isNotEmpty()) "disk_cache" else "assets"
         com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.firstEmitSource = initialSourceStr
 
         val initialWithPrices = stationPriceApplier.applyAllPrices(initialLocal)
