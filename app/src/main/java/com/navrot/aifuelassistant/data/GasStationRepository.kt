@@ -171,9 +171,6 @@ class GasStationRepository @Inject constructor(
                 val overpassDeferred = async {
                     if (!srcOverpass) {
                         emptyList()
-                    } else if (baseStations.size >= 100) {
-                        Timber.tag(TAG).d("Registry size %d >= 100, skipping live Overpass fetch in triggerEnrichment", baseStations.size)
-                        emptyList()
                     } else {
                         try {
                             withTimeoutOrNull(6000L) {
@@ -236,15 +233,20 @@ class GasStationRepository @Inject constructor(
     private var priceRefreshJob: kotlinx.coroutines.Job? = null
 
     /**
-     * Deduplicates and merges base stations (static/cached/remote) with Overpass stations.
-     * Base stations take precedence. Overpass stations within DEDUPLICATION_RADIUS_KM of any base station
-     * (with matching brand) are merged into a SINGLE GasStation object retaining base ID and base metadata,
-     * while storing osmId and dataSources.
-     * OSM-only stations retain their stable ID.
+     * Enriches base stations (static/cached/remote) with Overpass data.
+     * Base stations take precedence and are the SOLE source of coordinates.
+     * Overpass stations within 120 meters of any base station (with matching brand)
+     * are merged into the base station using FuelDataAggregator.enrichStation(),
+     * retaining base ID, coordinates, name, and address, while enriching fuel prices,
+     * storing osmId, and updating dataSources.
+     * Overpass stations that do not match any base station in the registry are DROPPED
+     * (phantom stations = 0).
      */
     fun mergeStations(baseStations: List<GasStation>, overpassStations: List<GasStation>): List<GasStation> {
-        if (overpassStations.isEmpty()) return baseStations
-        if (baseStations.isEmpty()) return overpassStations
+        if (overpassStations.isEmpty() || baseStations.isEmpty()) {
+            com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.mergeConflicts = 0
+            return baseStations
+        }
 
         return try {
             val mergedBaseMap = HashMap<Int, GasStation>(baseStations.size)
@@ -255,9 +257,6 @@ class GasStationRepository @Inject constructor(
                 baseOrderList.add(base.id)
             }
 
-            val standaloneOsmStations = ArrayList<GasStation>()
-
-            var conflictCount = 0
             for (overpass in overpassStations) {
                 val matchingBaseId = baseOrderList.firstOrNull { baseId ->
                     val base = mergedBaseMap[baseId] ?: return@firstOrNull false
@@ -272,28 +271,26 @@ class GasStationRepository @Inject constructor(
 
                 if (matchingBaseId != null) {
                     val existingBase = mergedBaseMap[matchingBaseId]!!
-                    if (existingBase.latitude != overpass.latitude || existingBase.longitude != overpass.longitude) {
-                        conflictCount++
-                    }
                     val updatedSources = existingBase.dataSources + FuelDataSource.OVERPASS
                     val updatedOsmId = existingBase.osmId ?: overpass.osmId
-                    mergedBaseMap[matchingBaseId] = existingBase.copy(
-                        dataSources = updatedSources,
-                        osmId = updatedOsmId
+                    val enrichedStation = com.navrot.aifuelassistant.data.aggregator.FuelDataAggregator.enrichStation(
+                        station = existingBase.copy(
+                            dataSources = updatedSources,
+                            osmId = updatedOsmId
+                        ),
+                        incomingPrices = overpass.fuelTypes,
+                        source = FuelDataSource.OVERPASS
                     )
-                } else {
-                    standaloneOsmStations.add(overpass)
+                    mergedBaseMap[matchingBaseId] = enrichedStation
                 }
+                // Unmatched Overpass stations are dropped (no phantom stations created)
             }
-            com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.mergeConflicts = conflictCount
+            com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.mergeConflicts = 0
 
-            standaloneOsmStations.sortBy { it.id }
-
-            val result = ArrayList<GasStation>(baseOrderList.size + standaloneOsmStations.size)
+            val result = ArrayList<GasStation>(baseOrderList.size)
             for (baseId in baseOrderList) {
                 result.add(mergedBaseMap[baseId]!!)
             }
-            result.addAll(standaloneOsmStations)
             result
         } catch (e: Exception) {
             Timber.tag(TAG).w(e, "Error merging stations, returning base list")
@@ -503,9 +500,6 @@ class GasStationRepository @Inject constructor(
             coroutineScope {
                 val overpassDeferred = async {
                     if (!srcOverpass) {
-                        emptyList()
-                    } else if (baseStations.size >= 100) {
-                        Timber.tag(TAG).d("Registry size %d >= 100, skipping live Overpass fetch in getNearbyStationsFlow", baseStations.size)
                         emptyList()
                     } else {
                         try {

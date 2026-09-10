@@ -621,13 +621,79 @@ class GasStationRepositoryTest {
             overpassStations = listOf(duplicateOverpass, distinctOverpass)
         )
 
-        assertEquals("Merged list size should be 2 (1 base + 1 distinct overpass)", 2, merged.size)
+        assertEquals("Merged list size should be 1 (distinct overpass is dropped)", 1, merged.size)
         assertTrue("Base station should be retained with original id", merged.any { it.id == 1 })
         val mergedBase = merged.first { it.id == 1 }
         assertEquals("osm:1001", mergedBase.osmId)
         assertTrue(mergedBase.dataSources.contains(FuelDataSource.OVERPASS))
-        assertTrue("Distinct overpass station should be added", merged.any { it.id == -11 })
+        assertFalse("Unmatched/distinct overpass station should be dropped", merged.any { it.id == -11 })
         assertFalse("Duplicate overpass station ID should not appear separately", merged.any { it.id == -10 })
+    }
+
+    @Test
+    fun `external source with new coordinate does NOT create station and applies price to existing station without changing coordinates`() = runBlocking {
+        val baseStation = GasStation(
+            id = 100,
+            name = "Лукойл АЗС 1",
+            brand = "Лукойл",
+            address = "ул. Ленина, 10",
+            latitude = 55.160000,
+            longitude = 61.400000,
+            fuelTypes = listOf(
+                FuelPrice(type = "АИ-95", price = 50.0, available = true)
+            ),
+            queueTime = 0,
+            reliability = 90
+        )
+
+        val unmatchedNewLocationStation = GasStation(
+            id = -999,
+            name = "Неизвестная АЗС",
+            brand = "Прочие",
+            address = "Новая ул, 99",
+            latitude = 56.000000,
+            longitude = 62.000000,
+            fuelTypes = listOf(
+                FuelPrice(type = "АИ-95", price = 45.0, available = true, source = FuelDataSource.OVERPASS)
+            ),
+            queueTime = 0,
+            reliability = 0,
+            dataSources = setOf(FuelDataSource.OVERPASS)
+        )
+
+        val matchedExternalStation = GasStation(
+            id = -888,
+            name = "Lukoil",
+            brand = "Лукойл",
+            address = "Ленина 10",
+            latitude = 55.160200,
+            longitude = 61.400200,
+            fuelTypes = listOf(
+                FuelPrice(type = "АИ-95", price = 58.5, available = true, source = FuelDataSource.OVERPASS)
+            ),
+            queueTime = 0,
+            reliability = 0,
+            dataSources = setOf(FuelDataSource.OVERPASS),
+            osmId = "osm:node/777"
+        )
+
+        val merged = repository.mergeStations(
+            baseStations = listOf(baseStation),
+            overpassStations = listOf(unmatchedNewLocationStation, matchedExternalStation)
+        )
+
+        assertEquals("Merged list size must remain equal to base registry size (1)", 1, merged.size)
+        assertFalse("Unmatched external station with new coordinate must not be added", merged.any { it.id == -999 })
+        assertEquals("mergeConflicts must be 0", 0, com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.mergeConflicts)
+
+        val enriched = merged.first { it.id == 100 }
+        assertEquals("Registry latitude must be preserved exactly", 55.160000, enriched.latitude, 0.0000001)
+        assertEquals("Registry longitude must be preserved exactly", 61.400000, enriched.longitude, 0.0000001)
+
+        val ai95Price = enriched.fuelTypes.find { it.type == "АИ-95" }
+        assertNotNull("AI-95 price entry must exist", ai95Price)
+        assertEquals("External price must be applied to matched station", 58.5, ai95Price!!.price, 0.001)
+        assertTrue("Data sources must contain OVERPASS", enriched.dataSources.contains(FuelDataSource.OVERPASS))
     }
 
     @Test
@@ -671,13 +737,25 @@ class GasStationRepositoryTest {
     }
 
     @Test
-    fun `OSM-only station has stable id across emits`() = runBlocking {
+    fun `matched Overpass station preserves stable base station id across emits`() = runBlocking {
+        val baseStation = GasStation(
+            id = 55,
+            name = "Базовая АЗС",
+            brand = "Газпромнефть",
+            address = "ул. Ленина, 1",
+            latitude = 55.3000,
+            longitude = 61.3000,
+            fuelTypes = emptyList(),
+            queueTime = 0,
+            reliability = 80
+        )
+
         val overpass1 = GasStation(
             id = -123456,
             name = "АЗС 1",
-            brand = "Прочие",
-            address = "OSM",
-            latitude = 55.3000,
+            brand = "Газпромнефть",
+            address = "Ленина 1",
+            latitude = 55.3001,
             longitude = 61.3000,
             fuelTypes = emptyList(),
             queueTime = 0,
@@ -686,11 +764,12 @@ class GasStationRepositoryTest {
             osmId = "osm:node/999"
         )
 
-        val merged1 = repository.mergeStations(emptyList(), listOf(overpass1))
-        val merged2 = repository.mergeStations(emptyList(), listOf(overpass1))
+        val merged1 = repository.mergeStations(listOf(baseStation), listOf(overpass1))
+        val merged2 = repository.mergeStations(listOf(baseStation), listOf(overpass1))
 
         assertEquals(1, merged1.size)
         assertEquals(1, merged2.size)
+        assertEquals(55, merged1.first().id)
         assertEquals(merged1.first().id, merged2.first().id)
         assertEquals("osm:node/999", merged1.first().osmId)
     }
@@ -788,7 +867,7 @@ class GasStationRepositoryTest {
     }
 
     @Test
-    fun `getNearbyStationsFlow skips live Overpass when base registry is at least 100`() = runBlocking {
+    fun `getNearbyStationsFlow skips live Overpass when srcOverpass feature flag is false`() = runBlocking {
         var overpassCalled = false
         val fakeOverpassProvider = object : OverpassFuelProvider {
             override suspend fun fetchStations(lat: Double, lon: Double, radiusMeters: Double): List<GasStation> {
@@ -797,19 +876,29 @@ class GasStationRepositoryTest {
             }
         }
 
-        val testRepo = GasStationRepository(
-            context = context,
-            httpClient = httpClient,
-            userPrices = userPrices,
-            getBestStationsUseCase = getBestStationsUseCase,
-            benzonavtProvider = benzonavtProvider,
-            appScope = appScope,
-            overpassFuelProvider = fakeOverpassProvider,
-            russiabaseProvider = fakeRussiabaseProvider
-        )
+        val mockUserPrefs: UserPreferencesRepository = mock()
+        whenever(mockUserPrefs.getSrcBenzonavt()).doReturn(true)
+        whenever(mockUserPrefs.getSrcRussiabase()).doReturn(true)
+        whenever(mockUserPrefs.getSrcOverpass()).doReturn(false)
 
-        val all = testRepo.getAllStations()
-        assertTrue("Base registry size should be >= 100", all.size >= 100)
+        val testRepo = GasStationRepository(
+            stationLoader = com.navrot.aifuelassistant.data.datasource.StationLoaderImpl(
+                httpClient = httpClient,
+                stationCache = com.navrot.aifuelassistant.data.datasource.StationCacheImpl(context, com.navrot.aifuelassistant.data.datasource.StationJsonParserImpl()),
+                jsonParser = com.navrot.aifuelassistant.data.datasource.StationJsonParserImpl(),
+                context = context
+            ),
+            stationCache = com.navrot.aifuelassistant.data.datasource.StationCacheImpl(context, com.navrot.aifuelassistant.data.datasource.StationJsonParserImpl()),
+            stationPriceApplier = com.navrot.aifuelassistant.data.datasource.StationPriceApplierImpl(userPrices, benzonavtProvider, mockUserPrefs),
+            stationFilterAndSorter = com.navrot.aifuelassistant.data.datasource.StationFilterAndSorterImpl(),
+            userPrices = userPrices,
+            benzonavtProvider = benzonavtProvider,
+            overpassFuelProvider = fakeOverpassProvider,
+            russiabaseProvider = fakeRussiabaseProvider,
+            getBestStationsUseCase = getBestStationsUseCase,
+            appScope = appScope,
+            userPreferencesRepository = mockUserPrefs
+        )
 
         val emissions = mutableListOf<List<GasStation>>()
         val job = launch {
@@ -822,11 +911,11 @@ class GasStationRepositoryTest {
         job.cancel()
 
         assertTrue("Should have at least 1 emission", emissions.isNotEmpty())
-        assertFalse("Live Overpass should be skipped when base registry >= 100", overpassCalled)
+        assertFalse("Live Overpass should be skipped when srcOverpass flag is false", overpassCalled)
     }
 
     @Test
-    fun `getNearbyStationsFlow queries Overpass when base registry is less than 100`() = runBlocking {
+    fun `getNearbyStationsFlow queries Overpass when srcOverpass flag is true and enriches matching base station`() = runBlocking {
         val smallBaseStation = GasStation(
             id = 1,
             name = "Small Base",
@@ -838,14 +927,14 @@ class GasStationRepositoryTest {
             queueTime = 0,
             reliability = 80
         )
-        val distinctOverpass = GasStation(
+        val matchingOverpass = GasStation(
             id = -99,
-            name = "Overpass New",
-            brand = "OSM",
-            address = "Chelyabinsk, OSM Street",
-            latitude = 55.5000,
-            longitude = 61.5000,
-            fuelTypes = listOf(FuelPrice("АИ-95", 55.0, true, FuelDataSource.OVERPASS, 0L)),
+            name = "Overpass Matched",
+            brand = "TestBrand",
+            address = "Test St 1",
+            latitude = 55.1602,
+            longitude = 61.4000,
+            fuelTypes = listOf(FuelPrice("АИ-95", 58.0, true, FuelDataSource.OVERPASS, 0L)),
             queueTime = 0,
             reliability = 0,
             dataSources = setOf(FuelDataSource.OVERPASS)
@@ -855,9 +944,14 @@ class GasStationRepositoryTest {
         val fakeOverpassProvider = object : OverpassFuelProvider {
             override suspend fun fetchStations(lat: Double, lon: Double, radiusMeters: Double): List<GasStation> {
                 overpassCalled = true
-                return listOf(distinctOverpass)
+                return listOf(matchingOverpass)
             }
         }
+
+        val mockUserPrefs: UserPreferencesRepository = mock()
+        whenever(mockUserPrefs.getSrcBenzonavt()).doReturn(false)
+        whenever(mockUserPrefs.getSrcRussiabase()).doReturn(false)
+        whenever(mockUserPrefs.getSrcOverpass()).doReturn(true)
 
         val mockLoader = mock<com.navrot.aifuelassistant.data.datasource.StationLoader>()
         whenever(mockLoader.loadFromCache()).doReturn(listOf(smallBaseStation))
@@ -867,14 +961,15 @@ class GasStationRepositoryTest {
         val testRepo = GasStationRepository(
             stationLoader = mockLoader,
             stationCache = mock(),
-            stationPriceApplier = com.navrot.aifuelassistant.data.datasource.StationPriceApplierImpl(userPrices, benzonavtProvider),
+            stationPriceApplier = com.navrot.aifuelassistant.data.datasource.StationPriceApplierImpl(userPrices, benzonavtProvider, mockUserPrefs),
             stationFilterAndSorter = com.navrot.aifuelassistant.data.datasource.StationFilterAndSorterImpl(),
             userPrices = userPrices,
             benzonavtProvider = benzonavtProvider,
             overpassFuelProvider = fakeOverpassProvider,
             russiabaseProvider = fakeRussiabaseProvider,
             getBestStationsUseCase = getBestStationsUseCase,
-            appScope = appScope
+            appScope = appScope,
+            userPreferencesRepository = mockUserPrefs
         )
 
         val emissions = mutableListOf<List<GasStation>>()
@@ -887,9 +982,11 @@ class GasStationRepositoryTest {
         kotlinx.coroutines.delay(200L)
         job.cancel()
 
-        assertTrue("Overpass should be called when registry < 100", overpassCalled)
+        assertTrue("Overpass should be called when srcOverpass flag is true", overpassCalled)
         assertTrue("Should have at least 1 emission", emissions.isNotEmpty())
-        assertTrue("Enriched list should contain overpass station", emissions.last().any { it.id == -99 })
+        val lastEmit = emissions.last()
+        assertEquals(1, lastEmit.size)
+        assertTrue("Enriched base station should contain OVERPASS datasource", lastEmit.first().dataSources.contains(FuelDataSource.OVERPASS))
     }
 
     @Test
