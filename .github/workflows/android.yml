@@ -146,3 +146,14 @@ jobs:
           fi
           echo "Юнит-тесты прошли успешно."
 
+      # Quality gate для инструментационных тестов (DeviceScenarioTest и др.)
+      # До первого релиза разрешён non-blocking перевод через continue-on-error,
+      # однако результат проверяется этим шагом (при необходимости переключения в blocking).
+      - name: Quality gate — instrumentation tests check
+        if: always()
+        run: |
+          if [ "${{ steps.instrumentation.outcome }}" != "success" ]; then
+            echo "::warning::Инструментационные тесты не прошли (outcome=${{ steps.instrumentation.outcome }}). Смотрите артефакт instrumentation-test-results."
+          else
+            echo "Инструментационные тесты прошли успешно."
+          fi
