@@ -48,6 +48,21 @@ object MapDiagnosticsTracker {
     @Volatile
     var russiabaseUnmatched: Int = 0
 
+    @Volatile
+    var registryCount: Int = 0
+
+    @Volatile
+    var perSourceCount: Map<String, Int> = emptyMap()
+
+    @Volatile
+    var mergeConflicts: Int = 0
+
+    @Volatile
+    var firstEmitMs: Long = 0L
+
+    @Volatile
+    var firstEmitSource: String = "cache"
+
     fun resetStartupTimings() {
         t0Ms = System.currentTimeMillis()
         emit1Ms = 0L
@@ -60,9 +75,39 @@ object MapDiagnosticsTracker {
         registrySize = 0
         benzonavtUnmatched = 0
         russiabaseUnmatched = 0
+        registryCount = 0
+        perSourceCount = emptyMap()
+        mergeConflicts = 0
+        firstEmitMs = 0L
+        firstEmitSource = "cache"
     }
 
     fun recordTileFallback(log: String) {
         fallbackChainLogs = (fallbackChainLogs + log).takeLast(10)
+    }
+
+    fun exportDiagnosticsText(): String {
+        val perSourceFormatted = perSourceCount.entries.joinToString(", ") { "${it.key}: ${it.value}" }.ifEmpty { "none" }
+        val fallbacksStr = fallbackChainLogs.joinToString(" -> ").ifEmpty { "none" }
+        return """
+            === MAP DIAGNOSTICS BASELINE ===
+            registryCount: $registryCount (size: $registrySize)
+            perSourceCount: {$perSourceFormatted}
+            mergeConflicts: $mergeConflicts
+            firstEmitMs: ${firstEmitMs}ms
+            firstEmitSource: $firstEmitSource
+            emit1Ms: ${emit1Ms}ms
+            emit2Ms: ${emit2Ms}ms
+            enrichmentMs: ${enrichmentMs}ms
+            cityResolveMs: ${cityResolveMs}ms
+            cityResolveSource: $cityResolveSource
+            aiPath: $aiPath
+            routeTest: $routeTest
+            activeTileSource: $activeTileSource
+            tileStatus: $tileStatus
+            fallbackChainLogs: $fallbacksStr
+            benzonavtUnmatched: $benzonavtUnmatched
+            russiabaseUnmatched: $russiabaseUnmatched
+        """.trimIndent()
     }
 }

@@ -228,6 +228,7 @@ class GasStationRepository @Inject constructor(
 
             val standaloneOsmStations = ArrayList<GasStation>()
 
+            var conflictCount = 0
             for (overpass in overpassStations) {
                 val matchingBaseId = baseOrderList.firstOrNull { baseId ->
                     val base = mergedBaseMap[baseId] ?: return@firstOrNull false
@@ -242,6 +243,9 @@ class GasStationRepository @Inject constructor(
 
                 if (matchingBaseId != null) {
                     val existingBase = mergedBaseMap[matchingBaseId]!!
+                    if (existingBase.latitude != overpass.latitude || existingBase.longitude != overpass.longitude) {
+                        conflictCount++
+                    }
                     val updatedSources = existingBase.dataSources + FuelDataSource.OVERPASS
                     val updatedOsmId = existingBase.osmId ?: overpass.osmId
                     mergedBaseMap[matchingBaseId] = existingBase.copy(
@@ -252,6 +256,7 @@ class GasStationRepository @Inject constructor(
                     standaloneOsmStations.add(overpass)
                 }
             }
+            com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.mergeConflicts = conflictCount
 
             standaloneOsmStations.sortBy { it.id }
 
@@ -274,6 +279,9 @@ class GasStationRepository @Inject constructor(
         val cacheStations = stationLoader.loadFromCache()
         val emit1Duration = System.currentTimeMillis() - startT
         com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit1Ms = emit1Duration
+        if (com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.firstEmitMs == 0L) {
+            com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.firstEmitMs = emit1Duration
+        }
 
         val isFirstLoad = lastRemoteCheckMs == 0L
         val stations: List<GasStation> = if (isFirstLoad) {
@@ -293,10 +301,12 @@ class GasStationRepository @Inject constructor(
         val withUser = stationPriceApplier.applyUserPrices(stations)
         cachedStations = withUser
         com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.registrySize = withUser.size
+        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.registryCount = withUser.size
         val emit2Duration = System.currentTimeMillis() - startT
         com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit2Ms = emit2Duration
 
         val sourceStr = if (cacheStations != null) { "cache" } else "assets"
+        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.firstEmitSource = sourceStr
         val elapsed = System.currentTimeMillis() - initTimestamp
         Timber.tag(TAG).i("t+%dms first emit (%d stations, source=%s)", elapsed, withUser.size, sourceStr)
 
@@ -421,6 +431,11 @@ class GasStationRepository @Inject constructor(
         val initialLocal = cachedStations ?: stationLoader.loadFromCache() ?: emptyList()
         val emit1Duration = System.currentTimeMillis() - flowStartMs
         com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit1Ms = emit1Duration
+        if (com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.firstEmitMs == 0L) {
+            com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.firstEmitMs = emit1Duration
+        }
+        val initialSourceStr = if (cachedStations != null) "cache" else if (initialLocal.isNotEmpty()) "disk_cache" else "assets"
+        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.firstEmitSource = initialSourceStr
 
         val initialWithPrices = stationPriceApplier.applyAllPrices(initialLocal)
         val initialNearby = stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, initialWithPrices)
