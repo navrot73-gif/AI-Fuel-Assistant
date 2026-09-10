@@ -63,7 +63,11 @@ object MapDiagnosticsTracker {
     @Volatile
     var firstEmitSource: String = "cache"
 
+    @Volatile
+    var activeSources: String = "registry"
+
     fun resetStartupTimings() {
+        activeSources = "registry"
         t0Ms = System.currentTimeMillis()
         emit1Ms = 0L
         emit2Ms = 0L
@@ -91,6 +95,7 @@ object MapDiagnosticsTracker {
         val fallbacksStr = fallbackChainLogs.joinToString(" -> ").ifEmpty { "none" }
         return """
             === MAP DIAGNOSTICS BASELINE ===
+            activeSources: $activeSources
             registryCount: $registryCount (size: $registrySize)
             perSourceCount: {$perSourceFormatted}
             mergeConflicts: $mergeConflicts

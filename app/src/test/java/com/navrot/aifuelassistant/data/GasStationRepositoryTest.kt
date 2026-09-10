@@ -28,6 +28,8 @@ import org.mockito.Mockito.`when`
 import org.mockito.kotlin.any
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
+import org.mockito.kotlin.never
+import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import org.robolectric.RobolectricTestRunner
 import java.util.concurrent.TimeUnit
@@ -1076,5 +1078,90 @@ class GasStationRepositoryTest {
         )
         val secondLaunchStations = cachedRepo.getAllStations()
         assertTrue("Second launch with cache merged list must contain >= 100 stations, got ${secondLaunchStations.size}", secondLaunchStations.size >= 100)
+    }
+
+    // ==================== PR-3 Feature Flags Tests ====================
+
+    @Test
+    fun `default clean install state - feature flags false - providers are physically not called and activeSources is registry`() = runBlocking {
+        val mockBenzonavt: BenzonavtProvider = mock()
+        val mockRussiabase: com.navrot.aifuelassistant.data.datasource.RussiabaseProvider = mock()
+        val mockOverpass: OverpassFuelProvider = mock()
+        val mockUserPrefs: UserPreferencesRepository = mock()
+
+        whenever(mockUserPrefs.getSrcBenzonavt()).doReturn(false)
+        whenever(mockUserPrefs.getSrcRussiabase()).doReturn(false)
+        whenever(mockUserPrefs.getSrcOverpass()).doReturn(false)
+
+        val testRepo = GasStationRepository(
+            stationLoader = repository.let {
+                com.navrot.aifuelassistant.data.datasource.StationLoaderImpl(
+                    httpClient = httpClient,
+                    stationCache = com.navrot.aifuelassistant.data.datasource.StationCacheImpl(context, com.navrot.aifuelassistant.data.datasource.StationJsonParserImpl()),
+                    jsonParser = com.navrot.aifuelassistant.data.datasource.StationJsonParserImpl(),
+                    context = context
+                )
+            },
+            stationCache = com.navrot.aifuelassistant.data.datasource.StationCacheImpl(context, com.navrot.aifuelassistant.data.datasource.StationJsonParserImpl()),
+            stationPriceApplier = com.navrot.aifuelassistant.data.datasource.StationPriceApplierImpl(userPrices, mockBenzonavt, mockUserPrefs),
+            stationFilterAndSorter = com.navrot.aifuelassistant.data.datasource.StationFilterAndSorterImpl(),
+            userPrices = userPrices,
+            benzonavtProvider = mockBenzonavt,
+            overpassFuelProvider = mockOverpass,
+            russiabaseProvider = mockRussiabase,
+            getBestStationsUseCase = getBestStationsUseCase,
+            appScope = appScope,
+            userPreferencesRepository = mockUserPrefs
+        )
+
+        testRepo.triggerEnrichment(55.1608, 61.3989)
+
+        verify(mockBenzonavt, never()).fetchCityPrices(any())
+        verify(mockRussiabase, never()).fetchObservations(any(), any(), any(), any())
+        verify(mockOverpass, never()).fetchStations(any(), any(), any())
+
+        assertEquals("registry", com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.activeSources)
+        assertEquals(0, com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.benzonavtUnmatched)
+        assertEquals(0, com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.russiabaseUnmatched)
+    }
+
+    @Test
+    fun `enabling russiabase flag physically calls only russiabase provider`() = runBlocking {
+        val mockBenzonavt: BenzonavtProvider = mock()
+        val mockRussiabase: com.navrot.aifuelassistant.data.datasource.RussiabaseProvider = mock()
+        val mockOverpass: OverpassFuelProvider = mock()
+        val mockUserPrefs: UserPreferencesRepository = mock()
+
+        whenever(mockUserPrefs.getSrcBenzonavt()).doReturn(false)
+        whenever(mockUserPrefs.getSrcRussiabase()).doReturn(true)
+        whenever(mockUserPrefs.getSrcOverpass()).doReturn(false)
+        whenever(mockRussiabase.fetchObservations(any(), any(), any(), any())).doReturn(emptyList())
+
+        val testRepo = GasStationRepository(
+            stationLoader = com.navrot.aifuelassistant.data.datasource.StationLoaderImpl(
+                httpClient = httpClient,
+                stationCache = com.navrot.aifuelassistant.data.datasource.StationCacheImpl(context, com.navrot.aifuelassistant.data.datasource.StationJsonParserImpl()),
+                jsonParser = com.navrot.aifuelassistant.data.datasource.StationJsonParserImpl(),
+                context = context
+            ),
+            stationCache = com.navrot.aifuelassistant.data.datasource.StationCacheImpl(context, com.navrot.aifuelassistant.data.datasource.StationJsonParserImpl()),
+            stationPriceApplier = com.navrot.aifuelassistant.data.datasource.StationPriceApplierImpl(userPrices, mockBenzonavt, mockUserPrefs),
+            stationFilterAndSorter = com.navrot.aifuelassistant.data.datasource.StationFilterAndSorterImpl(),
+            userPrices = userPrices,
+            benzonavtProvider = mockBenzonavt,
+            overpassFuelProvider = mockOverpass,
+            russiabaseProvider = mockRussiabase,
+            getBestStationsUseCase = getBestStationsUseCase,
+            appScope = appScope,
+            userPreferencesRepository = mockUserPrefs
+        )
+
+        testRepo.triggerEnrichment(55.1608, 61.3989)
+
+        org.mockito.kotlin.verify(mockRussiabase, org.mockito.kotlin.atLeastOnce()).fetchObservations(any(), any(), any(), any())
+        verify(mockBenzonavt, never()).fetchCityPrices(any())
+        verify(mockOverpass, never()).fetchStations(any(), any(), any())
+
+        assertEquals("registry, russiabase", com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.activeSources)
     }
 }

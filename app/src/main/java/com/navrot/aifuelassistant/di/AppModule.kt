@@ -173,9 +173,10 @@ object AppModule {
     @Singleton
     fun provideStationPriceApplier(
         userPriceRepository: UserPriceRepository,
-        benzonavtProvider: BenzonavtProvider
+        benzonavtProvider: BenzonavtProvider,
+        userPreferencesRepository: UserPreferencesRepository
     ): StationPriceApplier {
-        return StationPriceApplierImpl(userPriceRepository, benzonavtProvider)
+        return StationPriceApplierImpl(userPriceRepository, benzonavtProvider, userPreferencesRepository)
     }
 
     @Provides
@@ -213,7 +214,8 @@ object AppModule {
         overpassFuelProvider: OverpassFuelProvider,
         russiabaseProvider: RussiabaseProvider,
         getBestStationsUseCase: GetBestStationsUseCase,
-        @ApplicationScope appScope: CoroutineScope
+        @ApplicationScope appScope: CoroutineScope,
+        userPreferencesRepository: UserPreferencesRepository
     ): GasStationRepositoryInterface {
         return GasStationRepository(
             stationLoader = stationLoader,
@@ -225,7 +227,8 @@ object AppModule {
             overpassFuelProvider = overpassFuelProvider,
             russiabaseProvider = russiabaseProvider,
             getBestStationsUseCase = getBestStationsUseCase,
-            appScope = appScope
+            appScope = appScope,
+            userPreferencesRepository = userPreferencesRepository
         )
     }
 

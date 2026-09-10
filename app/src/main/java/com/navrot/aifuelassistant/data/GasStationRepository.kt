@@ -63,7 +63,8 @@ class GasStationRepository @Inject constructor(
     private val overpassFuelProvider: OverpassFuelProvider,
     private val russiabaseProvider: RussiabaseProvider,
     private val getBestStationsUseCase: GetBestStationsUseCase,
-    private val appScope: CoroutineScope
+    private val appScope: CoroutineScope,
+    private val userPreferencesRepository: UserPreferencesRepository? = null
 ) : GasStationRepositoryInterface {
 
     /**
@@ -77,7 +78,8 @@ class GasStationRepository @Inject constructor(
         benzonavtProvider: BenzonavtProvider,
         appScope: CoroutineScope,
         overpassFuelProvider: OverpassFuelProvider = OverpassFuelProviderImpl(httpClient),
-        russiabaseProvider: RussiabaseProvider = RussiabaseProviderImpl(httpClient, context)
+        russiabaseProvider: RussiabaseProvider = RussiabaseProviderImpl(httpClient, context),
+        userPreferencesRepository: UserPreferencesRepository? = null
     ) : this(
         stationLoader = StationLoaderImpl(
             httpClient = httpClient,
@@ -86,14 +88,15 @@ class GasStationRepository @Inject constructor(
             context = context
         ),
         stationCache = StationCacheImpl(context, StationJsonParserImpl()),
-        stationPriceApplier = StationPriceApplierImpl(userPrices, benzonavtProvider),
+        stationPriceApplier = StationPriceApplierImpl(userPrices, benzonavtProvider, userPreferencesRepository),
         stationFilterAndSorter = StationFilterAndSorterImpl(),
         userPrices = userPrices,
         benzonavtProvider = benzonavtProvider,
         overpassFuelProvider = overpassFuelProvider,
         russiabaseProvider = russiabaseProvider,
         getBestStationsUseCase = getBestStationsUseCase,
-        appScope = appScope
+        appScope = appScope,
+        userPreferencesRepository = userPreferencesRepository
     )
 
     /**
@@ -129,6 +132,7 @@ class GasStationRepository @Inject constructor(
         Timber.tag(TAG).i("t0 init")
         appScope.launch(Dispatchers.IO) {
             try {
+                updateActiveSourcesDiagnostics()
                 triggerEnrichment(55.1608, 61.3989)
             } catch (e: Exception) {
                 Timber.tag(TAG).w("Startup background enrichment failed: %s", e.message)
@@ -136,17 +140,38 @@ class GasStationRepository @Inject constructor(
         }
     }
 
+    private suspend fun updateActiveSourcesDiagnostics() {
+        val srcBenz = userPreferencesRepository?.getSrcBenzonavt() ?: true
+        val srcRuss = userPreferencesRepository?.getSrcRussiabase() ?: true
+        val srcOver = userPreferencesRepository?.getSrcOverpass() ?: true
+
+        val sourcesList = mutableListOf("registry")
+        if (srcBenz) sourcesList.add("benzonavt")
+        if (srcRuss) sourcesList.add("russiabase")
+        if (srcOver) sourcesList.add("overpass")
+
+        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.activeSources = sourcesList.joinToString(", ")
+        if (!srcBenz) com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.benzonavtUnmatched = 0
+        if (!srcRuss) com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.russiabaseUnmatched = 0
+    }
+
     override suspend fun triggerEnrichment(lat: Double, lon: Double): List<GasStation> = withContext(Dispatchers.IO) {
+        updateActiveSourcesDiagnostics()
         val enrichmentStartTime = System.currentTimeMillis()
         val city = GeoUtils.hardcodedDetectCity(lat, lon)
         var russiabaseStatus = "not_fetched"
 
         val baseStations = ensureLoaded()
 
+        val srcOverpass = userPreferencesRepository?.getSrcOverpass() ?: true
+        val srcRussiabase = userPreferencesRepository?.getSrcRussiabase() ?: true
+
         val (overpassStations, russiabaseObservations) = withTimeoutOrNull(6000L) {
             coroutineScope {
                 val overpassDeferred = async {
-                    if (baseStations.size >= 100) {
+                    if (!srcOverpass) {
+                        emptyList()
+                    } else if (baseStations.size >= 100) {
                         Timber.tag(TAG).d("Registry size %d >= 100, skipping live Overpass fetch in triggerEnrichment", baseStations.size)
                         emptyList()
                     } else {
@@ -161,16 +186,20 @@ class GasStationRepository @Inject constructor(
                     }
                 }
                 val russiabaseDeferred = async {
-                    try {
-                        withTimeoutOrNull(3000L) {
-                            val obs = russiabaseProvider.fetchObservations(city, listOf("ai95", "dt"), lat, lon)
-                            russiabaseStatus = if (obs.isNotEmpty()) "ok (${obs.size} obs)" else "empty"
-                            obs
-                        } ?: emptyList()
-                    } catch (e: Exception) {
-                        russiabaseStatus = "error (${e.message})"
-                        Timber.tag(TAG).w("Russiabase fetch failed in triggerEnrichment: %s", e.message)
+                    if (!srcRussiabase) {
                         emptyList()
+                    } else {
+                        try {
+                            withTimeoutOrNull(3000L) {
+                                val obs = russiabaseProvider.fetchObservations(city, listOf("ai95", "dt"), lat, lon)
+                                russiabaseStatus = if (obs.isNotEmpty()) "ok (${obs.size} obs)" else "empty"
+                                obs
+                            } ?: emptyList()
+                        } catch (e: Exception) {
+                            russiabaseStatus = "error (${e.message})"
+                            Timber.tag(TAG).w("Russiabase fetch failed in triggerEnrichment: %s", e.message)
+                            emptyList()
+                        }
                     }
                 }
                 overpassDeferred.await() to russiabaseDeferred.await()
@@ -313,15 +342,18 @@ class GasStationRepository @Inject constructor(
         priceRefreshJob?.cancel()
         priceRefreshJob = appScope.launch {
             try {
-                val city = benzonavtProvider.currentCity()
-                val benzonavt = benzonavtProvider.fetchCityPrices(city)
-                if (benzonavt.isNotEmpty()) {
-                    loadMutex.withLock {
-                        val swapped = withUser.map { station ->
-                            stationPriceApplier.applyBenzonavtToStation(station, benzonavt, city)
+                val srcBenzonavt = userPreferencesRepository?.getSrcBenzonavt() ?: true
+                if (srcBenzonavt) {
+                    val city = benzonavtProvider.currentCity()
+                    val benzonavt = benzonavtProvider.fetchCityPrices(city)
+                    if (benzonavt.isNotEmpty()) {
+                        loadMutex.withLock {
+                            val swapped = withUser.map { station ->
+                                stationPriceApplier.applyBenzonavtToStation(station, benzonavt, city)
+                            }
+                            cachedStations = swapped
+                            Timber.tag(TAG).d("prices swapped from BENZONAVT")
                         }
-                        cachedStations = swapped
-                        Timber.tag(TAG).d("prices swapped from BENZONAVT")
                     }
                 }
             } catch (e: Exception) {
@@ -425,6 +457,7 @@ class GasStationRepository @Inject constructor(
     }
 
     override fun getNearbyStationsFlow(lat: Double, lon: Double, radiusKm: Double): Flow<List<GasStation>> = flow {
+        updateActiveSourcesDiagnostics()
         val flowStartMs = System.currentTimeMillis()
 
         // Emit #1: In-memory cache or Disk Cache or Assets <= 100ms
@@ -463,10 +496,15 @@ class GasStationRepository @Inject constructor(
         var benzonavtStatus = "not_fetched"
 
         val enrichmentStartTime = System.currentTimeMillis()
+        val srcOverpass = userPreferencesRepository?.getSrcOverpass() ?: true
+        val srcRussiabase = userPreferencesRepository?.getSrcRussiabase() ?: true
+
         val (overpassStations, russiabaseObservations) = withTimeoutOrNull(6000L) {
             coroutineScope {
                 val overpassDeferred = async {
-                    if (baseStations.size >= 100) {
+                    if (!srcOverpass) {
+                        emptyList()
+                    } else if (baseStations.size >= 100) {
                         Timber.tag(TAG).d("Registry size %d >= 100, skipping live Overpass fetch in getNearbyStationsFlow", baseStations.size)
                         emptyList()
                     } else {
@@ -481,16 +519,20 @@ class GasStationRepository @Inject constructor(
                     }
                 }
                 val russiabaseDeferred = async {
-                    try {
-                        withTimeoutOrNull(3000L) {
-                            val obs = russiabaseProvider.fetchObservations(city, listOf("ai95", "dt"), lat, lon)
-                            russiabaseStatus = if (obs.isNotEmpty()) "ok (${obs.size} obs)" else "empty"
-                            obs
-                        } ?: emptyList()
-                    } catch (e: Exception) {
-                        russiabaseStatus = "error (${e.message})"
-                        Timber.tag(TAG).w("Russiabase fetch failed in getNearbyStationsFlow: %s", e.message)
+                    if (!srcRussiabase) {
                         emptyList()
+                    } else {
+                        try {
+                            withTimeoutOrNull(3000L) {
+                                val obs = russiabaseProvider.fetchObservations(city, listOf("ai95", "dt"), lat, lon)
+                                russiabaseStatus = if (obs.isNotEmpty()) "ok (${obs.size} obs)" else "empty"
+                                obs
+                            } ?: emptyList()
+                        } catch (e: Exception) {
+                            russiabaseStatus = "error (${e.message})"
+                            Timber.tag(TAG).w("Russiabase fetch failed in getNearbyStationsFlow: %s", e.message)
+                            emptyList()
+                        }
                     }
                 }
                 overpassDeferred.await() to russiabaseDeferred.await()

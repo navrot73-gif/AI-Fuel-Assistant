@@ -54,10 +54,52 @@ class UserPreferencesRepository @Inject constructor(
         val KEY_CACHED_CITY = stringPreferencesKey("cached_city")
         val KEY_MAP_ENGINE = stringPreferencesKey("map_engine")
         val KEY_MAP_TILE_SOURCE = stringPreferencesKey("map_tile_source")
+        val KEY_SRC_BENZONAVT = booleanPreferencesKey("src_benzonavt")
+        val KEY_SRC_RUSSIABASE = booleanPreferencesKey("src_russiabase")
+        val KEY_SRC_OVERPASS = booleanPreferencesKey("src_overpass")
         private const val USER_PRICE_PREFIX = "price:"
         const val ENGINE_OSMDROID = "osmdroid"
         const val ENGINE_MAPLIBRE = "maplibre"
     }
+
+    val srcBenzonavt: Flow<Boolean> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                Timber.tag(TAG).e(exception, "Error reading src_benzonavt preference.")
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[KEY_SRC_BENZONAVT] ?: false
+        }
+
+    val srcRussiabase: Flow<Boolean> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                Timber.tag(TAG).e(exception, "Error reading src_russiabase preference.")
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[KEY_SRC_RUSSIABASE] ?: false
+        }
+
+    val srcOverpass: Flow<Boolean> = dataStore.data
+        .catch { exception ->
+            if (exception is IOException) {
+                Timber.tag(TAG).e(exception, "Error reading src_overpass preference.")
+                emit(emptyPreferences())
+            } else {
+                throw exception
+            }
+        }
+        .map { preferences ->
+            preferences[KEY_SRC_OVERPASS] ?: false
+        }
 
     val mapEngine: Flow<String> = dataStore.data
         .catch { exception ->
@@ -123,6 +165,60 @@ class UserPreferencesRepository @Inject constructor(
         .map { preferences ->
             parseUserPricesFromPreferences(preferences)
         }
+
+    suspend fun setSrcBenzonavt(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[KEY_SRC_BENZONAVT] = enabled
+        }
+    }
+
+    suspend fun setSrcRussiabase(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[KEY_SRC_RUSSIABASE] = enabled
+        }
+    }
+
+    suspend fun setSrcOverpass(enabled: Boolean) {
+        dataStore.edit { preferences ->
+            preferences[KEY_SRC_OVERPASS] = enabled
+        }
+    }
+
+    suspend fun getSrcBenzonavt(): Boolean {
+        return try {
+            dataStore.data.first()[KEY_SRC_BENZONAVT] ?: false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun getSrcRussiabase(): Boolean {
+        return try {
+            dataStore.data.first()[KEY_SRC_RUSSIABASE] ?: false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    suspend fun getSrcOverpass(): Boolean {
+        return try {
+            dataStore.data.first()[KEY_SRC_OVERPASS] ?: false
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    fun getSrcBenzonavtBlocking(): Boolean {
+        return runBlocking { getSrcBenzonavt() }
+    }
+
+    fun getSrcRussiabaseBlocking(): Boolean {
+        return runBlocking { getSrcRussiabase() }
+    }
+
+    fun getSrcOverpassBlocking(): Boolean {
+        return runBlocking { getSrcOverpass() }
+    }
 
     suspend fun setDarkMode(enabled: Boolean) {
         dataStore.edit { preferences ->
