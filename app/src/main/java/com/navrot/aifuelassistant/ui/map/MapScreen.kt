@@ -750,11 +750,14 @@ fun MapScreen(
             }
         }
 
+        val activeSources = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.activeSources
         AlertDialog(
             onDismissRequest = { showDiagnosticsDialog = false },
             title = { Text("Диагностика карты") },
             text = {
                 Column {
+                    Text("activeSources: $activeSources", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(4.dp))
                     Text("registryCount: $registryCount | mergeConflicts: $mergeConflicts", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(4.dp))
                     Text("perSourceCount: $perSourceMap", style = MaterialTheme.typography.bodyMedium)

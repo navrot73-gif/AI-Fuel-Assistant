@@ -8,9 +8,12 @@ import com.navrot.aifuelassistant.data.providers.FuelPriceInfo
 import timber.log.Timber
 import javax.inject.Inject
 
+import com.navrot.aifuelassistant.data.UserPreferencesRepository
+
 class StationPriceApplierImpl @Inject constructor(
     private val userPrices: UserPriceRepository,
-    private val benzonavtProvider: BenzonavtProvider
+    private val benzonavtProvider: BenzonavtProvider,
+    private val userPreferencesRepository: UserPreferencesRepository? = null
 ) : StationPriceApplier {
 
     companion object {
@@ -48,6 +51,15 @@ class StationPriceApplierImpl @Inject constructor(
 
     override suspend fun applyAllPrices(stations: List<GasStation>): List<GasStation> {
         val withUser = applyUserPrices(stations)
+        val isBenzonavtEnabled = if (userPreferencesRepository != null) {
+            userPreferencesRepository.getSrcBenzonavt()
+        } else {
+            true
+        }
+        if (!isBenzonavtEnabled) {
+            com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.benzonavtUnmatched = 0
+            return withUser
+        }
         val city = benzonavtProvider.currentCity()
         val benzonavt = benzonavtProvider.fetchCityPrices(city)
         if (benzonavt.isEmpty()) return withUser
