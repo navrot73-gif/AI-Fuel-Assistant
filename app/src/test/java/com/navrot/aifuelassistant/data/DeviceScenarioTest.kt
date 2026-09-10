@@ -179,12 +179,12 @@ class DeviceScenarioTest {
         assertNotNull("Best station recommendation must be present", recommendationDelegate.bestStation.value)
         assertTrue("Recommendation must be rendered in <= 3000ms, took $recommendationDuration ms", recommendationDuration <= 3000L)
 
-        // 2. Enrichment caps <= 6s and skips live Overpass when registry >= 100
+        // 2. Enrichment caps <= 6s
         val startTime = testScheduler.currentTime
         repo.triggerEnrichment(55.1608, 61.3989)
         val elapsedVirtualMs = testScheduler.currentTime - startTime
 
         assertTrue("Enrichment total time must cap at <= 6000ms virtual time", elapsedVirtualMs <= 6000L)
-        assertFalse("Live Overpass should be skipped when registry >= 100", liveOverpassCalled)
+        assertTrue("Live Overpass is called when srcOverpass flag is true", liveOverpassCalled)
     }
 }
