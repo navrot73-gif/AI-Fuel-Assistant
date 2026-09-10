@@ -671,13 +671,39 @@ fun MapScreen(
     }
 
     if (showDiagnosticsDialog) {
+        val clipboardManager = androidx.compose.ui.platform.LocalClipboardManager.current
+        val context = LocalContext.current
+
         val (diagLat, diagLon) = userLocation?.let { it.latitude to it.longitude } ?: (55.1644 to 61.4368)
         val overpassCount = stations.count { it.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.OVERPASS) }
+        val benzonavtCount = stations.count { it.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.BENZONAVT) }
         val russiabaseMatched = stations.count { it.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.RUSSIABASE) }
+        val userCount = stations.count { it.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.USER_REPORT) }
         val redCount = stations.count {
             com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator.calculateFuelAvailability(it) == com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus.NO_FUEL
         }
         val benzonavtActive = stations.any { it.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.BENZONAVT) }
+
+        val perSourceMap = mapOf(
+            "overpass" to overpassCount,
+            "benzonavt" to benzonavtCount,
+            "russiabase" to russiabaseMatched,
+            "user" to userCount
+        )
+        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.perSourceCount = perSourceMap
+
+        val registryCount = if (com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.registryCount > 0) {
+            com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.registryCount
+        } else stations.size
+        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.registryCount = registryCount
+
+        val mergeConflicts = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.mergeConflicts
+        val emit1 = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit1Ms
+        val firstEmitMs = if (com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.firstEmitMs > 0L) {
+            com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.firstEmitMs
+        } else emit1
+        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.firstEmitMs = firstEmitMs
+        val firstEmitSource = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.firstEmitSource
 
         val candidates = com.navrot.aifuelassistant.domain.usecase.StationQueryFacade.getTopCandidates(
             stations = stations,
@@ -688,7 +714,6 @@ fun MapScreen(
 
         var diagRefreshTrigger by remember { mutableIntStateOf(0) }
 
-        val emit1 = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit1Ms
         val emit2 = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.emit2Ms
         val enrichment = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.enrichmentMs
         val cityResolve = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.cityResolveMs
@@ -730,6 +755,12 @@ fun MapScreen(
             title = { Text("Диагностика карты") },
             text = {
                 Column {
+                    Text("registryCount: $registryCount | mergeConflicts: $mergeConflicts", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(4.dp))
+                    Text("perSourceCount: $perSourceMap", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(4.dp))
+                    Text("firstEmit: ${firstEmitMs}ms (source=$firstEmitSource)", style = MaterialTheme.typography.bodyMedium)
+                    Spacer(Modifier.height(4.dp))
                     Text("startup: emit1=${emit1}ms, emit2=${emit2}ms, enrichment=${enrichment}ms", style = MaterialTheme.typography.bodyMedium)
                     Spacer(Modifier.height(4.dp))
                     Text("city_resolve=${cityResolve}ms (source=$citySource) | ai_path=$aiPath | route_test=$routeTest", style = MaterialTheme.typography.bodyMedium)
@@ -758,12 +789,21 @@ fun MapScreen(
                 }
             },
             confirmButton = {
-                TextButton(onClick = {
-                    diagRefreshTrigger++
-                    viewModel.triggerEnrichment(diagLat, diagLon)
-                    userLocation?.let { loc -> viewModel.loadNearbyStations(loc.latitude, loc.longitude, 50.0) }
-                }) {
-                    Text("Обновить")
+                Row {
+                    TextButton(onClick = {
+                        val plainText = com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.exportDiagnosticsText()
+                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(plainText))
+                        android.widget.Toast.makeText(context, "Скопировано в буфер обмена", android.widget.Toast.LENGTH_SHORT).show()
+                    }) {
+                        Text("Экспорт диагностики")
+                    }
+                    TextButton(onClick = {
+                        diagRefreshTrigger++
+                        viewModel.triggerEnrichment(diagLat, diagLon)
+                        userLocation?.let { loc -> viewModel.loadNearbyStations(loc.latitude, loc.longitude, 50.0) }
+                    }) {
+                        Text("Обновить")
+                    }
                 }
             },
             dismissButton = {
