@@ -174,8 +174,8 @@
     "name": "Газпромнефть №201",
     "brand": "Газпромнефть",
     "address": "Челябинск, Свердловский тракт, 12В",
-    "latitude": 55.1812,
-    "longitude": 61.4123,
+    "latitude": 55.2243443,
+    "longitude": 61.3747471,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -197,7 +197,9 @@
     "reliability": 90,
     "osmId": "osm:node/201",
     "verified": true,
-    "verifiedAt": "2026-09-10"
+    "verifiedAt": "2026-09-10",
+    "osmNode": 1987133468,
+    "ref": "201"
   },
   {
     "id": 15,
