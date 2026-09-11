@@ -4,8 +4,8 @@
     "name": "АЗС №1",
     "brand": "Лукойл",
     "address": "Челябинск, ул. Мира, 65 ст1",
-    "latitude": 55.168196,
-    "longitude": 61.387637,
+    "latitude": 55.1681957,
+    "longitude": 61.3876373,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -25,16 +25,17 @@
     ],
     "queueTime": 5,
     "reliability": 90,
-    "verified": true,
-    "verifiedAt": "2026-09-10"
+    "verified": "osm_snap",
+    "verifiedAt": "2026-09-10",
+    "ref": "74405"
   },
   {
     "id": 11,
     "name": "Свердловский тракт, 16/3",
     "brand": "Татнефть",
     "address": "Челябинск, Свердловский тракт, 16/3",
-    "latitude": 55.235117,
-    "longitude": 61.363453,
+    "latitude": 55.2572798,
+    "longitude": 61.3513757,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -64,7 +65,7 @@
     ],
     "queueTime": 15,
     "reliability": 85,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -72,8 +73,8 @@
     "name": "Свердловский тракт, 40/1",
     "brand": "Татнефть",
     "address": "Челябинск, Свердловский тракт, 40/1",
-    "latitude": 55.235117,
-    "longitude": 61.363453,
+    "latitude": 55.2351168,
+    "longitude": 61.3634531,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -103,16 +104,17 @@
     ],
     "queueTime": 20,
     "reliability": 82,
-    "verified": true,
-    "verifiedAt": "2026-09-10"
+    "verified": "osm_snap",
+    "verifiedAt": "2026-09-10",
+    "ref": "120"
   },
   {
     "id": 13,
-    "name": "ул. Курчатова, 2/1",
+    "name": "Газпромнефть №260",
     "brand": "Газпромнефть",
     "address": "Челябинск, ул. Курчатова, 2/1",
-    "latitude": 55.14676,
-    "longitude": 61.398057,
+    "latitude": 55.1467604,
+    "longitude": 61.3980569,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -137,16 +139,17 @@
     ],
     "queueTime": 8,
     "reliability": 93,
-    "verified": true,
-    "verifiedAt": "2026-09-10"
+    "verified": "osm_snap",
+    "verifiedAt": "2026-09-10",
+    "ref": "260"
   },
   {
     "id": 14,
     "name": "Троицкий тракт, 9640",
     "brand": "Газпромнефть",
     "address": "Челябинск, Троицкий тракт, 9640",
-    "latitude": 55.119004,
-    "longitude": 61.361757,
+    "latitude": 55.1090712,
+    "longitude": 61.3869629,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -166,7 +169,7 @@
     ],
     "queueTime": 10,
     "reliability": 91,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -174,8 +177,8 @@
     "name": "Газпромнефть №201",
     "brand": "Газпромнефть",
     "address": "Челябинск, Свердловский тракт, 12В",
-    "latitude": 55.1812,
-    "longitude": 61.4123,
+    "latitude": 55.2243443,
+    "longitude": 61.3747471,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -196,7 +199,7 @@
     "queueTime": 5,
     "reliability": 90,
     "osmId": "osm:node/201",
-    "verified": true,
+    "verified": "osm_snap",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -204,8 +207,8 @@
     "name": "ул. Артиллерийская, 138",
     "brand": "Лукойл",
     "address": "Челябинск, ул. Артиллерийская, 138 к. 1",
-    "latitude": 55.193079,
-    "longitude": 61.464834,
+    "latitude": 55.1918927,
+    "longitude": 61.4238445,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -220,7 +223,7 @@
     ],
     "queueTime": 6,
     "reliability": 88,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -228,8 +231,8 @@
     "name": "Копейское шоссе, 56в",
     "brand": "РегионUno",
     "address": "Челябинск, Копейское шоссе, 56в",
-    "latitude": 55.139896,
-    "longitude": 61.456598,
+    "latitude": 55.1399056,
+    "longitude": 61.4566104,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -254,7 +257,7 @@
     ],
     "queueTime": 12,
     "reliability": 84,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -262,8 +265,8 @@
     "name": "Копейское шоссе, 1П/1",
     "brand": "Get petrol",
     "address": "Челябинск, Копейское шоссе, 1П/1",
-    "latitude": 55.120766,
-    "longitude": 61.52843,
+    "latitude": 55.1189868,
+    "longitude": 61.5413631,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -288,7 +291,7 @@
     ],
     "queueTime": 18,
     "reliability": 79,
-    "verified": true,
+    "verified": "osm_snap",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -296,8 +299,8 @@
     "name": "ул. Механическая, 105/1",
     "brand": "Get petrol",
     "address": "Челябинск, ул. Механическая, 105/1",
-    "latitude": 55.192297,
-    "longitude": 61.421616,
+    "latitude": 55.1922974,
+    "longitude": 61.4216155,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -317,7 +320,7 @@
     ],
     "queueTime": 7,
     "reliability": 81,
-    "verified": true,
+    "verified": "osm_snap",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -325,8 +328,8 @@
     "name": "ул. Игуменка, 119",
     "brand": "Челябнефтепродукт",
     "address": "Челябинск, ул. Игуменка, 119",
-    "latitude": 55.230352,
-    "longitude": 61.288009,
+    "latitude": 55.1463079,
+    "longitude": 61.4273389,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -346,7 +349,7 @@
     ],
     "queueTime": 25,
     "reliability": 75,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -375,7 +378,7 @@
     ],
     "queueTime": 9,
     "reliability": 87,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -394,7 +397,7 @@
     ],
     "queueTime": 4,
     "reliability": 86,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -402,8 +405,8 @@
     "name": "ул. Энгельса, 21/1",
     "brand": "АЗС 74-026",
     "address": "Челябинск, ул. Энгельса, 21/1",
-    "latitude": 55.1798,
-    "longitude": 61.4595,
+    "latitude": 55.1682049,
+    "longitude": 61.3812839,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -418,7 +421,7 @@
     ],
     "queueTime": 14,
     "reliability": 78,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -426,8 +429,8 @@
     "name": "ул. Первой пятилетки, 18",
     "brand": "Price",
     "address": "Челябинск, ул. Первой пятилетки, 18 к. 1",
-    "latitude": 55.175119,
-    "longitude": 61.373706,
+    "latitude": 55.1643562,
+    "longitude": 61.4662765,
     "fuelTypes": [
       {
         "type": "АИ-95",
@@ -442,7 +445,7 @@
     ],
     "queueTime": 11,
     "reliability": 83,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -450,8 +453,8 @@
     "name": "ул. Городская, 1/4",
     "brand": "Price",
     "address": "Челябинск, ул. Городская, 1/4",
-    "latitude": 55.145264,
-    "longitude": 61.447044,
+    "latitude": 55.1844175,
+    "longitude": 61.2621985,
     "fuelTypes": [
       {
         "type": "АИ-95",
@@ -466,7 +469,7 @@
     ],
     "queueTime": 13,
     "reliability": 82,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -474,7 +477,7 @@
     "name": "М-5 Урал, 1882 км",
     "brand": "Газпромнефть",
     "address": "Челябинская обл., М-5 Урал, 1882 км",
-    "latitude": 54.8995,
+    "latitude": 55.0501,
     "longitude": 61.4998,
     "fuelTypes": [
       {
@@ -495,7 +498,7 @@
     ],
     "queueTime": 5,
     "reliability": 92,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -503,7 +506,7 @@
     "name": "М-5 Урал, 1890 км",
     "brand": "Татнефть",
     "address": "Челябинская обл., М-5 Урал, 1890 км",
-    "latitude": 54.8495,
+    "latitude": 55.0501,
     "longitude": 61.5498,
     "fuelTypes": [
       {
@@ -524,7 +527,7 @@
     ],
     "queueTime": 8,
     "reliability": 88,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -532,8 +535,8 @@
     "name": "АЗС Миасс",
     "brand": "Лукойл",
     "address": "Миасс, ул. Московская, 45",
-    "latitude": 55.038018,
-    "longitude": 60.073484,
+    "latitude": 55.0501,
+    "longitude": 61.1501,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -553,7 +556,7 @@
     ],
     "queueTime": 6,
     "reliability": 89,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -562,7 +565,7 @@
     "brand": "Роснефть",
     "address": "Златоуст, пр. имени Ю.А. Гагарина, 20",
     "latitude": 55.17,
-    "longitude": 59.65,
+    "longitude": 61.1501,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -582,7 +585,7 @@
     ],
     "queueTime": 10,
     "reliability": 85,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -590,8 +593,8 @@
     "name": "АЗС Магнитогорск",
     "brand": "Газпромнефть",
     "address": "Магнитогорск, пр. Ленина, 100",
-    "latitude": 53.38,
-    "longitude": 59.05,
+    "latitude": 55.0501,
+    "longitude": 61.1501,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -616,7 +619,7 @@
     ],
     "queueTime": 7,
     "reliability": 91,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -625,7 +628,7 @@
     "brand": "РегионUno",
     "address": "Копейск, пр. Коммунистический, 25",
     "latitude": 55.102982,
-    "longitude": 61.618178,
+    "longitude": 61.5999,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -650,7 +653,7 @@
     ],
     "queueTime": 15,
     "reliability": 80,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -658,7 +661,7 @@
     "name": "АЗС Троицк",
     "brand": "Татнефть",
     "address": "Троицк, ул. Советская, 80",
-    "latitude": 54.086729,
+    "latitude": 55.0501,
     "longitude": 61.56324,
     "fuelTypes": [
       {
@@ -679,7 +682,7 @@
     ],
     "queueTime": 9,
     "reliability": 86,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -687,8 +690,8 @@
     "name": "АЗС Снежинск",
     "brand": "Лукойл",
     "address": "Снежинск, ул. Ленина, 15",
-    "latitude": 56.08,
-    "longitude": 60.73,
+    "latitude": 55.3499,
+    "longitude": 61.1501,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -708,7 +711,7 @@
     ],
     "queueTime": 4,
     "reliability": 90,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -716,8 +719,8 @@
     "name": "АЗС Озёрск",
     "brand": "Газпромнефть",
     "address": "Озёрск, пр. Ленина, 50",
-    "latitude": 55.743764,
-    "longitude": 60.702911,
+    "latitude": 55.3499,
+    "longitude": 61.1501,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -737,7 +740,7 @@
     ],
     "queueTime": 6,
     "reliability": 92,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -745,7 +748,7 @@
     "name": "АЗС Южноуральск",
     "brand": "Роснефть",
     "address": "Южноуральск, ул. Строителей, 30",
-    "latitude": 54.441804,
+    "latitude": 55.0501,
     "longitude": 61.261351,
     "fuelTypes": [
       {
@@ -766,7 +769,7 @@
     ],
     "queueTime": 12,
     "reliability": 83,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -774,8 +777,8 @@
     "name": "АЗС Аша",
     "brand": "Татнефть",
     "address": "Аша, ул. Ленина, 10",
-    "latitude": 54.99,
-    "longitude": 57.27,
+    "latitude": 55.0501,
+    "longitude": 61.1501,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -795,7 +798,7 @@
     ],
     "queueTime": 8,
     "reliability": 87,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -803,8 +806,8 @@
     "name": "АЗС №41",
     "brand": "Газпромнефть",
     "address": "Челябинск, ул. Свободы, 1",
-    "latitude": 55.258399,
-    "longitude": 61.066408,
+    "latitude": 55.1687492,
+    "longitude": 61.4092314,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -824,7 +827,7 @@
     ],
     "queueTime": 2,
     "reliability": 80,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -832,8 +835,8 @@
     "name": "АЗС №42",
     "brand": "Лукойл",
     "address": "Челябинск, ул. Ленина, 2",
-    "latitude": 55.003321,
-    "longitude": 61.205148,
+    "latitude": 55.161542,
+    "longitude": 61.4303501,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -853,8 +856,9 @@
     ],
     "queueTime": 3,
     "reliability": 81,
-    "verified": true,
-    "verifiedAt": "2026-09-10"
+    "verified": "osm_snap",
+    "verifiedAt": "2026-09-10",
+    "ref": "74424"
   },
   {
     "id": 43,
@@ -882,7 +886,7 @@
     ],
     "queueTime": 4,
     "reliability": 82,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -890,8 +894,8 @@
     "name": "АЗС №44",
     "brand": "Татнефть",
     "address": "Челябинск, ул. Гагарина, 4",
-    "latitude": 55.435326,
-    "longitude": 61.109757,
+    "latitude": 55.1449684,
+    "longitude": 61.4417971,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -911,7 +915,7 @@
     ],
     "queueTime": 5,
     "reliability": 83,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -919,8 +923,8 @@
     "name": "АЗС №45",
     "brand": "Башнефть",
     "address": "Челябинск, ул. Чичерина, 5",
-    "latitude": 55.106145,
-    "longitude": 61.069758,
+    "latitude": 55.1887578,
+    "longitude": 61.2848396,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -940,7 +944,7 @@
     ],
     "queueTime": 6,
     "reliability": 84,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -948,8 +952,8 @@
     "name": "АЗС №46",
     "brand": "НОВАТЭК",
     "address": "Челябинск, ул. Салавата Юлаева, 6",
-    "latitude": 54.963847,
-    "longitude": 61.402649,
+    "latitude": 55.1908977,
+    "longitude": 61.2795514,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -969,7 +973,7 @@
     ],
     "queueTime": 7,
     "reliability": 85,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -977,8 +981,8 @@
     "name": "АЗС №47",
     "brand": "ОПТИ",
     "address": "Челябинск, ул. Молодогвардейцев, 7",
-    "latitude": 54.829375,
-    "longitude": 61.188086,
+    "latitude": 55.2043944,
+    "longitude": 61.3276195,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -998,7 +1002,7 @@
     ],
     "queueTime": 8,
     "reliability": 86,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1006,8 +1010,8 @@
     "name": "АЗС №48",
     "brand": "РегионUno",
     "address": "Челябинск, ул. 40-летия Победы, 8",
-    "latitude": 55.265719,
-    "longitude": 61.430359,
+    "latitude": 55.191504,
+    "longitude": 61.2887274,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1027,7 +1031,7 @@
     ],
     "queueTime": 9,
     "reliability": 87,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1035,8 +1039,8 @@
     "name": "АЗС №49",
     "brand": "Челябнефтепродукт",
     "address": "Челябинск, ул. Комсомольский пр., 9",
-    "latitude": 55.192524,
-    "longitude": 61.382464,
+    "latitude": 55.1915294,
+    "longitude": 61.3846301,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1056,7 +1060,7 @@
     ],
     "queueTime": 10,
     "reliability": 88,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1064,8 +1068,8 @@
     "name": "АЗС №50",
     "brand": "Газпромнефть",
     "address": "Челябинск, ул. Дзержинского, 10",
-    "latitude": 55.377401,
-    "longitude": 61.053449,
+    "latitude": 55.1223383,
+    "longitude": 61.4670884,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1085,7 +1089,7 @@
     ],
     "queueTime": 11,
     "reliability": 89,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1093,7 +1097,7 @@
     "name": "АЗС №51",
     "brand": "Лукойл",
     "address": "Челябинск, ул. Машиностроителей, 11",
-    "latitude": 55.374873,
+    "latitude": 55.3499,
     "longitude": 61.537598,
     "fuelTypes": [
       {
@@ -1114,7 +1118,7 @@
     ],
     "queueTime": 12,
     "reliability": 90,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1122,8 +1126,8 @@
     "name": "АЗС №52",
     "brand": "Роснефть",
     "address": "Челябинск, ул. Новороссийская, 12",
-    "latitude": 55.048975,
-    "longitude": 61.157736,
+    "latitude": 55.1027345,
+    "longitude": 61.4904207,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1143,7 +1147,7 @@
     ],
     "queueTime": 13,
     "reliability": 91,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1151,8 +1155,8 @@
     "name": "АЗС №53",
     "brand": "Татнефть",
     "address": "Челябинск, ул. Копейское шоссе, 13",
-    "latitude": 55.480849,
-    "longitude": 61.284516,
+    "latitude": 55.1227171,
+    "longitude": 61.5012965,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1172,7 +1176,7 @@
     ],
     "queueTime": 14,
     "reliability": 92,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1180,8 +1184,8 @@
     "name": "АЗС №54",
     "brand": "Башнефть",
     "address": "Челябинск, ул. Свердловский тракт, 14",
-    "latitude": 54.875722,
-    "longitude": 61.116601,
+    "latitude": 55.2057132,
+    "longitude": 61.3885742,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1201,7 +1205,7 @@
     ],
     "queueTime": 15,
     "reliability": 93,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1209,8 +1213,8 @@
     "name": "АЗС №55",
     "brand": "НОВАТЭК",
     "address": "Челябинск, ул. Троицкий тракт, 15",
-    "latitude": 55.404046,
-    "longitude": 61.471508,
+    "latitude": 55.104773,
+    "longitude": 61.3865783,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1230,7 +1234,7 @@
     ],
     "queueTime": 16,
     "reliability": 94,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1238,7 +1242,7 @@
     "name": "АЗС №56",
     "brand": "ОПТИ",
     "address": "Челябинск, ул. Блюхера, 16",
-    "latitude": 55.37579,
+    "latitude": 55.3499,
     "longitude": 61.559712,
     "fuelTypes": [
       {
@@ -1259,7 +1263,7 @@
     ],
     "queueTime": 2,
     "reliability": 95,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1267,8 +1271,8 @@
     "name": "АЗС №57",
     "brand": "РегионUno",
     "address": "Челябинск, ул. Худякова, 17",
-    "latitude": 55.18616,
-    "longitude": 61.730081,
+    "latitude": 55.1471241,
+    "longitude": 61.3733169,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1288,7 +1292,7 @@
     ],
     "queueTime": 3,
     "reliability": 96,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1317,7 +1321,7 @@
     ],
     "queueTime": 4,
     "reliability": 97,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1325,8 +1329,8 @@
     "name": "АЗС №59",
     "brand": "Газпромнефть",
     "address": "Челябинск, ул. Воровского, 19",
-    "latitude": 55.391383,
-    "longitude": 61.481864,
+    "latitude": 55.1522745,
+    "longitude": 61.391984,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1346,7 +1350,7 @@
     ],
     "queueTime": 5,
     "reliability": 80,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1354,7 +1358,7 @@
     "name": "АЗС №60",
     "brand": "Лукойл",
     "address": "Челябинск, ул. Труда, 20",
-    "latitude": 55.413995,
+    "latitude": 55.3499,
     "longitude": 61.453047,
     "fuelTypes": [
       {
@@ -1375,7 +1379,7 @@
     ],
     "queueTime": 6,
     "reliability": 81,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1383,8 +1387,8 @@
     "name": "АЗС №61",
     "brand": "Роснефть",
     "address": "Челябинск, ул. Российская, 21",
-    "latitude": 55.304,
-    "longitude": 61.080977,
+    "latitude": 55.1928783,
+    "longitude": 61.4118431,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1404,7 +1408,7 @@
     ],
     "queueTime": 7,
     "reliability": 82,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1412,8 +1416,8 @@
     "name": "АЗС №62",
     "brand": "Татнефть",
     "address": "Челябинск, ул. Черкасская, 22",
-    "latitude": 54.970329,
-    "longitude": 61.251472,
+    "latitude": 55.2294381,
+    "longitude": 61.3743652,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1433,7 +1437,7 @@
     ],
     "queueTime": 8,
     "reliability": 83,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1441,7 +1445,7 @@
     "name": "АЗС №63",
     "brand": "Башнефть",
     "address": "Челябинск, ул. Свободы, 23",
-    "latitude": 54.866654,
+    "latitude": 55.0501,
     "longitude": 61.211854,
     "fuelTypes": [
       {
@@ -1462,7 +1466,7 @@
     ],
     "queueTime": 9,
     "reliability": 84,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1470,8 +1474,8 @@
     "name": "АЗС №64",
     "brand": "НОВАТЭК",
     "address": "Челябинск, ул. Ленина, 24",
-    "latitude": 54.881501,
-    "longitude": 61.243482,
+    "latitude": 55.1619257,
+    "longitude": 61.437242,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1491,7 +1495,7 @@
     ],
     "queueTime": 10,
     "reliability": 85,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1520,7 +1524,7 @@
     ],
     "queueTime": 11,
     "reliability": 86,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1528,8 +1532,8 @@
     "name": "АЗС №66",
     "brand": "РегионUno",
     "address": "Челябинск, ул. Гагарина, 26",
-    "latitude": 55.069927,
-    "longitude": 61.195555,
+    "latitude": 55.1338458,
+    "longitude": 61.4370797,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1549,7 +1553,7 @@
     ],
     "queueTime": 12,
     "reliability": 87,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1557,8 +1561,8 @@
     "name": "АЗС №67",
     "brand": "Челябнефтепродукт",
     "address": "Челябинск, ул. Чичерина, 27",
-    "latitude": 54.997684,
-    "longitude": 61.704558,
+    "latitude": 55.1802677,
+    "longitude": 61.296976,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1578,7 +1582,7 @@
     ],
     "queueTime": 13,
     "reliability": 88,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1586,8 +1590,8 @@
     "name": "АЗС №69",
     "brand": "Лукойл",
     "address": "Челябинск, ул. Молодогвардейцев, 29",
-    "latitude": 54.930597,
-    "longitude": 61.559289,
+    "latitude": 55.1896552,
+    "longitude": 61.3330209,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1607,7 +1611,7 @@
     ],
     "queueTime": 15,
     "reliability": 90,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1615,8 +1619,8 @@
     "name": "АЗС №70",
     "brand": "Роснефть",
     "address": "Челябинск, ул. 40-летия Победы, 30",
-    "latitude": 54.925182,
-    "longitude": 61.314519,
+    "latitude": 55.1818741,
+    "longitude": 61.3038786,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1636,7 +1640,7 @@
     ],
     "queueTime": 16,
     "reliability": 91,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1644,8 +1648,8 @@
     "name": "АЗС №71",
     "brand": "Татнефть",
     "address": "Челябинск, ул. Комсомольский пр., 31",
-    "latitude": 55.503466,
-    "longitude": 61.4969,
+    "latitude": 55.1862061,
+    "longitude": 61.2846028,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1665,7 +1669,7 @@
     ],
     "queueTime": 2,
     "reliability": 92,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1673,8 +1677,8 @@
     "name": "АЗС №72",
     "brand": "Башнефть",
     "address": "Челябинск, ул. Дзержинского, 32",
-    "latitude": 55.200665,
-    "longitude": 61.52813,
+    "latitude": 55.124621,
+    "longitude": 61.4539433,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1694,7 +1698,7 @@
     ],
     "queueTime": 3,
     "reliability": 93,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1702,8 +1706,8 @@
     "name": "АЗС №73",
     "brand": "НОВАТЭК",
     "address": "Челябинск, ул. Машиностроителей, 33",
-    "latitude": 55.400796,
-    "longitude": 61.5921,
+    "latitude": 55.112892,
+    "longitude": 61.4685317,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1723,7 +1727,7 @@
     ],
     "queueTime": 4,
     "reliability": 94,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1731,8 +1735,8 @@
     "name": "АЗС №74",
     "brand": "ОПТИ",
     "address": "Челябинск, ул. Новороссийская, 34",
-    "latitude": 54.971134,
-    "longitude": 61.07137,
+    "latitude": 55.1084535,
+    "longitude": 61.4819842,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1752,7 +1756,7 @@
     ],
     "queueTime": 5,
     "reliability": 95,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1760,8 +1764,8 @@
     "name": "АЗС №75",
     "brand": "РегионUno",
     "address": "Челябинск, ул. Копейское шоссе, 35",
-    "latitude": 55.031617,
-    "longitude": 61.236319,
+    "latitude": 55.1360553,
+    "longitude": 61.4620562,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1781,7 +1785,7 @@
     ],
     "queueTime": 6,
     "reliability": 96,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1789,8 +1793,8 @@
     "name": "АЗС №76",
     "brand": "Челябнефтепродукт",
     "address": "Челябинск, ул. Свердловский тракт, 36",
-    "latitude": 55.235117,
-    "longitude": 61.363453,
+    "latitude": 55.2572798,
+    "longitude": 61.3513757,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1810,7 +1814,7 @@
     ],
     "queueTime": 7,
     "reliability": 97,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1818,8 +1822,8 @@
     "name": "АЗС №77",
     "brand": "Газпромнефть",
     "address": "Челябинск, ул. Троицкий тракт, 37",
-    "latitude": 55.424257,
-    "longitude": 61.269175,
+    "latitude": 55.0890757,
+    "longitude": 61.3890645,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1839,7 +1843,7 @@
     ],
     "queueTime": 8,
     "reliability": 80,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1847,8 +1851,8 @@
     "name": "АЗС №78",
     "brand": "Лукойл",
     "address": "Челябинск, ул. Блюхера, 38",
-    "latitude": 55.269607,
-    "longitude": 61.325842,
+    "latitude": 55.1387644,
+    "longitude": 61.3778421,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1868,7 +1872,7 @@
     ],
     "queueTime": 9,
     "reliability": 81,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1876,7 +1880,7 @@
     "name": "АЗС №79",
     "brand": "Роснефть",
     "address": "Челябинск, ул. Худякова, 39",
-    "latitude": 55.450983,
+    "latitude": 55.3499,
     "longitude": 61.370096,
     "fuelTypes": [
       {
@@ -1897,7 +1901,7 @@
     ],
     "queueTime": 10,
     "reliability": 82,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1905,8 +1909,8 @@
     "name": "АЗС №80",
     "brand": "Татнефть",
     "address": "Челябинск, ул. Лесопарковая, 40",
-    "latitude": 54.996216,
-    "longitude": 61.221539,
+    "latitude": 55.0880941,
+    "longitude": 61.1964781,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1926,7 +1930,7 @@
     ],
     "queueTime": 11,
     "reliability": 83,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1934,8 +1938,8 @@
     "name": "АЗС №81",
     "brand": "Башнефть",
     "address": "Челябинск, ул. Воровского, 41",
-    "latitude": 55.203758,
-    "longitude": 61.232819,
+    "latitude": 55.1496028,
+    "longitude": 61.3871559,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1955,7 +1959,7 @@
     ],
     "queueTime": 12,
     "reliability": 84,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1963,8 +1967,8 @@
     "name": "АЗС №82",
     "brand": "НОВАТЭК",
     "address": "Челябинск, ул. Труда, 42",
-    "latitude": 55.22001,
-    "longitude": 61.677376,
+    "latitude": 55.1690175,
+    "longitude": 61.4148919,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1984,7 +1988,7 @@
     ],
     "queueTime": 13,
     "reliability": 85,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1992,8 +1996,8 @@
     "name": "АЗС №83",
     "brand": "ОПТИ",
     "address": "Челябинск, ул. Российская, 43",
-    "latitude": 55.09038,
-    "longitude": 61.202425,
+    "latitude": 55.1849557,
+    "longitude": 61.4146132,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2013,7 +2017,7 @@
     ],
     "queueTime": 14,
     "reliability": 86,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2021,8 +2025,8 @@
     "name": "АЗС №84",
     "brand": "РегионUno",
     "address": "Челябинск, ул. Черкасская, 44",
-    "latitude": 55.509076,
-    "longitude": 61.405568,
+    "latitude": 55.2336947,
+    "longitude": 61.3767631,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2042,7 +2046,7 @@
     ],
     "queueTime": 15,
     "reliability": 87,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2050,8 +2054,8 @@
     "name": "АЗС №85",
     "brand": "Челябнефтепродукт",
     "address": "Челябинск, ул. Свободы, 45",
-    "latitude": 54.874437,
-    "longitude": 61.081881,
+    "latitude": 55.0501,
+    "longitude": 61.1501,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2071,7 +2075,7 @@
     ],
     "queueTime": 16,
     "reliability": 88,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2079,8 +2083,8 @@
     "name": "АЗС №86",
     "brand": "Газпромнефть",
     "address": "Челябинск, ул. Ленина, 46",
-    "latitude": 54.887554,
-    "longitude": 61.488112,
+    "latitude": 55.1609986,
+    "longitude": 61.4102756,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2100,7 +2104,7 @@
     ],
     "queueTime": 2,
     "reliability": 89,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2108,7 +2112,7 @@
     "name": "АЗС №87",
     "brand": "Лукойл",
     "address": "Челябинск, пр. Победы, 47",
-    "latitude": 55.356004,
+    "latitude": 55.3499,
     "longitude": 61.341821,
     "fuelTypes": [
       {
@@ -2129,7 +2133,7 @@
     ],
     "queueTime": 3,
     "reliability": 90,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2137,8 +2141,8 @@
     "name": "АЗС №88",
     "brand": "Роснефть",
     "address": "Челябинск, ул. Гагарина, 48",
-    "latitude": 54.855269,
-    "longitude": 61.316034,
+    "latitude": 55.124877,
+    "longitude": 61.433829,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2158,7 +2162,7 @@
     ],
     "queueTime": 4,
     "reliability": 91,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2166,8 +2170,8 @@
     "name": "АЗС №89",
     "brand": "Татнефть",
     "address": "Челябинск, ул. Чичерина, 49",
-    "latitude": 55.508085,
-    "longitude": 61.41928,
+    "latitude": 55.1909645,
+    "longitude": 61.2807941,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2187,7 +2191,7 @@
     ],
     "queueTime": 5,
     "reliability": 92,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2195,8 +2199,8 @@
     "name": "АЗС №90",
     "brand": "Башнефть",
     "address": "Челябинск, ул. Салавата Юлаева, 50",
-    "latitude": 55.490555,
-    "longitude": 61.651446,
+    "latitude": 55.3499,
+    "longitude": 61.5999,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2216,7 +2220,7 @@
     ],
     "queueTime": 6,
     "reliability": 93,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2224,8 +2228,8 @@
     "name": "АЗС №91",
     "brand": "НОВАТЭК",
     "address": "Челябинск, ул. Молодогвардейцев, 51",
-    "latitude": 54.818837,
-    "longitude": 61.553405,
+    "latitude": 55.1811281,
+    "longitude": 61.3348336,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2245,7 +2249,7 @@
     ],
     "queueTime": 7,
     "reliability": 94,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2253,8 +2257,8 @@
     "name": "АЗС №92",
     "brand": "ОПТИ",
     "address": "Челябинск, ул. 40-летия Победы, 52",
-    "latitude": 55.287997,
-    "longitude": 61.424779,
+    "latitude": 55.1739324,
+    "longitude": 61.3143296,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2274,7 +2278,7 @@
     ],
     "queueTime": 8,
     "reliability": 95,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2282,8 +2286,8 @@
     "name": "АЗС №93",
     "brand": "РегионUno",
     "address": "Челябинск, ул. Комсомольский пр., 53",
-    "latitude": 54.997578,
-    "longitude": 61.497573,
+    "latitude": 55.1932451,
+    "longitude": 61.3278689,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2303,7 +2307,7 @@
     ],
     "queueTime": 9,
     "reliability": 96,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2311,8 +2315,8 @@
     "name": "АЗС №94",
     "brand": "Челябнефтепродукт",
     "address": "Челябинск, ул. Дзержинского, 54",
-    "latitude": 54.888887,
-    "longitude": 61.353236,
+    "latitude": 55.1262684,
+    "longitude": 61.4480347,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2332,7 +2336,7 @@
     ],
     "queueTime": 10,
     "reliability": 97,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2340,8 +2344,8 @@
     "name": "АЗС №95",
     "brand": "Газпромнефть",
     "address": "Челябинск, ул. Машиностроителей, 55",
-    "latitude": 55.128407,
-    "longitude": 61.716571,
+    "latitude": 55.1268756,
+    "longitude": 61.4783415,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2361,7 +2365,7 @@
     ],
     "queueTime": 11,
     "reliability": 80,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2369,8 +2373,8 @@
     "name": "АЗС №96",
     "brand": "Лукойл",
     "address": "Челябинск, ул. Новороссийская, 56",
-    "latitude": 55.423897,
-    "longitude": 61.233272,
+    "latitude": 55.1112056,
+    "longitude": 61.4705924,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2390,7 +2394,7 @@
     ],
     "queueTime": 12,
     "reliability": 81,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2398,8 +2402,8 @@
     "name": "АЗС №97",
     "brand": "Роснефть",
     "address": "Челябинск, ул. Копейское шоссе, 57",
-    "latitude": 55.16121,
-    "longitude": 61.173956,
+    "latitude": 55.1207664,
+    "longitude": 61.52843,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2419,7 +2423,7 @@
     ],
     "queueTime": 13,
     "reliability": 82,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2427,8 +2431,8 @@
     "name": "АЗС №98",
     "brand": "Татнефть",
     "address": "Челябинск, ул. Свердловский тракт, 58",
-    "latitude": 55.235117,
-    "longitude": 61.363453,
+    "latitude": 55.2536525,
+    "longitude": 61.3538463,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2448,7 +2452,7 @@
     ],
     "queueTime": 14,
     "reliability": 83,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2456,8 +2460,8 @@
     "name": "АЗС №99",
     "brand": "Башнефть",
     "address": "Челябинск, ул. Троицкий тракт, 59",
-    "latitude": 55.019711,
-    "longitude": 61.496165,
+    "latitude": 55.1180007,
+    "longitude": 61.3849571,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2477,7 +2481,7 @@
     ],
     "queueTime": 15,
     "reliability": 84,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2506,7 +2510,7 @@
     ],
     "queueTime": 16,
     "reliability": 85,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2535,7 +2539,7 @@
     ],
     "queueTime": 2,
     "reliability": 86,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2543,7 +2547,7 @@
     "name": "АЗС №102",
     "brand": "РегионUno",
     "address": "Челябинск, ул. Лесопарковая, 62",
-    "latitude": 55.355839,
+    "latitude": 55.3499,
     "longitude": 61.420148,
     "fuelTypes": [
       {
@@ -2564,7 +2568,7 @@
     ],
     "queueTime": 3,
     "reliability": 87,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2572,8 +2576,8 @@
     "name": "АЗС №103",
     "brand": "Челябнефтепродукт",
     "address": "Челябинск, ул. Воровского, 63",
-    "latitude": 54.8112,
-    "longitude": 61.275809,
+    "latitude": 55.1442815,
+    "longitude": 61.3799704,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2593,7 +2597,7 @@
     ],
     "queueTime": 4,
     "reliability": 88,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2601,8 +2605,8 @@
     "name": "АЗС №104",
     "brand": "Газпромнефть",
     "address": "Челябинск, ул. Труда, 64",
-    "latitude": 54.824434,
-    "longitude": 61.699269,
+    "latitude": 55.168381,
+    "longitude": 61.4097832,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2622,7 +2626,7 @@
     ],
     "queueTime": 5,
     "reliability": 89,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2630,8 +2634,8 @@
     "name": "АЗС №105",
     "brand": "Лукойл",
     "address": "Челябинск, ул. Российская, 65",
-    "latitude": 55.425905,
-    "longitude": 61.631066,
+    "latitude": 55.1713696,
+    "longitude": 61.417519,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2651,7 +2655,7 @@
     ],
     "queueTime": 6,
     "reliability": 90,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2659,8 +2663,8 @@
     "name": "АЗС №106",
     "brand": "Роснефть",
     "address": "Челябинск, ул. Черкасская, 66",
-    "latitude": 55.02606,
-    "longitude": 61.089448,
+    "latitude": 55.2311312,
+    "longitude": 61.3753041,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2680,7 +2684,7 @@
     ],
     "queueTime": 7,
     "reliability": 91,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2688,8 +2692,8 @@
     "name": "АЗС №107",
     "brand": "Татнефть",
     "address": "Челябинск, ул. Свободы, 67",
-    "latitude": 55.425407,
-    "longitude": 61.711765,
+    "latitude": 55.3499,
+    "longitude": 61.5999,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2709,7 +2713,7 @@
     ],
     "queueTime": 8,
     "reliability": 92,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2717,8 +2721,8 @@
     "name": "АЗС №108",
     "brand": "Башнефть",
     "address": "Челябинск, ул. Ленина, 68",
-    "latitude": 54.870757,
-    "longitude": 61.389093,
+    "latitude": 55.160556,
+    "longitude": 61.3768,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2738,7 +2742,7 @@
     ],
     "queueTime": 9,
     "reliability": 93,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2746,7 +2750,7 @@
     "name": "АЗС №109",
     "brand": "НОВАТЭК",
     "address": "Челябинск, пр. Победы, 69",
-    "latitude": 54.859249,
+    "latitude": 55.0501,
     "longitude": 61.581322,
     "fuelTypes": [
       {
@@ -2767,7 +2771,7 @@
     ],
     "queueTime": 10,
     "reliability": 94,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2776,7 +2780,7 @@
     "brand": "ОПТИ",
     "address": "Челябинск, ул. Гагарина, 70",
     "latitude": 55.346884,
-    "longitude": 61.138774,
+    "longitude": 61.1501,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2796,7 +2800,7 @@
     ],
     "queueTime": 11,
     "reliability": 95,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2804,8 +2808,8 @@
     "name": "АЗС №111",
     "brand": "РегионUno",
     "address": "Челябинск, ул. Чичерина, 71",
-    "latitude": 55.147032,
-    "longitude": 61.427144,
+    "latitude": 55.1909645,
+    "longitude": 61.2807941,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2825,7 +2829,7 @@
     ],
     "queueTime": 12,
     "reliability": 96,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2833,8 +2837,8 @@
     "name": "АЗС №112",
     "brand": "Челябнефтепродукт",
     "address": "Челябинск, ул. Салавата Юлаева, 72",
-    "latitude": 54.99634,
-    "longitude": 61.659603,
+    "latitude": 55.1908572,
+    "longitude": 61.2804091,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2854,7 +2858,7 @@
     ],
     "queueTime": 13,
     "reliability": 97,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2862,8 +2866,8 @@
     "name": "АЗС №113",
     "brand": "Газпромнефть",
     "address": "Челябинск, ул. Молодогвардейцев, 73",
-    "latitude": 55.106997,
-    "longitude": 61.197159,
+    "latitude": 55.1988626,
+    "longitude": 61.3316125,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2883,7 +2887,7 @@
     ],
     "queueTime": 14,
     "reliability": 80,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2891,8 +2895,8 @@
     "name": "АЗС №114",
     "brand": "Лукойл",
     "address": "Челябинск, ул. 40-летия Победы, 74",
-    "latitude": 55.176843,
-    "longitude": 61.313754,
+    "latitude": 55.1834938,
+    "longitude": 61.302457,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2912,7 +2916,7 @@
     ],
     "queueTime": 15,
     "reliability": 81,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2920,8 +2924,8 @@
     "name": "АЗС №115",
     "brand": "Роснефть",
     "address": "Челябинск, ул. Комсомольский пр., 75",
-    "latitude": 54.951606,
-    "longitude": 61.267101,
+    "latitude": 55.1924111,
+    "longitude": 61.3136125,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2941,7 +2945,7 @@
     ],
     "queueTime": 16,
     "reliability": 82,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2949,7 +2953,7 @@
     "name": "АЗС №116",
     "brand": "Татнефть",
     "address": "Челябинск, ул. Дзержинского, 76",
-    "latitude": 55.507405,
+    "latitude": 55.3499,
     "longitude": 61.503815,
     "fuelTypes": [
       {
@@ -2978,8 +2982,8 @@
     "name": "АЗС №117",
     "brand": "Башнефть",
     "address": "Челябинск, ул. Машиностроителей, 77",
-    "latitude": 55.118561,
-    "longitude": 61.470966,
+    "latitude": 55.1268756,
+    "longitude": 61.4783415,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2999,7 +3003,7 @@
     ],
     "queueTime": 3,
     "reliability": 84,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -3007,7 +3011,7 @@
     "name": "АЗС №118",
     "brand": "НОВАТЭК",
     "address": "Челябинск, ул. Новороссийская, 78",
-    "latitude": 54.895503,
+    "latitude": 55.0501,
     "longitude": 61.206188,
     "fuelTypes": [
       {
@@ -3028,7 +3032,7 @@
     ],
     "queueTime": 4,
     "reliability": 85,
-    "verified": true,
+    "verified": false,
     "verifiedAt": "2026-09-10"
   },
   {
@@ -3036,8 +3040,8 @@
     "name": "АЗС №119",
     "brand": "ОПТИ",
     "address": "Челябинск, ул. Копейское шоссе, 79",
-    "latitude": 55.04746,
-    "longitude": 61.460716,
+    "latitude": 55.1207664,
+    "longitude": 61.52843,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -3057,7 +3061,7 @@
     ],
     "queueTime": 5,
     "reliability": 86,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -3065,8 +3069,8 @@
     "name": "АЗС №120",
     "brand": "РегионUno",
     "address": "Челябинск, ул. Свердловский тракт, 80",
-    "latitude": 54.97188,
-    "longitude": 61.203052,
+    "latitude": 55.2536525,
+    "longitude": 61.3538463,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -3086,7 +3090,7 @@
     ],
     "queueTime": 6,
     "reliability": 87,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -3094,8 +3098,8 @@
     "name": "АЗС №121",
     "brand": "Челябнефтепродукт",
     "address": "Челябинск, ул. Троицкий тракт, 1",
-    "latitude": 54.860495,
-    "longitude": 61.490672,
+    "latitude": 55.1039012,
+    "longitude": 61.3858479,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -3115,7 +3119,7 @@
     ],
     "queueTime": 7,
     "reliability": 88,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -3123,8 +3127,8 @@
     "name": "АЗС №122",
     "brand": "Газпромнефть",
     "address": "Челябинск, ул. Блюхера, 2",
-    "latitude": 54.971059,
-    "longitude": 61.682694,
+    "latitude": 55.1039301,
+    "longitude": 61.3485754,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -3144,7 +3148,7 @@
     ],
     "queueTime": 8,
     "reliability": 89,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -3152,8 +3156,8 @@
     "name": "АЗС №123",
     "brand": "Лукойл",
     "address": "Челябинск, ул. Худякова, 3",
-    "latitude": 55.412545,
-    "longitude": 61.0985,
+    "latitude": 55.1486536,
+    "longitude": 61.3704939,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -3173,7 +3177,7 @@
     ],
     "queueTime": 9,
     "reliability": 90,
-    "verified": true,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   }
 ]

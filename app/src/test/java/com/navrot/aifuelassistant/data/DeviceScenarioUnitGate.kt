@@ -483,4 +483,113 @@ class DeviceScenarioUnitGate {
             requestUrl.contains(expectedCoordSubString)
         )
     }
+
+    @Test
+    fun `T-nearby - GPS (55_1608,61_3989) top-1 panel station among Lukoil is Mira 65 (dist under 3km)`() = runTest {
+        val loader = StationLoaderImpl(
+            httpClient = mock(),
+            stationCache = StationCacheImpl(context, StationJsonParserImpl()),
+            jsonParser = StationJsonParserImpl(),
+            context = context
+        )
+        val stations = loader.loadFromAssets()
+        val userLat = 55.1608
+        val userLon = 61.3989
+
+        val lukoilStations = stations.filter { it.brand.contains("Лукойл", ignoreCase = true) }
+            .sortedBy { com.navrot.aifuelassistant.geo.GeoUtils.calculateDistance(userLat, userLon, it.latitude, it.longitude) }
+
+        assertTrue("Lukoil stations list must not be empty", lukoilStations.isNotEmpty())
+        val top1 = lukoilStations.first()
+        assertTrue("Top-1 Lukoil station address must contain 'Мира, 65'", top1.address.contains("Мира, 65"))
+
+        val distKm = com.navrot.aifuelassistant.geo.GeoUtils.calculateDistance(userLat, userLon, top1.latitude, top1.longitude)
+        assertTrue("Distance to Lukoil Mira 65 must be < 3 km, was $distKm km", distKm < 3.0)
+    }
+
+    @Test
+    fun `T-no-far - top-5 panel stations for city GPS are all under 10km`() = runTest {
+        val loader = StationLoaderImpl(
+            httpClient = mock(),
+            stationCache = StationCacheImpl(context, StationJsonParserImpl()),
+            jsonParser = StationJsonParserImpl(),
+            context = context
+        )
+        val stations = loader.loadFromAssets()
+        val userLat = 55.1608
+        val userLon = 61.3989
+
+        val top5 = stations.sortedBy { com.navrot.aifuelassistant.geo.GeoUtils.calculateDistance(userLat, userLon, it.latitude, it.longitude) }.take(5)
+        assertEquals(5, top5.size)
+
+        for (st in top5) {
+            val dist = com.navrot.aifuelassistant.geo.GeoUtils.calculateDistance(userLat, userLon, st.latitude, st.longitude)
+            assertTrue("Station ${st.name} (${st.address}) distance $dist km must be < 10 km", dist < 10.0)
+        }
+    }
+
+    @Test
+    fun `T-brand-eq-panel - AI brand-nearest equals top-1 panel station`() = runTest {
+        val loader = StationLoaderImpl(
+            httpClient = mock(),
+            stationCache = StationCacheImpl(context, StationJsonParserImpl()),
+            jsonParser = StationJsonParserImpl(),
+            context = context
+        )
+        val stations = loader.loadFromAssets()
+        val userLat = 55.1608
+        val userLon = 61.3989
+        val brand = "Лукойл"
+
+        val aiResult = StationQueryFacade.nearestByBrand(
+            stations = stations,
+            brand = brand,
+            userLat = userLat,
+            userLon = userLon
+        )
+        assertNotNull("AI brand nearest result must not be null", aiResult)
+
+        val top1Panel = stations.filter { it.brand.contains(brand, ignoreCase = true) }
+            .minByOrNull { com.navrot.aifuelassistant.geo.GeoUtils.calculateDistance(userLat, userLon, it.latitude, it.longitude) }
+        assertNotNull("Top 1 panel station must not be null", top1Panel)
+
+        assertEquals("AI brand-nearest station ID must equal top-1 panel station ID", top1Panel!!.id, aiResult!!.nearestStation.id)
+    }
+
+    @Test
+    fun `T-field-coords - no station in stations_json has coordinates outside city bbox`() = runTest {
+        val loader = StationLoaderImpl(
+            httpClient = mock(),
+            stationCache = StationCacheImpl(context, StationJsonParserImpl()),
+            jsonParser = StationJsonParserImpl(),
+            context = context
+        )
+        val stations = loader.loadFromAssets()
+
+        for (st in stations) {
+            val inLat = st.latitude in 55.05..55.35
+            val inLon = st.longitude in 61.15..61.60
+            assertTrue(
+                "Station ${st.id} (${st.brand}, ${st.address}) coordinates (${st.latitude}, ${st.longitude}) must be within city bbox (55.05..55.35, 61.15..61.60)",
+                inLat && inLon
+            )
+        }
+    }
+
+    @Test
+    fun `T-sverdlovsky - station id -201 pin is exactly 55_2243443,61_3747471`() = runTest {
+        val loader = StationLoaderImpl(
+            httpClient = mock(),
+            stationCache = StationCacheImpl(context, StationJsonParserImpl()),
+            jsonParser = StationJsonParserImpl(),
+            context = context
+        )
+        val stations = loader.loadFromAssets()
+
+        val s201 = stations.find { it.id == -201 }
+        assertNotNull("Station id=-201 must exist in registry", s201)
+
+        assertEquals("Latitude of station -201 must be 55.2243443", 55.2243443, s201!!.latitude, 0.0000001)
+        assertEquals("Longitude of station -201 must be 61.3747471", 61.3747471, s201.longitude, 0.0000001)
+    }
 }
