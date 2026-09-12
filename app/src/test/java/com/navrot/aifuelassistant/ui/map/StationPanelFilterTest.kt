@@ -92,4 +92,30 @@ class StationPanelFilterTest {
         assertFalse(filtered.contains(unknownStation))
         assertFalse(filtered.contains(zeroPriceStation))
     }
+
+    @Test
+    fun filterStationsForPanel_autoRelaxesWhenFilteringYieldsZeroStations() {
+        val now = System.currentTimeMillis()
+        val noFuelStation = GasStation(
+            id = 2,
+            name = "No Fuel Station",
+            brand = "BrandB",
+            address = "Street 2",
+            latitude = 55.1,
+            longitude = 61.1,
+            fuelTypes = listOf(
+                FuelPrice(type = "АИ-95", price = 54.0, available = false, updatedAt = now)
+            ),
+            queueTime = 0,
+            reliability = 90,
+            dataSources = setOf(FuelDataSource.BENZONAVT),
+            updatedAt = now
+        )
+
+        val stations = listOf(noFuelStation)
+        val filtered = filterStationsForPanel(stations, setOf("АИ-95"))
+
+        assertEquals("When filter produces 0 stations, auto-relaxation returns all stations", 1, filtered.size)
+        assertEquals(2, filtered[0].id)
+    }
 }

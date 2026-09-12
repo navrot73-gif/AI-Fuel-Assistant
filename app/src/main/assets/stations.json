@@ -200,7 +200,8 @@
     "reliability": 90,
     "osmId": "osm:node/201",
     "verified": "osm_snap",
-    "verifiedAt": "2026-09-10"
+    "verifiedAt": "2026-09-10",
+    "ref": "201"
   },
   {
     "id": 15,
@@ -378,7 +379,7 @@
     ],
     "queueTime": 9,
     "reliability": 87,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -397,7 +398,7 @@
     ],
     "queueTime": 4,
     "reliability": 86,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -498,7 +499,7 @@
     ],
     "queueTime": 5,
     "reliability": 92,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -527,7 +528,7 @@
     ],
     "queueTime": 8,
     "reliability": 88,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -556,7 +557,7 @@
     ],
     "queueTime": 6,
     "reliability": 89,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -585,7 +586,7 @@
     ],
     "queueTime": 10,
     "reliability": 85,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -619,7 +620,7 @@
     ],
     "queueTime": 7,
     "reliability": 91,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -653,7 +654,7 @@
     ],
     "queueTime": 15,
     "reliability": 80,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -682,7 +683,7 @@
     ],
     "queueTime": 9,
     "reliability": 86,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -711,7 +712,7 @@
     ],
     "queueTime": 4,
     "reliability": 90,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -740,7 +741,7 @@
     ],
     "queueTime": 6,
     "reliability": 92,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -769,7 +770,7 @@
     ],
     "queueTime": 12,
     "reliability": 83,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -798,7 +799,7 @@
     ],
     "queueTime": 8,
     "reliability": 87,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -886,7 +887,7 @@
     ],
     "queueTime": 4,
     "reliability": 82,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1097,8 +1098,8 @@
     "name": "АЗС №51",
     "brand": "Лукойл",
     "address": "Челябинск, ул. Машиностроителей, 11",
-    "latitude": 55.3499,
-    "longitude": 61.537598,
+    "latitude": 55.1185612,
+    "longitude": 61.4709661,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1118,7 +1119,7 @@
     ],
     "queueTime": 12,
     "reliability": 90,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1263,7 +1264,7 @@
     ],
     "queueTime": 2,
     "reliability": 95,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1300,8 +1301,8 @@
     "name": "АЗС №58",
     "brand": "Челябнефтепродукт",
     "address": "Челябинск, ул. Лесопарковая, 18",
-    "latitude": 55.075774,
-    "longitude": 61.435328,
+    "latitude": 55.1528304,
+    "longitude": 61.365018,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1321,7 +1322,7 @@
     ],
     "queueTime": 4,
     "reliability": 97,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1379,7 +1380,7 @@
     ],
     "queueTime": 6,
     "reliability": 81,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1466,7 +1467,7 @@
     ],
     "queueTime": 9,
     "reliability": 84,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1524,7 +1525,7 @@
     ],
     "queueTime": 11,
     "reliability": 86,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -1880,8 +1881,8 @@
     "name": "АЗС №79",
     "brand": "Роснефть",
     "address": "Челябинск, ул. Худякова, 39",
-    "latitude": 55.3499,
-    "longitude": 61.370096,
+    "latitude": 55.1474476,
+    "longitude": 61.3709814,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -1901,7 +1902,7 @@
     ],
     "queueTime": 10,
     "reliability": 82,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2075,7 +2076,7 @@
     ],
     "queueTime": 16,
     "reliability": 88,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2133,7 +2134,7 @@
     ],
     "queueTime": 3,
     "reliability": 90,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2199,8 +2200,8 @@
     "name": "АЗС №90",
     "brand": "Башнефть",
     "address": "Челябинск, ул. Салавата Юлаева, 50",
-    "latitude": 55.3499,
-    "longitude": 61.5999,
+    "latitude": 55.1896044,
+    "longitude": 61.2778947,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2220,7 +2221,7 @@
     ],
     "queueTime": 6,
     "reliability": 93,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2489,8 +2490,8 @@
     "name": "АЗС №100",
     "brand": "НОВАТЭК",
     "address": "Челябинск, ул. Блюхера, 60",
-    "latitude": 55.114418,
-    "longitude": 61.357268,
+    "latitude": 55.1219154,
+    "longitude": 61.3633859,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2510,7 +2511,7 @@
     ],
     "queueTime": 16,
     "reliability": 85,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2518,8 +2519,8 @@
     "name": "АЗС №101",
     "brand": "ОПТИ",
     "address": "Челябинск, ул. Худякова, 61",
-    "latitude": 55.344558,
-    "longitude": 61.426465,
+    "latitude": 55.1474476,
+    "longitude": 61.3709814,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2539,7 +2540,7 @@
     ],
     "queueTime": 2,
     "reliability": 86,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2547,8 +2548,8 @@
     "name": "АЗС №102",
     "brand": "РегионUno",
     "address": "Челябинск, ул. Лесопарковая, 62",
-    "latitude": 55.3499,
-    "longitude": 61.420148,
+    "latitude": 55.090393,
+    "longitude": 61.1940069,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2568,7 +2569,7 @@
     ],
     "queueTime": 3,
     "reliability": 87,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2692,8 +2693,8 @@
     "name": "АЗС №107",
     "brand": "Татнефть",
     "address": "Челябинск, ул. Свободы, 67",
-    "latitude": 55.3499,
-    "longitude": 61.5999,
+    "latitude": 55.1457155,
+    "longitude": 61.4162674,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2713,7 +2714,7 @@
     ],
     "queueTime": 8,
     "reliability": 92,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2771,7 +2772,7 @@
     ],
     "queueTime": 10,
     "reliability": 94,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2800,7 +2801,7 @@
     ],
     "queueTime": 11,
     "reliability": 95,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -2953,8 +2954,8 @@
     "name": "АЗС №116",
     "brand": "Татнефть",
     "address": "Челябинск, ул. Дзержинского, 76",
-    "latitude": 55.3499,
-    "longitude": 61.503815,
+    "latitude": 55.127213,
+    "longitude": 61.4461589,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -2974,7 +2975,7 @@
     ],
     "queueTime": 2,
     "reliability": 83,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {
@@ -3011,8 +3012,8 @@
     "name": "АЗС №118",
     "brand": "НОВАТЭК",
     "address": "Челябинск, ул. Новороссийская, 78",
-    "latitude": 55.0501,
-    "longitude": 61.206188,
+    "latitude": 55.0961351,
+    "longitude": 61.4951489,
     "fuelTypes": [
       {
         "type": "АИ-92",
@@ -3032,7 +3033,7 @@
     ],
     "queueTime": 4,
     "reliability": 85,
-    "verified": false,
+    "verified": "geocode",
     "verifiedAt": "2026-09-10"
   },
   {

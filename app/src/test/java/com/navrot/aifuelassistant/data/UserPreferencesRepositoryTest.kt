@@ -56,6 +56,12 @@ class UserPreferencesRepositoryTest {
     }
 
     @Test
+    fun `default srcBenzonavt is true`() = runTest {
+        val benzonavt = repository.srcBenzonavt.first()
+        assertTrue(benzonavt)
+    }
+
+    @Test
     fun `setDarkMode updates isDarkMode flow`() = runTest {
         repository.setDarkMode(true)
         val mode = repository.isDarkMode.first()

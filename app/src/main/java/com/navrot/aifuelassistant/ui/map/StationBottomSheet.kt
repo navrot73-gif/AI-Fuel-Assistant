@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.isKnownClosed
+import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
+import com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator
 import com.navrot.aifuelassistant.ui.map.components.AiPickCard
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import org.osmdroid.util.GeoPoint
@@ -65,13 +67,26 @@ fun StationBottomSheet(
     onToggleVisibility: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    // Список станций без дублирования лучшей (она показана в карточке сверху)
-    // Фильтруем панель: только с доступным топливом > 0₽ (AVAILABLE)
-    val displayList = remember(stations, bestStation, openOnly, selectedFuelTypes) {
-        val panelFiltered = filterStationsForPanel(stations, selectedFuelTypes)
-        val openFiltered = if (openOnly) panelFiltered.filter { !it.isKnownClosed() } else panelFiltered
-        if (bestStation == null) openFiltered else openFiltered.filter { it.id != bestStation.id }
+    // Determine strict panel filtered list vs auto-relaxed fallback list
+    val (displayList, isAutoRelaxed) = remember(stations, bestStation, openOnly, selectedFuelTypes) {
+        val strictFiltered = stations.filter { station ->
+            station.fuelTypes.any { fuel ->
+                (selectedFuelTypes.isEmpty() || selectedFuelTypes.contains(fuel.type)) &&
+                        fuel.price > 0.0 &&
+                        PriceReliabilityCalculator.calculateFuelAvailability(station, fuel.type) == FuelAvailabilityStatus.AVAILABLE
+            }
+        }
+        val openFiltered = if (openOnly) strictFiltered.filter { !it.isKnownClosed() } else strictFiltered
+        val finalFiltered = if (bestStation == null) openFiltered else openFiltered.filter { it.id != bestStation.id }
+
+        if (finalFiltered.isEmpty() && stations.isNotEmpty()) {
+            val relaxed = if (bestStation == null) stations else stations.filter { it.id != bestStation.id }
+            Pair(relaxed, true)
+        } else {
+            Pair(finalFiltered, false)
+        }
     }
+
     val visibleCount = remember(displayList.size) {
         if (displayList.size <= PAGE_SIZE) displayList.size else PAGE_SIZE
     }
@@ -227,6 +242,26 @@ fun StationBottomSheet(
                         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
+                        if (isAutoRelaxed) {
+                            item {
+                                Surface(
+                                    color = FueldeckColors.Amber.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "Ничего не подошло — показаны все",
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                    )
+                                }
+                            }
+                        }
+
                         // AI Pick Card at the top
                         if (bestStation != null) {
                             item {
