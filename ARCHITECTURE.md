@@ -59,7 +59,8 @@ DeepSeek → HuggingFace (Qwen) → GigaChat → YandexGPT
 
 ## Навигация
 
-Реализовано через kotlinx.serialization (ТЗ №3). Все маршруты определены в `NavRoute` (`ui/NavigationRoutes.kt`).
+- **Текущее состояние:** строковые маршруты в `ui/AppNavigation.kt`
+- **План (ТЗ №3):** type-safe navigation через `kotlinx.serialization` (`androidx.navigation-compose 2.8+`)
 
 ## Скоринг АЗС
 

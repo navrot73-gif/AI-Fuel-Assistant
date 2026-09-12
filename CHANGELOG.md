@@ -5,14 +5,10 @@
 ## [Unreleased]
 
 ### Added
-- Type-safe navigation routes via `kotlinx.serialization` in `ui/NavigationRoutes.kt` (`NavRoute` sealed interface).
-- Unit tests for navigation route serialization and deserialization in `NavigationRoutesTest.kt`.
 - Документация: `docs/SCORING.md` с полной формулой скоринга и примерами
 - Документация: синхронизирован `ARCHITECTURE.md` с реальной формулой из `GetBestStationsUseCase.kt`
 
 ### Changed
-- Refactored `AppNavigation.kt` and `DashboardScreen.kt` from legacy string-based navigation routes to type-safe Compose Navigation 2.8+ API (`composable<NavRoute.X>` and `navController.navigate(NavRoute.X)`).
-- Updated `ARCHITECTURE.md` to reflect completed type-safe navigation implementation.
 - Производительность: устранён двойной расчёт Haversine в `StationFilterAndSorterImpl.getStationsNearLocation`
 - Производительность: добавлен кеш `PriceReliabilityCalculator` (инвалидация по `stationId + fuelType + updatedAt`)
 
