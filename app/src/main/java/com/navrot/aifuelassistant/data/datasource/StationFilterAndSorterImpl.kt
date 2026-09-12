@@ -8,18 +8,29 @@ import javax.inject.Inject
 
 class StationFilterAndSorterImpl @Inject constructor() : StationFilterAndSorter {
 
+    /**
+     * Фильтрует станции в радиусе от пользователя и сортирует по расстоянию (по возрастанию).
+     *
+     * Оптимизация: расстояние (Haversine, 6 тригонометрических операций) считается ОДИН раз
+     * на каждую станцию и кешируется в паре (station, distanceKm). Раньше считалось дважды —
+     * отдельно в filter, отдельно в sortedBy — что давало лишние ~1200 вызовов Haversine на
+     * 100+ АЗС в радиусе при каждой эмиссии карты.
+     */
     override fun getStationsNearLocation(
         lat: Double,
         lon: Double,
         radiusKm: Double,
         stations: List<GasStation>
     ): List<GasStation> {
-        return stations.filter { station ->
+        // Один проход: фильтрация + расчёт расстояния
+        val withDistances = stations.mapNotNull { station ->
             val distance = GeoUtils.calculateDistance(lat, lon, station.latitude, station.longitude)
-            distance <= radiusKm
-        }.sortedBy { station ->
-            GeoUtils.calculateDistance(lat, lon, station.latitude, station.longitude)
+            if (distance <= radiusKm) station to distance else null
         }
+        // Сортировка по уже посчитанному distance — без второго вызова Haversine
+        return withDistances
+            .sortedBy { it.second }
+            .map { it.first }
     }
 
     override fun filterByCity(stations: List<GasStation>, city: String): List<GasStation> {
