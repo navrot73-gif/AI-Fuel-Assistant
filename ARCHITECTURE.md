@@ -14,8 +14,7 @@ Screen -> ViewModel -> UseCase -> Repository -> (Room или API)
 AiRouter: fallback Qwen -> YandexGPT -> DeepSeek -> GigaChat
 
 ## Навигация
-Сейчас: строковые маршруты в AppNavigation.kt
-План: type-safe через kotlinx.serialization (ТЗ №3)
+Реализовано через kotlinx.serialization (ТЗ №3). Все маршруты определены в `NavRoute` (`ui/NavigationRoutes.kt`).
 
 ## Скоринг АЗС
 score = цена + очередь*0.5 + (100-надёжность)*0.2 (меньше = лучше)

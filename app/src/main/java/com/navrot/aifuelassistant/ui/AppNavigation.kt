@@ -40,119 +40,64 @@ import com.navrot.aifuelassistant.ui.vehicles.GarageListScreen
 import com.navrot.aifuelassistant.ui.vehicles.VehicleDetailScreen
 import com.navrot.aifuelassistant.ui.vehicles.VehicleViewModel
 import kotlinx.coroutines.launch
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 
-// Type-safe navigation routes
-@Serializable
-@SerialName("main_tabs")
-object MainTabsRoute {
-    val route = "main_tabs"
-}
-
-@Serializable
-@SerialName("map")
-object MapRoute {
-    val route = "map"
-}
-
-@Serializable
-@SerialName("map/build_route_station_id")
-data class MapBuildRouteRoute(val stationId: Int)
-
-@Serializable
-@SerialName("map/show_stations")
-object MapShowStationsRoute {
-    val route = "map/show_stations"
-}
-
-@Serializable
-@SerialName("ai")
-object DashboardRoute {
-    val route = "ai"
-}
-
-@Serializable
-@SerialName("garage_list")
-object GarageListRoute {
-    val route = "garage_list"
-}
-
-@Serializable
-@SerialName("garage_detail")
-data class GarageDetailRoute(
-    val vehicleId: Long,
-    val vehicleName: String
-)
-
-@Serializable
-@SerialName("garage")
-object GarageRoute {
-    val route = "garage"
-}
-
-@Serializable
-@SerialName("add_vehicle")
-data class AddVehicleRoute(val vehicleId: Long? = null)
-
-@Serializable
-@SerialName("fuel_records")
-data class FuelRecordListRoute(val vehicleId: Long, val vehicleName: String)
-
-@Serializable
-@SerialName("add_fuel_record")
-data class AddFuelRecordRoute(val vehicleId: Long, val vehicleName: String)
-
-@Serializable
-@SerialName("reports")
-data object ReportsRoute {
-    val route = "reports"
-}
-
-data class Tab(val route: String, val iconRes: Int, val title: String)
+data class Tab(val route: Any, val iconRes: Int, val title: String)
 
 val TABS = listOf(
-    Tab(MapRoute.route, R.drawable.ic_tab_map, "Карта"),
-    Tab(DashboardRoute.route, R.drawable.ic_tab_ai, "AI"),
-    Tab(GarageRoute.route, R.drawable.ic_tab_car, "Гараж")
+    Tab(NavRoute.Map, R.drawable.ic_tab_map, "Карта"),
+    Tab(NavRoute.Dashboard, R.drawable.ic_tab_ai, "AI"),
+    Tab(NavRoute.Garage, R.drawable.ic_tab_car, "Гараж")
 )
 
 val TAB_ACTIVE_COLOR = Color(0xFFE8A750)
 val TAB_INACTIVE_COLOR = Color(0xFF8A949E)
 
 /**
- * Helper function to convert a route string to its main tab page index.
+ * Helper function to convert a route object or string representation to its main tab page index.
  * Returns 0 for Map, 1 for AI, 2 for Garage, or null for non-tab routes.
  */
-fun getPageIndexForRoute(route: String?): Int? {
+fun getPageIndexForRoute(route: Any?): Int? {
     if (route == null) return null
-    return when {
-        route.isMapRoute() -> 0
-        route == DashboardRoute.route -> 1
-        route.isGarageRoute() -> 2
+    return when (route) {
+        is NavRoute.Map, is NavRoute.MapBuildRoute, is NavRoute.MapShowStations -> 0
+        is NavRoute.Dashboard -> 1
+        is NavRoute.Garage, is NavRoute.GarageList, is NavRoute.GarageDetail -> 2
+        is String -> when {
+            route.isMapRoute() -> 0
+            route == "ai" || route == "Dashboard" -> 1
+            route.isGarageRoute() -> 2
+            else -> null
+        }
         else -> null
     }
 }
 
 // Helper to check if route is in garage sub-navigation.
-fun String?.isGarageRoute(): Boolean {
+fun Any?.isGarageRoute(): Boolean {
     if (this == null) return false
-    return this == "garage" ||
-            this == "garage_list" ||
-            this.startsWith("garage/") ||
-            this.startsWith("garage_detail") ||
-            this.startsWith("garage_list?")
+    if (this is NavRoute.Garage || this is NavRoute.GarageList || this is NavRoute.GarageDetail) return true
+    if (this is String) {
+        return this == "garage" ||
+                this == "garage_list" ||
+                this.startsWith("garage/") ||
+                this.startsWith("garage_detail") ||
+                this.startsWith("garage_list?") ||
+                this.contains("Garage")
+    }
+    return false
 }
 
 // Helper to check if route is a map navigation route
-fun String?.isMapRoute(): Boolean {
+fun Any?.isMapRoute(): Boolean {
     if (this == null) return false
-    return this == "map" ||
-            this.startsWith("map/") ||
-            this.startsWith("map?") ||
-            this.contains("MapRoute") ||
-            this.contains("MapBuildRouteRoute") ||
-            this.contains("MapShowStationsRoute")
+    if (this is NavRoute.Map || this is NavRoute.MapBuildRoute || this is NavRoute.MapShowStations) return true
+    if (this is String) {
+        return this == "map" ||
+                this.startsWith("map/") ||
+                this.startsWith("map?") ||
+                this.contains("Map")
+    }
+    return false
 }
 
 @Composable
@@ -250,17 +195,17 @@ fun MainTabsScreen(
                 2 -> {
                     val garageViewModel: VehicleViewModel = hiltViewModel()
                     GarageListScreen(
-                        onAddClick = { navController.navigate(AddVehicleRoute()) },
+                        onAddClick = { navController.navigate(NavRoute.AddVehicle()) },
                         onVehicleClick = { vehicleId ->
                             val vehicle = garageViewModel.vehiclesWithStats.value.find { it.id == vehicleId }
                             val vehicleName = vehicle?.name ?: ""
-                            navController.navigate(GarageDetailRoute(vehicleId, vehicleName))
+                            navController.navigate(NavRoute.GarageDetail(vehicleId, vehicleName))
                         },
                         onEditClick = { vehicleId ->
-                            navController.navigate(AddVehicleRoute(vehicleId = vehicleId))
+                            navController.navigate(NavRoute.AddVehicle(vehicleId = vehicleId))
                         },
                         onReportsClick = {
-                            navController.navigate(ReportsRoute)
+                            navController.navigate(NavRoute.Reports)
                         },
                         viewModel = garageViewModel
                     )
@@ -276,46 +221,46 @@ fun AppNavigation() {
 
     NavHost(
         navController = navController,
-        startDestination = MainTabsRoute.route
+        startDestination = NavRoute.MainTabs
     ) {
-        composable<MainTabsRoute> { backStackEntry ->
+        composable<NavRoute.MainTabs> { backStackEntry ->
             MainTabsScreen(navController = navController, mainBackStackEntry = backStackEntry)
         }
 
-        composable<MapRoute> {
+        composable<NavRoute.Map> {
             LaunchedEffect(Unit) {
-                val entry = navController.getBackStackEntry(MainTabsRoute.route)
+                val entry = navController.getBackStackEntry(NavRoute.MainTabs)
                 entry.savedStateHandle["target_tab"] = 0
                 navController.popBackStack()
             }
         }
 
-        composable<DashboardRoute> {
+        composable<NavRoute.Dashboard> {
             LaunchedEffect(Unit) {
-                val entry = navController.getBackStackEntry(MainTabsRoute.route)
+                val entry = navController.getBackStackEntry(NavRoute.MainTabs)
                 entry.savedStateHandle["target_tab"] = 1
                 navController.popBackStack()
             }
         }
 
-        composable<GarageRoute> {
+        composable<NavRoute.Garage> {
             LaunchedEffect(Unit) {
-                val entry = navController.getBackStackEntry(MainTabsRoute.route)
+                val entry = navController.getBackStackEntry(NavRoute.MainTabs)
                 entry.savedStateHandle["target_tab"] = 2
                 navController.popBackStack()
             }
         }
 
-        composable<GarageListRoute> {
+        composable<NavRoute.GarageList> {
             LaunchedEffect(Unit) {
-                val entry = navController.getBackStackEntry(MainTabsRoute.route)
+                val entry = navController.getBackStackEntry(NavRoute.MainTabs)
                 entry.savedStateHandle["target_tab"] = 2
                 navController.popBackStack()
             }
         }
 
-        composable<MapBuildRouteRoute> { entry ->
-            val args = entry.toRoute<MapBuildRouteRoute>()
+        composable<NavRoute.MapBuildRoute> { entry ->
+            val args = entry.toRoute<NavRoute.MapBuildRoute>()
             val aiAnswerText by entry.savedStateHandle
                 .getStateFlow<String?>("ai_answer_text", null)
                 .collectAsStateWithLifecycle()
@@ -328,7 +273,7 @@ fun AppNavigation() {
             )
         }
 
-        composable<MapShowStationsRoute> { entry ->
+        composable<NavRoute.MapShowStations> { entry ->
             val aiAnswerText by entry.savedStateHandle
                 .getStateFlow<String?>("ai_answer_text", null)
                 .collectAsStateWithLifecycle()
@@ -341,42 +286,42 @@ fun AppNavigation() {
             )
         }
 
-        composable<GarageDetailRoute> { backStackEntry ->
-            val args = backStackEntry.toRoute<GarageDetailRoute>()
+        composable<NavRoute.GarageDetail> { backStackEntry ->
+            val args = backStackEntry.toRoute<NavRoute.GarageDetail>()
             val vehicleId = args.vehicleId
             val vehicleName = args.vehicleName
             VehicleDetailScreen(
                 vehicleId = vehicleId,
                 vehicleName = vehicleName,
                 onBack = { navController.popBackStack() },
-                onAddClick = { navController.navigate(AddFuelRecordRoute(vehicleId, vehicleName)) },
-                onEditClick = { id -> navController.navigate(AddVehicleRoute(vehicleId = id)) },
+                onAddClick = { navController.navigate(NavRoute.AddFuelRecord(vehicleId, vehicleName)) },
+                onEditClick = { id -> navController.navigate(NavRoute.AddVehicle(vehicleId = id)) },
                 viewModel = hiltViewModel()
             )
         }
 
-        composable<AddVehicleRoute> { backStackEntry ->
-            val args = backStackEntry.toRoute<AddVehicleRoute>()
+        composable<NavRoute.AddVehicle> { backStackEntry ->
+            val args = backStackEntry.toRoute<NavRoute.AddVehicle>()
             AddVehicleScreen(
                 vehicleId = args.vehicleId,
                 onNavigateBack = { navController.popBackStack() }
             )
         }
 
-        composable<FuelRecordListRoute> { backStackEntry ->
-            val route = backStackEntry.toRoute<FuelRecordListRoute>()
+        composable<NavRoute.FuelRecordList> { backStackEntry ->
+            val route = backStackEntry.toRoute<NavRoute.FuelRecordList>()
             FuelRecordListScreen(
                 vehicleId = route.vehicleId,
                 vehicleName = route.vehicleName,
                 onBack = { navController.popBackStack() },
                 onAddClick = {
-                    navController.navigate(AddFuelRecordRoute(route.vehicleId, route.vehicleName))
+                    navController.navigate(NavRoute.AddFuelRecord(route.vehicleId, route.vehicleName))
                 }
             )
         }
 
-        composable<AddFuelRecordRoute> { entry ->
-            val args = entry.toRoute<AddFuelRecordRoute>()
+        composable<NavRoute.AddFuelRecord> { entry ->
+            val args = entry.toRoute<NavRoute.AddFuelRecord>()
             AddFuelRecordScreen(
                 vehicleId = args.vehicleId,
                 defaultFuelType = "АИ-95",
@@ -384,7 +329,7 @@ fun AppNavigation() {
             )
         }
 
-        composable<ReportsRoute> {
+        composable<NavRoute.Reports> {
             FuelReportsScreen(
                 onBack = { navController.popBackStack() }
             )
