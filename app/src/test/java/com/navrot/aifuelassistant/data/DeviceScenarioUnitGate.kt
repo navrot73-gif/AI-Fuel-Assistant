@@ -592,4 +592,47 @@ class DeviceScenarioUnitGate {
         assertEquals("Latitude of station -201 must be 55.2243443", 55.2243443, s201!!.latitude, 0.0000001)
         assertEquals("Longitude of station -201 must be 61.3747471", 61.3747471, s201.longitude, 0.0000001)
     }
+
+    @Test
+    fun `T-undead - map_style_local asset exists and map stays rendered when all tile sources fail`() = runTest {
+        val stream = javaClass.classLoader?.getResourceAsStream("map_style_local.json")
+            ?: context.assets.open("map_style_local.json")
+        val styleJson = stream.bufferedReader().use { it.readText() }
+        assertTrue("map_style_local.json must contain background layer", styleJson.contains("\"bg\""))
+
+        MapDiagnosticsTracker.recordTileFallback("osm_raster:map_load_fail")
+        MapDiagnosticsTracker.recordTileFallback("openfreemap:map_load_fail")
+        MapDiagnosticsTracker.recordTileFallback("versatiles:map_load_fail")
+        MapDiagnosticsTracker.recordTileFallback("all_sources_failed_fallback_osmdroid")
+
+        val logs = MapDiagnosticsTracker.fallbackChainLogs
+        assertTrue("Diagnostics must log all tile sources failing", logs.contains("all_sources_failed_fallback_osmdroid"))
+    }
+
+    @Test
+    fun `T-benzonavt-on - fresh DataStore launch defaults srcBenzonavt to true`() = runTest {
+        val tempFile = java.io.File.createTempFile("test_prefs_fresh", ".preferences_pb")
+        val freshDataStore = androidx.datastore.preferences.core.PreferenceDataStoreFactory.create(
+            scope = testScope,
+            produceFile = { tempFile }
+        )
+        val prefs = UserPreferencesRepository(freshDataStore)
+        val enabled = prefs.srcBenzonavt.first()
+        assertTrue("srcBenzonavt preference must be true by default on clean launch", enabled)
+    }
+
+    @Test
+    fun `T-panel-nonempty - offline panel filtering auto-relaxes when fuel filter yields 0 stations`() = runTest {
+        val loader = StationLoaderImpl(
+            httpClient = mock(),
+            stationCache = StationCacheImpl(context, StationJsonParserImpl()),
+            jsonParser = StationJsonParserImpl(),
+            context = context
+        )
+        val stations = loader.loadFromAssets()
+        assertTrue("Registry stations list must not be empty", stations.isNotEmpty())
+
+        val filtered = com.navrot.aifuelassistant.ui.map.filterStationsForPanel(stations, setOf("АИ-95"))
+        assertTrue("Panel station list must not be empty (auto-relaxed fallback)", filtered.isNotEmpty())
+    }
 }

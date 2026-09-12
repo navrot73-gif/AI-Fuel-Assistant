@@ -72,7 +72,7 @@ class UserPreferencesRepository @Inject constructor(
             }
         }
         .map { preferences ->
-            preferences[KEY_SRC_BENZONAVT] ?: false
+            preferences[KEY_SRC_BENZONAVT] ?: true
         }
 
     val srcRussiabase: Flow<Boolean> = dataStore.data
@@ -186,9 +186,9 @@ class UserPreferencesRepository @Inject constructor(
 
     suspend fun getSrcBenzonavt(): Boolean {
         return try {
-            dataStore.data.first()[KEY_SRC_BENZONAVT] ?: false
+            dataStore.data.first()[KEY_SRC_BENZONAVT] ?: true
         } catch (e: Exception) {
-            false
+            true
         }
     }
 

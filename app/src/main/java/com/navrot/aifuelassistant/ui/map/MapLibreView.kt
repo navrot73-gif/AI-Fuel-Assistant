@@ -17,10 +17,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
-import androidx.compose.ui.viewinterop.AndroidView
 import com.navrot.aifuelassistant.data.UserPreferencesRepository
+import com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker
 import com.navrot.aifuelassistant.data.model.GasStation
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -37,10 +38,12 @@ import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
+import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.LineLayer
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.layers.RasterLayer
+import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.android.style.sources.RasterSource
 import org.maplibre.android.style.sources.TileSet
@@ -51,9 +54,11 @@ import org.maplibre.geojson.Point
 import timber.log.Timber
 
 // Tile source fallback chain constants
+const val TILE_SOURCE_OSM_RASTER = "osm_raster"
 const val TILE_SOURCE_OPENFREEMAP = "openfreemap"
 const val TILE_SOURCE_VERSATILES = "versatiles"
-const val TILE_SOURCE_OSM_RASTER = "osm_raster"
+
+private const val LOCAL_STYLE_ASSET_URL = "asset://map_style_local.json"
 
 private const val OPENFREEMAP_LIGHT_URL = "https://tiles.openfreemap.org/styles/liberty"
 private const val OPENFREEMAP_DARK_URL = "https://tiles.openfreemap.org/styles/bright"
@@ -105,10 +110,10 @@ fun MapLibreView(
     val userLocationMarkerRef = remember { arrayOfNulls<Marker>(1) }
 
     val tileSourceChain = remember {
-        listOf(TILE_SOURCE_OPENFREEMAP, TILE_SOURCE_VERSATILES, TILE_SOURCE_OSM_RASTER)
+        listOf(TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP, TILE_SOURCE_VERSATILES)
     }
     var currentSourceIndex by remember { mutableIntStateOf(0) }
-    var activeTileSource by remember { mutableStateOf(TILE_SOURCE_OPENFREEMAP) }
+    var activeTileSource by remember { mutableStateOf(TILE_SOURCE_OSM_RASTER) }
     val failedSources = remember { mutableSetOf<String>() }
 
     // Load initial persisted tile source preference
@@ -118,40 +123,6 @@ fun MapLibreView(
             activeTileSource = savedSource
             currentSourceIndex = tileSourceChain.indexOf(savedSource)
             Timber.tag("MapLibreView").d("Restored tile source preference: %s", savedSource)
-        }
-    }
-
-    fun buildStyleBuilder(sourceKey: String, darkMode: Boolean): Style.Builder {
-        return when (sourceKey) {
-            TILE_SOURCE_OPENFREEMAP -> {
-                val url = if (darkMode) OPENFREEMAP_DARK_URL else OPENFREEMAP_LIGHT_URL
-                Style.Builder().fromUri(url)
-            }
-            TILE_SOURCE_VERSATILES -> {
-                val url = if (darkMode) VERSATILES_DARK_URL else VERSATILES_LIGHT_URL
-                Style.Builder().fromUri(url)
-            }
-            TILE_SOURCE_OSM_RASTER -> {
-                val tileSet = TileSet("2.2.0", OSM_RASTER_URL).apply {
-                    attribution = "© OpenStreetMap contributors"
-                }
-                val rasterSource = RasterSource("osm-raster-source", tileSet, 256)
-                val rasterLayer = RasterLayer("osm-raster-layer", "osm-raster-source")
-                if (darkMode) {
-                    rasterLayer.setProperties(
-                        PropertyFactory.rasterBrightnessMin(0.2f),
-                        PropertyFactory.rasterBrightnessMax(0.7f),
-                        PropertyFactory.rasterContrast(0.2f),
-                        PropertyFactory.rasterSaturation(-0.5f)
-                    )
-                }
-                Style.Builder()
-                    .withSource(rasterSource)
-                    .withLayer(rasterLayer)
-            }
-            else -> {
-                Style.Builder().fromUri(if (darkMode) OPENFREEMAP_DARK_URL else OPENFREEMAP_LIGHT_URL)
-            }
         }
     }
 
@@ -291,10 +262,59 @@ fun MapLibreView(
         }
     }
 
+    fun attachTileSourceToStyle(style: Style, sourceKey: String) {
+        val sourceId = "runtime-tile-source-$sourceKey"
+        val layerId = "runtime-tile-layer-$sourceKey"
+
+        // Remove any previous runtime layer & source if exists
+        for (key in tileSourceChain) {
+            val sId = "runtime-tile-source-$key"
+            val lId = "runtime-tile-layer-$key"
+            style.getLayer(lId)?.let { style.removeLayer(it) }
+            style.getSource(sId)?.let { style.removeSource(it) }
+        }
+
+        when (sourceKey) {
+            TILE_SOURCE_OSM_RASTER -> {
+                val tileSet = TileSet("2.2.0", OSM_RASTER_URL).apply {
+                    attribution = "© OpenStreetMap contributors"
+                }
+                val rasterSource = RasterSource(sourceId, tileSet, 256)
+                val rasterLayer = RasterLayer(layerId, sourceId)
+                if (isDarkMode) {
+                    rasterLayer.setProperties(
+                        PropertyFactory.rasterBrightnessMin(0.2f),
+                        PropertyFactory.rasterBrightnessMax(0.7f),
+                        PropertyFactory.rasterContrast(0.2f),
+                        PropertyFactory.rasterSaturation(-0.5f)
+                    )
+                }
+                style.addSource(rasterSource)
+                style.addLayerAt(rasterLayer, 0)
+            }
+            TILE_SOURCE_OPENFREEMAP -> {
+                val tileUrl = if (isDarkMode) OPENFREEMAP_DARK_URL else OPENFREEMAP_LIGHT_URL
+                val tileSet = TileSet("2.2.0", tileUrl)
+                val rasterSource = RasterSource(sourceId, tileSet, 256)
+                val rasterLayer = RasterLayer(layerId, sourceId)
+                style.addSource(rasterSource)
+                style.addLayerAt(rasterLayer, 0)
+            }
+            TILE_SOURCE_VERSATILES -> {
+                val tileUrl = if (isDarkMode) VERSATILES_DARK_URL else VERSATILES_LIGHT_URL
+                val tileSet = TileSet("2.2.0", tileUrl)
+                val rasterSource = RasterSource(sourceId, tileSet, 256)
+                val rasterLayer = RasterLayer(layerId, sourceId)
+                style.addSource(rasterSource)
+                style.addLayerAt(rasterLayer, 0)
+            }
+        }
+    }
+
     fun applyStyleWithFallback(map: MapLibreMap, sourceIndex: Int) {
         val sourceKey = tileSourceChain.getOrElse(sourceIndex) { TILE_SOURCE_OSM_RASTER }
         activeTileSource = sourceKey
-        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.activeTileSource = sourceKey
+        MapDiagnosticsTracker.activeTileSource = sourceKey
         Timber.tag("MapLibreView").d("Applying style for source [%d/%d]: %s (isDarkMode=%b)",
             sourceIndex + 1, tileSourceChain.size, sourceKey, isDarkMode)
 
@@ -309,12 +329,12 @@ fun MapLibreView(
                 org.maplibre.android.tile.TileOperation.LoadFromNetwork,
                 org.maplibre.android.tile.TileOperation.LoadFromCache -> {
                     tilesLoadedCount++
-                    com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tileStatus = "ok"
+                    MapDiagnosticsTracker.tileStatus = "ok"
                     Timber.tag("MapLibreView").d("Tile loaded (%s) [%s]: z=%d (%d,%d), total: %d, url=%s",
                         tileOp.name, sourceKey, zoom, x, y, tilesLoadedCount, url)
                 }
                 org.maplibre.android.tile.TileOperation.Error -> {
-                    com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.recordTileFallback("$sourceKey:tile_error")
+                    MapDiagnosticsTracker.recordTileFallback("$sourceKey:tile_error")
                     Timber.tag("MapLibreView").e("Tile error [%s]: z=%d (%d,%d), url=%s",
                         sourceKey, zoom, x, y, url)
                 }
@@ -324,7 +344,7 @@ fun MapLibreView(
 
         val failMapListener = MapView.OnDidFailLoadingMapListener { errorMessage ->
             hasFailedMapLoad = true
-            com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.recordTileFallback("$sourceKey:map_load_fail")
+            MapDiagnosticsTracker.recordTileFallback("$sourceKey:map_load_fail")
             Timber.tag("MapLibreView").e("onDidFailLoadingMap for source %s: %s", sourceKey, errorMessage)
         }
 
@@ -347,9 +367,9 @@ fun MapLibreView(
                 currentSourceIndex = nextUnfailedIndex
                 applyStyleWithFallback(map, nextUnfailedIndex)
             } else {
-                com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tileStatus = "fail"
-                com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.recordTileFallback("all_sources_failed_fallback_osmdroid")
-                Timber.tag("MapLibreView").e("All vector/raster tile sources failed! Auto-fallback to osmdroid engine.")
+                MapDiagnosticsTracker.tileStatus = "fail"
+                MapDiagnosticsTracker.recordTileFallback("all_sources_failed_fallback_osmdroid")
+                Timber.tag("MapLibreView").e("All tile sources failed! Auto-fallback to osmdroid engine.")
 
                 android.widget.Toast.makeText(
                     context,
@@ -363,18 +383,18 @@ fun MapLibreView(
             }
         }
 
-        val styleBuilder = buildStyleBuilder(sourceKey, isDarkMode)
-        map.setStyle(styleBuilder) { style ->
-            Timber.tag("MapLibreView").d("onDidFinishLoadingStyle completed callback for %s", sourceKey)
+        // Start from local style asset (offline-first!), then attach runtime tile source
+        map.setStyle(Style.Builder().fromUri(LOCAL_STYLE_ASSET_URL)) { style ->
+            Timber.tag("MapLibreView").d("Local style loaded successfully for source %s", sourceKey)
 
             try {
                 for (layer in style.layers) {
-                    if (layer is org.maplibre.android.style.layers.SymbolLayer) {
+                    if (layer is SymbolLayer) {
                         layer.setProperties(
                             PropertyFactory.textField(
-                                org.maplibre.android.style.expressions.Expression.coalesce(
-                                    org.maplibre.android.style.expressions.Expression.get("name:ru"),
-                                    org.maplibre.android.style.expressions.Expression.get("name")
+                                Expression.coalesce(
+                                    Expression.get("name:ru"),
+                                    Expression.get("name")
                                 )
                             )
                         )
@@ -384,8 +404,19 @@ fun MapLibreView(
                 Timber.tag("MapLibreView").w(e, "Error applying Russian labels to symbol layers")
             }
 
+            // Immediately draw markers & route on local style
             updateMarkers(map)
             updateRouteLayer(style)
+
+            // Attach dynamic tile source at runtime onto local style
+            try {
+                attachTileSourceToStyle(style, sourceKey)
+            } catch (e: Exception) {
+                Timber.tag("MapLibreView").e(e, "Error attaching tile source %s, switching", sourceKey)
+                MapDiagnosticsTracker.recordTileFallback("$sourceKey:attach_error")
+                switchToNextSource()
+                return@setStyle
+            }
 
             // Start 6-second timer to verify tile loading for active source
             fallbackTimerJob = scope.launch {
@@ -393,11 +424,11 @@ fun MapLibreView(
                 if (tilesLoadedCount == 0 || hasFailedMapLoad) {
                     Timber.tag("MapLibreView").w("MapChange/Timeout: 6s passed with %d tiles (failed=%b) for source: %s, switching source",
                         tilesLoadedCount, hasFailedMapLoad, sourceKey)
-                    com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.recordTileFallback("$sourceKey:timeout_6s")
+                    MapDiagnosticsTracker.recordTileFallback("$sourceKey:timeout_6s")
                     switchToNextSource()
                 } else {
                     Timber.tag("MapLibreView").i("Tile source %s active and loaded %d tiles within timeout", sourceKey, tilesLoadedCount)
-                    com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.tileStatus = "ok"
+                    MapDiagnosticsTracker.tileStatus = "ok"
                     userPrefsRepo.setMapTileSource(sourceKey)
                 }
             }
