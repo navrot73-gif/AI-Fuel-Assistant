@@ -79,6 +79,7 @@ import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.ui.AddFuelRecordRoute
 import com.navrot.aifuelassistant.ui.MapBuildRouteRoute
 import com.navrot.aifuelassistant.ui.MapShowStationsRoute
+import com.navrot.aifuelassistant.ui.NavRoute
 import com.navrot.aifuelassistant.ui.map.components.LocationPermissionHandler
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
@@ -226,9 +227,9 @@ fun DashboardScreen(
             }
             IconButton(onClick = {
                 if (vehicles.size == 1) {
-                    navController.navigate(AddFuelRecordRoute(vehicles[0].id, vehicles[0].name))
+                    navController.navigate(NavRoute.AddFuelRecord(vehicles[0].id, vehicles[0].name))
                 } else {
-                    navController.navigate("garage")
+                    navController.navigate(NavRoute.Garage)
                 }
             }) {
                 Icon(Icons.Default.Add, contentDescription = "Добавить заправку",
@@ -261,9 +262,9 @@ fun DashboardScreen(
             efficiency = efficiency,
             onAddFuelRecord = {
                 if (vehicles.size == 1) {
-                    navController.navigate(AddFuelRecordRoute(vehicles[0].id, vehicles[0].name))
+                    navController.navigate(NavRoute.AddFuelRecord(vehicles[0].id, vehicles[0].name))
                 } else {
-                    navController.navigate("garage")
+                    navController.navigate(NavRoute.Garage)
                 }
             },
             modifier = Modifier.padding(horizontal = 16.dp)
