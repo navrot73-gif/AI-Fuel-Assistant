@@ -635,4 +635,65 @@ class DeviceScenarioUnitGate {
         val filtered = com.navrot.aifuelassistant.ui.map.filterStationsForPanel(stations, setOf("АИ-95"))
         assertTrue("Panel station list must not be empty (auto-relaxed fallback)", filtered.isNotEmpty())
     }
+
+    @Test
+    fun `T-pins-plain - station pins layer configuration has no cluster zoom restrictions and features match registry`() = runTest {
+        val loader = StationLoaderImpl(
+            httpClient = mock(),
+            stationCache = StationCacheImpl(context, StationJsonParserImpl()),
+            jsonParser = StationJsonParserImpl(),
+            context = context
+        )
+        val registryStations = loader.loadFromAssets()
+
+        val clusterManager = com.navrot.aifuelassistant.ui.map.StationClusterManager()
+        val featureCollection = clusterManager.stationsToFeatureCollection(registryStations, setOf("АИ-95"))
+        val features = featureCollection.features()
+
+        assertNotNull("Features collection must not be null", features)
+        assertEquals("Features count must match registry stations count", registryStations.size, features!!.size)
+
+        for (feature in features) {
+            val statusColor = feature.getStringProperty(com.navrot.aifuelassistant.ui.map.StationClusterManager.PROP_STATUS_COLOR)
+            assertNotNull("Feature statusColor must not be null", statusColor)
+            assertTrue(
+                "statusColor must be one of available/no_fuel/unknown hex colors",
+                statusColor in listOf(
+                    com.navrot.aifuelassistant.ui.map.StationClusterManager.COLOR_AVAILABLE,
+                    com.navrot.aifuelassistant.ui.map.StationClusterManager.COLOR_NO_FUEL,
+                    com.navrot.aifuelassistant.ui.map.StationClusterManager.COLOR_UNKNOWN
+                )
+            )
+        }
+    }
+
+    @Test
+    fun `T-pins-visible-metric - first_pins_drawn metric recorded only when layer in style and features count greater than 0`() = runTest {
+        MapDiagnosticsTracker.resetStartupTimings()
+
+        assertEquals(0L, MapDiagnosticsTracker.firstPinsDrawnMs)
+        assertFalse("pinsLayerInStyle must be false initially", MapDiagnosticsTracker.pinsLayerInStyle)
+
+        val style: org.maplibre.android.maps.Style = mock()
+        val mockSource: org.maplibre.android.style.sources.GeoJsonSource = mock()
+        val mockLayer: org.maplibre.android.style.layers.Layer = mock()
+
+        whenever(style.getSourceAs<org.maplibre.android.style.sources.GeoJsonSource>(com.navrot.aifuelassistant.ui.map.StationClusterManager.SOURCE_ID)).doReturn(mockSource)
+        whenever(style.getLayer(com.navrot.aifuelassistant.ui.map.StationClusterManager.LAYER_PINS)).doReturn(mockLayer)
+
+        val loader = StationLoaderImpl(
+            httpClient = mock(),
+            stationCache = StationCacheImpl(context, StationJsonParserImpl()),
+            jsonParser = StationJsonParserImpl(),
+            context = context
+        )
+        val registryStations = loader.loadFromAssets()
+
+        val manager = com.navrot.aifuelassistant.ui.map.StationClusterManager()
+        manager.updateStations(style, registryStations, setOf("АИ-95"))
+
+        assertTrue("pinsLayerInStyle must be true after updateStations with layer present", MapDiagnosticsTracker.pinsLayerInStyle)
+        assertTrue("pinsFeaturesCount must match registry size", MapDiagnosticsTracker.pinsFeaturesCount == registryStations.size)
+        assertTrue("firstPinsDrawnMs must be set (> 0) when layer in style and features > 0", MapDiagnosticsTracker.firstPinsDrawnMs > 0L)
+    }
 }

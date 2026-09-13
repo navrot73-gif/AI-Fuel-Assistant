@@ -140,12 +140,9 @@ fun MapLibreView(
     val focusMarkerRef = remember { arrayOfNulls<Marker>(1) }
     val lastFocusPoint = remember { arrayOfNulls<Pair<Double, Double>>(1) }
 
-    // PR #184: флаг «первая загрузка стиля уже произошла».
-    // onDidFinishLoadingStyle срабатывает каждый раз при смене источника тайлов
-    // (включая fallback osm_raster → versatiles при ошибке). Анимация камеры на
-    // userLocation оправдана только в первый раз — потом пользователь мог
-    // самостоятельно переместить камеру, и автоматический «прыжок» будет раздражать.
-    val firstStyleLoadDone = remember { arrayOf(false) }
+    // Флаг: пользователь уже самостоятельно двигал карту
+    var hasCameraMovedByUser by remember { mutableStateOf(false) }
+    var initialCameraCenteredOnUser by remember { mutableStateOf(false) }
 
     // Бэклог №10: менеджер кластеризации. Один экземпляр на Composable.
     val clusterManager = remember { StationClusterManager() }
@@ -803,9 +800,30 @@ fun MapLibreView(
     LaunchedEffect(recenterRequest) {
         if (recenterRequest > 0) {
             userLocation?.let { loc ->
+                hasCameraMovedByUser = false
                 mapLibreMap?.animateCamera(
                     CameraUpdateFactory.newLatLngZoom(LatLng(loc.latitude, loc.longitude), 15.0)
                 )
+            }
+        }
+    }
+
+    // При первом получении GPS-фикса доводим камеру до пользователя (если пользователь еще не двигал карту сам)
+    LaunchedEffect(userLocation) {
+        val loc = userLocation
+        if (loc != null && loc.latitude != 0.0 && loc.longitude != 0.0) {
+            if (!initialCameraCenteredOnUser && !hasCameraMovedByUser) {
+                mapLibreMap?.let { map ->
+                    initialCameraCenteredOnUser = true
+                    map.animateCamera(
+                        CameraUpdateFactory.newLatLngZoom(LatLng(loc.latitude, loc.longitude), 15.0),
+                        400
+                    )
+                    Timber.tag("MapLibreView").d(
+                        "Camera animated to initial user GPS fix: (%.5f, %.5f)",
+                        loc.latitude, loc.longitude
+                    )
+                }
             }
         }
     }
@@ -901,18 +919,17 @@ fun MapLibreView(
                     // который всегда читает последнее значение. Если к моменту загрузки
                     // стиля userLocation уже доступен — анимируем камеру на него.
                     // Если нет — оставляем initial Chelyabinsk center.
-                    mapViewRef[0]?.addOnDidFinishLoadingStyleListener {
-                        // PR #184: Только при ПЕРВОЙ загрузке стиля автоматически
-                        // анимируем камеру на userLocation (если он уже приехал).
-                        // При последующих (fallback при ошибке источника) — сохраняем
-                        // текущую позицию камеры, чтобы не «прыгать» под пользователем.
-                        val isFirstLoad = !firstStyleLoadDone[0]
-                        firstStyleLoadDone[0] = true
+                    map.addOnCameraMoveStartedListener { reason ->
+                        if (reason == MapLibreMap.OnCameraMoveStartedListener.REASON_API_GESTURE) {
+                            hasCameraMovedByUser = true
+                            Timber.tag("MapLibreView").d("User moved map manually (hasCameraMovedByUser=true)")
+                        }
+                    }
 
+                    mapViewRef[0]?.addOnDidFinishLoadingStyleListener {
                         val loc = currentUserLocation
-                        if (isFirstLoad && loc != null && loc.latitude != 0.0 && loc.longitude != 0.0) {
-                            // PR #184: userLocation приехал раньше, чем стиль загрузился —
-                            // анимируем камеру на реальную позицию (zoom 15, 300мс).
+                        if (!initialCameraCenteredOnUser && loc != null && loc.latitude != 0.0 && loc.longitude != 0.0 && !hasCameraMovedByUser) {
+                            initialCameraCenteredOnUser = true
                             map.animateCamera(
                                 CameraUpdateFactory.newLatLngZoom(
                                     LatLng(loc.latitude, loc.longitude),
@@ -921,26 +938,21 @@ fun MapLibreView(
                                 300
                             )
                             Timber.tag("MapLibreView").d(
-                                "Camera animated to user location after first style load: (%.5f, %.5f)",
+                                "Camera animated to user location after style load: (%.5f, %.5f)",
                                 loc.latitude, loc.longitude
                             )
-                        } else if (isFirstLoad) {
-                            // userLocation ещё не приехал — оставляем initial center
-                            // (либо Chelyabinsk по умолчанию, либо реальную позицию,
-                            // если она уже была в момент getMapAsync).
+                        } else if (!initialCameraCenteredOnUser) {
                             map.cameraPosition = CameraPosition.Builder()
                                 .target(initialCenter)
                                 .zoom(initialZoom)
                                 .build()
                             Timber.tag("MapLibreView").d(
-                                "Camera kept at initial center after first style load (no user location yet): %s, zoom: %.1f",
+                                "Camera kept at initial center after style load (no user location yet): %s, zoom: %.1f",
                                 initialCenter, initialZoom
                             )
                         } else {
-                            // Последующая загрузка стиля (fallback) — НЕ трогаем камеру,
-                            // пользователь мог её уже переместить.
                             Timber.tag("MapLibreView").d(
-                                "Style reloaded (fallback), camera preserved at: %s, zoom: %.1f",
+                                "Style reloaded, camera preserved at: %s, zoom: %.1f",
                                 map.cameraPosition.target, map.cameraPosition.zoom
                             )
                         }

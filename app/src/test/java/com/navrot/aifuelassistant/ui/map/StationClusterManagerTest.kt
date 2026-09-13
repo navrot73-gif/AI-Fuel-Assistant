@@ -63,12 +63,9 @@ class StationClusterManagerTest {
         val geometry = feature.geometry()
         assertNotNull("Feature must have geometry", geometry)
 
-        // GeoJSON Point: координаты в порядке [longitude, latitude]
-        // Point.coordinates() в MapLibre geojson возвращает List<Double>
         val coords = (geometry as org.maplibre.geojson.Point).coordinates()
         assertNotNull("Coordinates must not be null", coords)
         assertTrue("Coordinates must have at least 2 elements", coords.size >= 2)
-        // GeoJSON порядок: [longitude, latitude]
         assertEquals(61.4368, coords[0], 0.0001)
         assertEquals(55.1644, coords[1], 0.0001)
     }
@@ -79,7 +76,6 @@ class StationClusterManagerTest {
         val fc = manager.stationsToFeatureCollection(listOf(station), setOf("АИ-95"))
 
         val feature = fc.features()!![0]
-        // stationId может быть сохранён как строка или число — зависит от сериализации
         val stationIdStr = feature.getStringProperty(StationClusterManager.PROP_STATION_ID)
         val stationIdNum = feature.getNumberProperty(StationClusterManager.PROP_STATION_ID)
         val stationId = stationIdStr?.toIntOrNull() ?: stationIdNum?.toInt()
@@ -97,39 +93,37 @@ class StationClusterManagerTest {
     }
 
     @Test
-    fun `stationsToFeatureCollection sets availability property based on selected fuel type`() {
+    fun `stationsToFeatureCollection sets status property based on selected fuel type`() {
         val station = createStation(id = 1, fuelPrice = 65.0)
-        // Станция с доступным топливом → availability = "AVAILABLE"
         val fc = manager.stationsToFeatureCollection(listOf(station), setOf("АИ-95"))
 
         val feature = fc.features()!![0]
-        val availability = feature.getStringProperty(StationClusterManager.PROP_AVAILABILITY)
-        assertNotNull("availability property must be set", availability)
-        //AVAILABLE, NO_FUEL, или UNKNOWN — точное значение зависит от PriceReliabilityCalculator
+        val status = feature.getStringProperty(StationClusterManager.PROP_STATUS)
+        assertNotNull("status property must be set", status)
         assertTrue(
-            "availability must be one of AVAILABLE/NO_FUEL/UNKNOWN, got: $availability",
-            availability in listOf("AVAILABLE", "NO_FUEL", "UNKNOWN")
+            "status must be one of AVAILABLE/NO_FUEL/UNKNOWN, got: $status",
+            status in listOf("AVAILABLE", "NO_FUEL", "UNKNOWN")
         )
     }
 
     @Test
-    fun `stationsToFeatureCollection sets color property matching availability`() {
+    fun `stationsToFeatureCollection sets statusColor property matching status`() {
         val station = createStation(id = 1)
         val fc = manager.stationsToFeatureCollection(listOf(station), setOf("АИ-95"))
 
         val feature = fc.features()!![0]
-        val color = feature.getStringProperty(StationClusterManager.PROP_COLOR)
-        val availability = feature.getStringProperty(StationClusterManager.PROP_AVAILABILITY)
+        val statusColor = feature.getStringProperty(StationClusterManager.PROP_STATUS_COLOR)
+        val status = feature.getStringProperty(StationClusterManager.PROP_STATUS)
 
-        assertNotNull("color must be set", color)
-        assertNotNull("availability must be set", availability)
+        assertNotNull("statusColor must be set", statusColor)
+        assertNotNull("status must be set", status)
 
-        val expectedColor = when (availability) {
+        val expectedColor = when (status) {
             "AVAILABLE" -> StationClusterManager.COLOR_AVAILABLE_REF
             "NO_FUEL" -> StationClusterManager.COLOR_NO_FUEL_REF
             else -> StationClusterManager.COLOR_UNKNOWN_REF
         }
-        assertEquals("color must match availability", expectedColor, color)
+        assertEquals("statusColor must match status", expectedColor, statusColor)
     }
 
     @Test
@@ -146,10 +140,7 @@ class StationClusterManagerTest {
 
     @Test
     fun `resetLayersAttached clears internal state`() {
-        // Просто проверяем, что метод не падает и не возвращает ошибку.
-        // Полное тестирование требует Style-мок, что избыточно для этого слоя.
         manager.resetLayersAttached()
-        // Повторный вызов тоже должен быть безопасен
         manager.resetLayersAttached()
     }
 }
