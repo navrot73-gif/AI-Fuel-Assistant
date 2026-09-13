@@ -501,6 +501,7 @@ fun MapLibreView(
 
         var fallbackTimerJob: Job? = null
         var tilesLoadedCount = 0
+        var tileErrorsCount = 0
         var hasFailedMapLoad = false
 
         val mapView = mapViewRef[0]
@@ -515,9 +516,10 @@ fun MapLibreView(
                         tileOp.name, sourceKey, zoom, x, y, tilesLoadedCount, url)
                 }
                 org.maplibre.android.tile.TileOperation.Error -> {
+                    tileErrorsCount++
                     MapDiagnosticsTracker.recordTileFallback("$sourceKey:tile_error")
-                    Timber.tag("MapLibreView").e("Tile error [%s]: z=%d (%d,%d), url=%s",
-                        sourceKey, zoom, x, y, url)
+                    Timber.tag("MapLibreView").e("Tile error [%s]: z=%d (%d,%d), url=%s (total errors: %d)",
+                        sourceKey, zoom, x, y, url, tileErrorsCount)
                 }
                 else -> {}
             }
@@ -688,12 +690,27 @@ fun MapLibreView(
             // Оффлайн = серый фон + пины — это нормальное состояние, не авария.
             // Переключаем только при явной ошибке загрузки карты (onDidFailLoadingMap).
             // Таймаут увеличен с 6 до 10 секунд — даём сети шанс на плохом коннекте.
+            //
+            // PR #188: НО если MapLibre получил HTTP 200 с пустым телом (CDN отдаёт
+            // empty body вместо тайла — OpenFreeMap глюк), это не map_load_fail, но
+            // и тайлов нет. Поэтому: если tilesLoadedCount==0 И tileErrorsCount>=3,
+            // переключаемся на следующий source (osm_raster).
             fallbackTimerJob = scope.launch {
                 delay(10000L)
                 if (hasFailedMapLoad) {
                     Timber.tag("MapLibreView").w("MapChange/Timeout: 10s passed with map_load_fail=true for source: %s, switching source",
                         sourceKey)
                     MapDiagnosticsTracker.recordTileFallback("$sourceKey:timeout_10s_map_fail")
+                    switchToNextSource()
+                } else if (tilesLoadedCount == 0 && tileErrorsCount >= 3) {
+                    // PR #188: CDN отдаёт пустые тела (HTTP 200 + content-length: 0).
+                    // MapLibre считает это ошибкой тайла, а не карты. Но 3+ ошибки
+                    // при 0 успехов — это явная авария источника, не оффлайн.
+                    Timber.tag("MapLibreView").w(
+                        "MapChange/Timeout: 10s passed with 0 tiles loaded + %d tile errors for %s — CDN is broken, switching source",
+                        tileErrorsCount, sourceKey
+                    )
+                    MapDiagnosticsTracker.recordTileFallback("$sourceKey:timeout_10s_empty_tiles_$tileErrorsCount")
                     switchToNextSource()
                 } else if (tilesLoadedCount == 0) {
                     // Оффлайн или кеш пуст — НЕ переключаем. Пины уже нарисованы,
