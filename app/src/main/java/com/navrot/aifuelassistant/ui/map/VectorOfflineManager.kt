@@ -38,7 +38,19 @@ class VectorOfflineManager @Inject constructor(
 
     companion object {
         private const val TAG = "VectorOfflineManager"
-        const val DEFAULT_STYLE_URL = "https://demotiles.maplibre.org/style.json"
+        /**
+         * Локальный стиль из assets. Раньше указывал на удалённый
+         * https://demotiles.maplibre.org/style.json, что концептуально ломало
+         * оффлайн-скачивание регионов: для самого скачивания требовалась сеть,
+         * чтобы получить стиль. Теперь используется тот же локальный стиль,
+         * что и в MapLibreView.applyStyleWithFallback() — согласованность
+         * между рантайм-рендером и офлайн-кешем.
+         *
+         * ВАЖНО: MapLibre OfflineManager требует, чтобы стиль был доступен
+         * по URL. asset:// поддерживается нативно Android- WebView и MapLibre.
+         * Файл: app/src/main/assets/map_style_local.json
+         */
+        const val DEFAULT_STYLE_URL = "asset://map_style_local.json"
         const val MIN_ZOOM = 10.0
         const val MAX_ZOOM = 17.0
         const val PIXEL_RATIO = 2.0f

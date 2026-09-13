@@ -61,4 +61,20 @@ class VectorOfflineManagerTest {
             assertEquals(bounds.latitudeSouth, it.latitudeSouth, 0.001)
         }
     }
+
+    @Test
+    fun `DEFAULT_STYLE_URL points to local asset, not remote server`() {
+        // Regression guard: previously this was https://demotiles.maplibre.org/style.json
+        // which broke offline region downloads (downloading the style itself required network).
+        // Now it must point to the same local asset used by MapLibreView for runtime rendering.
+        assertEquals(
+            "DEFAULT_STYLE_URL must be the local asset, not a remote URL",
+            "asset://map_style_local.json",
+            VectorOfflineManager.DEFAULT_STYLE_URL
+        )
+        assertTrue(
+            "DEFAULT_STYLE_URL must NOT start with http",
+            !VectorOfflineManager.DEFAULT_STYLE_URL.startsWith("http")
+        )
+    }
 }
