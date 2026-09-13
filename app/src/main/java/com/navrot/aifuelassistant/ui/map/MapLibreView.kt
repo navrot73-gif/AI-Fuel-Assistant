@@ -331,7 +331,7 @@ fun MapLibreView(
      * ВАЖНО: функция объявлена ПЕРЕД attachTileSourceToStyle, потому что Kotlin
      * требует, чтобы локальные функции были видны до вызова.
      */
-    private fun addRasterLayerSafely(style: Style, rasterLayer: RasterLayer) {
+    fun addRasterLayerSafely(style: Style, rasterLayer: RasterLayer) {
         val bgLayer = style.getLayer("bg")
         if (bgLayer != null) {
             style.addLayerBelow(rasterLayer, "bg")
@@ -346,7 +346,6 @@ fun MapLibreView(
     fun attachTileSourceToStyle(style: Style, sourceKey: String) {
         val sourceId = "runtime-tile-source-$sourceKey"
         val layerId = "runtime-tile-layer-$sourceKey"
-
         // Remove any previous runtime layer & source if exists
         for (key in tileSourceChain) {
             val sId = "runtime-tile-source-$key"
