@@ -66,6 +66,18 @@ object MapDiagnosticsTracker {
     @Volatile
     var activeSources: String = "registry"
 
+    @Volatile
+    var firstPinsDrawnMs: Long = 0L
+
+    @Volatile
+    var pinsMode: String = "plain"
+
+    @Volatile
+    var pinsFeaturesCount: Int = 0
+
+    @Volatile
+    var pinsLayerInStyle: Boolean = false
+
     fun resetStartupTimings() {
         activeSources = "registry"
         t0Ms = System.currentTimeMillis()
@@ -84,6 +96,10 @@ object MapDiagnosticsTracker {
         mergeConflicts = 0
         firstEmitMs = 0L
         firstEmitSource = "cache"
+        firstPinsDrawnMs = 0L
+        pinsMode = "plain"
+        pinsFeaturesCount = 0
+        pinsLayerInStyle = false
     }
 
     fun recordTileFallback(log: String) {
@@ -101,6 +117,10 @@ object MapDiagnosticsTracker {
             mergeConflicts: $mergeConflicts
             firstEmitMs: ${firstEmitMs}ms
             firstEmitSource: $firstEmitSource
+            firstPinsDrawnMs: ${firstPinsDrawnMs}ms
+            pins_mode: $pinsMode
+            pins_features: $pinsFeaturesCount
+            pins_layer_in_style: $pinsLayerInStyle
             emit1Ms: ${emit1Ms}ms
             emit2Ms: ${emit2Ms}ms
             enrichmentMs: ${enrichmentMs}ms

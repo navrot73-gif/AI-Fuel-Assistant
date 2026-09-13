@@ -480,8 +480,6 @@ class GasStationRepository @Inject constructor(
         val baseWithPrices = stationPriceApplier.applyAllPrices(baseStations)
         val baseNearby = stationFilterAndSorter.getStationsNearLocation(lat, lon, radiusKm, baseWithPrices)
 
-        val elapsedFirst = System.currentTimeMillis() - com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.t0Ms
-        Timber.tag("StartupTimeline").i("T+%dms first_pins_drawn (%d stations)", elapsedFirst, baseNearby.size)
         logStationStatusSummary(baseNearby)
         if (baseNearby != initialNearby) {
             emit(baseNearby)
