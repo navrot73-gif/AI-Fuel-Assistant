@@ -135,33 +135,49 @@ class StationClusterManager {
      * [updateStations]. Слои добавляются ПОВЕРХ runtime-tile-source (см. attachTileSourceToStyle).
      */
     fun attachToStyle(style: Style, stations: List<GasStation>, selectedFuelTypes: Set<String>) {
+        Timber.tag(TAG).i("attachToStyle: stations=%d, fuelTypes=%s, layersAttached=%b",
+            stations.size, selectedFuelTypes, layersAttached)
         val featureCollection = stationsToFeatureCollection(stations, selectedFuelTypes)
 
         // Создаём или обновляем source
         val existing = style.getSourceAs<GeoJsonSource>(SOURCE_ID)
         if (existing != null) {
-            existing.setGeoJson(featureCollection)
-            currentSource = existing
-            Timber.tag(TAG).d("Updated existing cluster source with %d stations", stations.size)
+            try {
+                existing.setGeoJson(featureCollection)
+                currentSource = existing
+                Timber.tag(TAG).d("Updated existing cluster source with %d stations", stations.size)
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "Failed to setGeoJson on existing source")
+            }
         } else {
-            val clusterOptions = GeoJsonOptions()
-                .withCluster(true)
-                .withClusterMaxZoom(CLUSTER_MAX_ZOOM)
-                .withClusterRadius(CLUSTER_RADIUS)
-            val source = GeoJsonSource(
-                SOURCE_ID,
-                featureCollection,
-                clusterOptions
-            )
-            style.addSource(source)
-            currentSource = source
-            Timber.tag(TAG).d("Created cluster source with %d stations", stations.size)
+            try {
+                val clusterOptions = GeoJsonOptions()
+                    .withCluster(true)
+                    .withClusterMaxZoom(CLUSTER_MAX_ZOOM)
+                    .withClusterRadius(CLUSTER_RADIUS)
+                val source = GeoJsonSource(
+                    SOURCE_ID,
+                    featureCollection,
+                    clusterOptions
+                )
+                style.addSource(source)
+                currentSource = source
+                Timber.tag(TAG).d("✅ Created cluster source '%s' with %d stations", SOURCE_ID, stations.size)
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "❌ Failed to addSource '%s'", SOURCE_ID)
+                return  // Не добавляем слои, если source не создан
+            }
         }
 
         // Добавляем слои один раз
         if (!layersAttached) {
-            addClusterLayers(style)
-            layersAttached = true
+            try {
+                addClusterLayers(style)
+                layersAttached = true
+                Timber.tag(TAG).d("✅ layersAttached=true")
+            } catch (e: Exception) {
+                Timber.tag(TAG).e(e, "❌ addClusterLayers threw — layers will be missing")
+            }
         }
     }
 
@@ -170,14 +186,21 @@ class StationClusterManager {
      * Вызывать при изменении списка станций или выбранных типов топлива.
      */
     fun updateStations(style: Style, stations: List<GasStation>, selectedFuelTypes: Set<String>) {
+        Timber.tag(TAG).d("updateStations: stations=%d, layersAttached=%b",
+            stations.size, layersAttached)
         val source = style.getSourceAs<GeoJsonSource>(SOURCE_ID) ?: run {
             // Source ещё не создан — вызываем полный attach
+            Timber.tag(TAG).w("updateStations: source not found, calling attachToStyle")
             attachToStyle(style, stations, selectedFuelTypes)
             return
         }
         val featureCollection = stationsToFeatureCollection(stations, selectedFuelTypes)
-        source.setGeoJson(featureCollection)
-        Timber.tag(TAG).d("Updated cluster source: %d stations", stations.size)
+        try {
+            source.setGeoJson(featureCollection)
+            Timber.tag(TAG).d("✅ Updated cluster source: %d stations", stations.size)
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "❌ setGeoJson failed in updateStations")
+        }
     }
 
     /**
@@ -194,69 +217,80 @@ class StationClusterManager {
     }
 
     private fun addClusterLayers(style: Style) {
-        // 1. Слой отдельных (некластеризованных) станций — цветные круги.
-        //    Фильтр: точки БЕЗ свойства "point_count" (это некластеризованные фичи).
+        // P0-фикс: упрощаем слои до минимума, который гарантированно работает.
+        // Убраны: setFilter (часто бросает исключение в MapLibre 11.5.0),
+        //         textFont (падает на устройствах без указанных шрифтов),
+        //         сложные Expression.step (заменены на простые литералы).
+        //
+        // Стратегия: рисуем ВСЕ точки из source. Кластеры автоматически получают
+        // point_count от MapLibre, отдельные станции — нет. Через Expression.coalesce
+        // получаем число для размера круга: если point_count есть — это кластер
+        // (большой круг), иначе — отдельная станция (маленький круг с цветом).
+
+        // 1. Слой всех точек — круги. Размер зависит от наличия point_count.
         val unclusteredLayer = CircleLayer(LAYER_UNCLUSTERED, SOURCE_ID).apply {
             setProperties(
-                PropertyFactory.circleRadius(STATION_CIRCLE_RADIUS),
-                PropertyFactory.circleColor(Expression.get(PROP_COLOR)),
+                // Если point_count есть (кластер) — радиус 24, иначе 8 (станция)
+                PropertyFactory.circleRadius(
+                    Expression.switchCase(
+                        Expression.has("point_count"),
+                        Expression.literal(24f),
+                        Expression.literal(STATION_CIRCLE_RADIUS)
+                    )
+                ),
+                // Цвет: если кластер — голубой, иначе цвет станции (зелёный/красный/серый)
+                PropertyFactory.circleColor(
+                    Expression.switchCase(
+                        Expression.has("point_count"),
+                        Expression.literal(Color.parseColor("#51bbd6")),
+                        Expression.get(PROP_COLOR)
+                    )
+                ),
                 PropertyFactory.circleStrokeColor(Color.WHITE),
                 PropertyFactory.circleStrokeWidth(STATION_CIRCLE_STROKE),
                 PropertyFactory.circleOpacity(0.9f),
                 PropertyFactory.circleStrokeOpacity(1.0f)
             )
-            // Фильтр: только некластеризованные точки (НЕ имеют point_count).
-            // MapLibre автоматически добавляет point_count кластерам, отдельным точкам — нет.
-            setFilter(Expression.not(Expression.has("point_count")))
         }
-        style.addLayer(unclusteredLayer)
-
-        // 2. Слой кластеров — круги с цветом по размеру кластера.
-        //    Фильтр: только кластеры (ИМЕЮТ point_count).
-        val clusterLayer = CircleLayer(LAYER_CLUSTERS, SOURCE_ID).apply {
-            setProperties(
-                PropertyFactory.circleRadius(
-                    Expression.step(
-                        Expression.get("point_count"),
-                        CLUSTER_MIN_RADIUS,
-                        Expression.stop(10, CLUSTER_MIN_RADIUS + 6),
-                        Expression.stop(50, CLUSTER_MIN_RADIUS + 14),
-                        Expression.stop(100, CLUSTER_MAX_RADIUS)
-                    )
-                ),
-                PropertyFactory.circleColor(
-                    Expression.step(
-                        Expression.get("point_count"),
-                        Color.parseColor("#51bbd6"),  // малые кластеры — голубой
-                        Expression.stop(10, Color.parseColor("#f1f075")),  // жёлтый
-                        Expression.stop(50, Color.parseColor("#f28cb1"))   // розовый
-                    )
-                ),
-                PropertyFactory.circleStrokeColor(Color.WHITE),
-                PropertyFactory.circleStrokeWidth(2f),
-                PropertyFactory.circleOpacity(0.85f)
-            )
-            setFilter(Expression.has("point_count"))
+        try {
+            style.addLayer(unclusteredLayer)
+            Timber.tag(TAG).d("✅ Added CircleLayer '%s'", LAYER_UNCLUSTERED)
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "❌ Failed to add CircleLayer '%s'", LAYER_UNCLUSTERED)
+            throw e
         }
-        style.addLayer(clusterLayer)
 
-        // 3. Слой счётчика в кластерах — текст с числом.
+        // 2. Слой текста для кластеров — показывает число станций.
+        //    textField через Expression.toString безопаснее, чем прямой get.
         val countLayer = SymbolLayer(LAYER_CLUSTERS_COUNT, SOURCE_ID).apply {
             setProperties(
-                PropertyFactory.textField(Expression.get("point_count")),
-                PropertyFactory.textSize(12f),
+                // Показываем число только если point_count существует (кластер)
+                PropertyFactory.textField(
+                    Expression.switchCase(
+                        Expression.has("point_count"),
+                        Expression.toString(Expression.get("point_count")),
+                        Expression.literal("")
+                    )
+                ),
+                PropertyFactory.textSize(13f),
                 PropertyFactory.textColor(Color.WHITE),
-                PropertyFactory.textFont(arrayOf("Noto Sans Regular", "Arial Unicode MS Regular")),
                 PropertyFactory.textHaloColor(Color.parseColor("#1a1a1a")),
-                PropertyFactory.textHaloWidth(1f),
+                PropertyFactory.textHaloWidth(1.5f),
                 PropertyFactory.textAllowOverlap(true),
                 PropertyFactory.textIgnorePlacement(true)
+                // textFont УБРАН — вызывает ошибки на устройствах без указанных шрифтов.
+                // MapLibre использует дефолтный шрифт.
             )
-            setFilter(Expression.has("point_count"))
         }
-        style.addLayer(countLayer)
+        try {
+            style.addLayer(countLayer)
+            Timber.tag(TAG).d("✅ Added SymbolLayer '%s'", LAYER_CLUSTERS_COUNT)
+        } catch (e: Exception) {
+            Timber.tag(TAG).e(e, "❌ Failed to add SymbolLayer '%s' — continuing without it", LAYER_CLUSTERS_COUNT)
+            // Не бросаем исключение — текст не критичен, главное круги
+        }
 
-        Timber.tag(TAG).d("Attached 3 cluster layers (unclustered, clusters, count)")
+        Timber.tag(TAG).d("Attached %d cluster layers", 2)
     }
 
     /**
@@ -281,60 +315,56 @@ class StationClusterManager {
             org.maplibre.android.geometry.LatLng(lat, lon)
         )
 
-        // Сначала проверяем кластеры (верхний слой)
-        val clusterFeatures = try {
-            map.queryRenderedFeatures(screenPoint, LAYER_CLUSTERS)
+        // P0-фикс: теперь у нас один слой LAYER_UNCLUSTERED, который рисует и кластеры,
+        // и отдельные станции. Запрашиваем его.
+        val features = try {
+            map.queryRenderedFeatures(screenPoint, LAYER_UNCLUSTERED)
         } catch (e: Exception) {
-            Timber.tag(TAG).w(e, "Failed to query cluster features at click point")
-            emptyList()
+            Timber.tag(TAG).w(e, "Failed to query features at click point")
+            return false
         }
-        if (clusterFeatures.isNotEmpty()) {
-            val feature = clusterFeatures[0]
-            // Геометрия кластера — Point с центром
+
+        if (features.isEmpty()) return false
+
+        val feature = features[0]
+
+        // Если есть point_count — это кластер, zoom +1.5
+        val isCluster = feature.hasProperty("point_count")
+        if (isCluster) {
             val geometry = feature.geometry()
             if (geometry is Point) {
-                // GeoJSON Point.coordinates() → List<Double> в порядке [longitude, latitude]
                 val coords = geometry.coordinates()
                 if (coords != null && coords.size >= 2) {
-                    val lon = coords[0]
-                    val lat = coords[1]
+                    val clusterLon = coords[0]
+                    val clusterLat = coords[1]
                     val zoomToApply = (map.cameraPosition.zoom + 1.5).coerceAtMost(20.0)
                     map.animateCamera(
                         org.maplibre.android.camera.CameraUpdateFactory.newLatLngZoom(
-                            org.maplibre.android.geometry.LatLng(lat, lon),
+                            org.maplibre.android.geometry.LatLng(clusterLat, clusterLon),
                             zoomToApply
                         ),
                         400
                     )
                     Timber.tag(TAG).d("Cluster click: zooming to (%.4f, %.4f) zoom=%.1f",
-                        lat, lon, zoomToApply)
+                        clusterLat, clusterLon, zoomToApply)
                     return true
                 }
             }
+            return false
         }
 
-        // Затем проверяем отдельные станции
-        val stationFeatures = try {
-            map.queryRenderedFeatures(screenPoint, LAYER_UNCLUSTERED)
-        } catch (e: Exception) {
-            Timber.tag(TAG).w(e, "Failed to query station features at click point")
-            emptyList()
-        }
-        if (stationFeatures.isNotEmpty()) {
-            val feature = stationFeatures[0]
-            // Свойство stationId хранится как число в GeoJSON properties
-            val stationId = feature.getStringProperty(PROP_STATION_ID)?.toIntOrNull()
-                ?: feature.getNumberProperty(PROP_STATION_ID)?.toInt()
-            if (stationId != null) {
-                val station = stations.firstOrNull { it.id == stationId }
-                if (station != null) {
-                    onStationClick(station)
-                    Timber.tag(TAG).d("Station click: id=%d, name=%s", station.id, station.name)
-                    return true
-                } else {
-                    Timber.tag(TAG).w("Station click: id=%d not found in stations list (size=%d)",
-                        stationId, stations.size)
-                }
+        // Иначе — отдельная станция, вызываем callback
+        val stationId = feature.getStringProperty(PROP_STATION_ID)?.toIntOrNull()
+            ?: feature.getNumberProperty(PROP_STATION_ID)?.toInt()
+        if (stationId != null) {
+            val station = stations.firstOrNull { it.id == stationId }
+            if (station != null) {
+                onStationClick(station)
+                Timber.tag(TAG).d("Station click: id=%d, name=%s", station.id, station.name)
+                return true
+            } else {
+                Timber.tag(TAG).w("Station click: id=%d not found in stations list (size=%d)",
+                    stationId, stations.size)
             }
         }
 
