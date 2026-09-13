@@ -315,6 +315,34 @@ fun MapLibreView(
         }
     }
 
+    /**
+     * P0-фикс #180: добавляет raster layer ПОВЕРХ background-слоя "bg" из map_style_local.json.
+     *
+     * Раньше использовался addLayerAt(rasterLayer, 0), который вставлял raster НА позицию 0,
+     * сдвигая background вверх. В итоге background (серый #E8EAEC) рисовался поверх raster
+     * и закрывал тайлы — карта выглядела пустой.
+     *
+     * Теперь: addLayerBelow(rasterLayer, "bg") ставит raster выше background, но ниже
+     * кластерных слоёв (которые добавляются потом через addLayer в конец списка).
+     *
+     * Fallback: если слой "bg" не найден (например, стиль без background), используем
+     * addLayerAt(0) — старое поведение.
+     *
+     * ВАЖНО: функция объявлена ПЕРЕД attachTileSourceToStyle, потому что Kotlin
+     * требует, чтобы локальные функции были видны до вызова.
+     */
+    private fun addRasterLayerSafely(style: Style, rasterLayer: RasterLayer) {
+        val bgLayer = style.getLayer("bg")
+        if (bgLayer != null) {
+            style.addLayerBelow(rasterLayer, "bg")
+            Timber.tag("MapLibreView").d("Added raster layer below 'bg' (background)")
+        } else {
+            // Fallback: если background нет, добавляем в начало
+            style.addLayerAt(rasterLayer, 0)
+            Timber.tag("MapLibreView").w("Background layer 'bg' not found, using addLayerAt(0) fallback")
+        }
+    }
+
     fun attachTileSourceToStyle(style: Style, sourceKey: String) {
         val sourceId = "runtime-tile-source-$sourceKey"
         val layerId = "runtime-tile-layer-$sourceKey"
@@ -369,31 +397,6 @@ fun MapLibreView(
             Timber.tag("MapLibreView").i("Style layers order (%d): %s", layerIds.size, layerIds)
         } catch (e: Exception) {
             Timber.tag("MapLibreView").w(e, "Failed to list style layers")
-        }
-    }
-
-    /**
-     * P0-фикс #180: добавляет raster layer ПОВЕРХ background-слоя "bg" из map_style_local.json.
-     *
-     * Раньше использовался addLayerAt(rasterLayer, 0), который вставлял raster НА позицию 0,
-     * сдвигая background вверх. В итоге background (серый #E8EAEC) рисовался поверх raster
-     * и закрывал тайлы — карта выглядела пустой.
-     *
-     * Теперь: addLayerBelow(rasterLayer, "bg") ставит raster выше background, но ниже
-     * кластерных слоёв (которые добавляются потом через addLayer в конец списка).
-     *
-     * Fallback: если слой "bg" не найден (например, стиль без background), используем
-     * addLayerAt(0) — старое поведение.
-     */
-    private fun addRasterLayerSafely(style: Style, rasterLayer: RasterLayer) {
-        val bgLayer = style.getLayer("bg")
-        if (bgLayer != null) {
-            style.addLayerBelow(rasterLayer, "bg")
-            Timber.tag("MapLibreView").d("Added raster layer below 'bg' (background)")
-        } else {
-            // Fallback: если background нет, добавляем в начало
-            style.addLayerAt(rasterLayer, 0)
-            Timber.tag("MapLibreView").w("Background layer 'bg' not found, using addLayerAt(0) fallback")
         }
     }
 
