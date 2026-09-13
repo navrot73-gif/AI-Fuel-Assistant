@@ -175,6 +175,48 @@ class MapViewModel @Inject constructor(
         val elapsedMs = System.currentTimeMillis() - com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.t0Ms
         Timber.tag("StartupTimeline").i("T+%dms activity_created", elapsedMs)
 
+        // PR #186: pre-populate stations from assets IMMEDIATELY.
+        //
+        // Проблема (из map-logs6.txt):
+        //   T+115ms   GasStationRepo: first emit (109 stations, source=assets)  ← repo имеет данные
+        //   T+3071ms  StationClusterManager: updateStations: stations=0          ← но Composable видит 0
+        //   T+6380ms  StationClusterManager: updateStations: stations=0          ← по-прежнему 0
+        //   T+14749ms StationClusterManager: updateStations: stations=0          ← даже спустя 15 сек
+        //
+        // Причина: MapFilterDelegate._stations стартует как emptyList() и
+        // заполняется ТОЛЬКО когда вызывается loadNearbyStations (а это происходит
+        // из onLocationUpdate, который ждёт FusedLocationProvider 1-3 секунды
+        // + проверяет условия времени/расстояния). До этого момента Composable
+        // получает stations=0 и кластерные слои создаются с пустым source.
+        //
+        // Фикс: сразу в init заполняем _stations всеми станциями из assets.
+        // GasStationRepo уже загрузил их в кеш (T+115ms) — просто прокидываем
+        // в filterDelegate без ожидания GPS. Когда GPS приедет — loadNearbyStations
+        // уточнит список (отсортирует по расстоянию, отфильтрует по радиусу).
+        viewModelScope.launch {
+            try {
+                val initialStations = repository.getAllStations()
+                if (initialStations.isNotEmpty()) {
+                    filterDelegate.updateStations(initialStations)
+                    val preElapsed = System.currentTimeMillis() -
+                        com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.t0Ms
+                    Timber.tag("StartupTimeline").i(
+                        "T+%dms stations_pre_populated (%d stations from assets)",
+                        preElapsed, initialStations.size
+                    )
+                    // Начальная AI-рекомендация по дефолтному центру Челябинска.
+                    // Когда GPS приедет — updateAiRecommendation(realLat, realLon)
+                    // пересчитает recommendation по реальной позиции пользователя.
+                    filterDelegate.updateAiRecommendation(
+                        lat = 55.1644,
+                        lon = 61.4368
+                    )
+                }
+            } catch (e: Exception) {
+                Timber.tag(TAG).w(e, "Pre-populate stations failed: %s", e.message)
+            }
+        }
+
         // Warmup: pre-fetch prices for default city (chelyabinsk) so cache is hot
         // when user location is resolved.
         viewModelScope.launch {
