@@ -342,6 +342,8 @@ fun MapScreen(
                         recenterRequest = recenterTick,
                         zoomInRequest = zoomInTick, zoomOutRequest = zoomOutTick,
                         focusPoint = geocodedLocation?.let { Pair(it.latitude, it.longitude) },
+                        isOnline = isOnline,
+                        useClustering = true,  // Бэклог №10: кластеризация в стиле ГдеБЕНЗ
                         onStationClick = { selectedStation = it }
                     )
                 } else {

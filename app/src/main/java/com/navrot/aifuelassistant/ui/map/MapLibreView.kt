@@ -96,6 +96,8 @@ fun MapLibreView(
     zoomInRequest: Int = 0,
     zoomOutRequest: Int = 0,
     focusPoint: Pair<Double, Double>? = null,
+    isOnline: Boolean = true,
+    useClustering: Boolean = true,
     onStationClick: (GasStation) -> Unit
 ) {
     val context = LocalContext.current
@@ -111,6 +113,9 @@ fun MapLibreView(
     val userLocationMarkerRef = remember { arrayOfNulls<Marker>(1) }
     val focusMarkerRef = remember { arrayOfNulls<Marker>(1) }
     val lastFocusPoint = remember { arrayOfNulls<Pair<Double, Double>>(1) }
+
+    // Бэклог №10: менеджер кластеризации. Один экземпляр на Composable.
+    val clusterManager = remember { StationClusterManager() }
 
     val tileSourceChain = remember {
         listOf(TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP, TILE_SOURCE_VERSATILES)
@@ -128,6 +133,18 @@ fun MapLibreView(
             Timber.tag("MapLibreView").d("Restored tile source preference: %s", savedSource)
         }
     }
+
+    // P1: TTL для failedSources — сброс при возвращении сети.
+    // Раньше однажды провалившийся источник помечался навсегда в рамках сессии
+    // Composable. Если сеть возвращалась, повтора не было — пользователь видел
+    // «ослабленный» набор источников до перезапуска приложения.
+    //
+    // Теперь: при переходе isOnline false → true очищаем failedSources и
+    // повторно пробуем текущий активный источник (если он был в failed list).
+    //
+    // ВАЖНО: этот LaunchedEffect должен идти ПОСЛЕ объявления applyStyleWithFallback,
+    // иначе Kotlin не сможет разрешить ссылку на локальную функцию. Поэтому
+    // сам effect объявлен ниже (после LaunchedEffect(isDarkMode)).
 
     fun updateRouteLayer(style: Style) {
         val existingSource = style.getSourceAs<GeoJsonSource>(ROUTE_SOURCE_ID)
@@ -176,45 +193,62 @@ fun MapLibreView(
     fun updateMarkers(map: MapLibreMap) {
         val iconFactory = IconFactory.getInstance(context)
 
-        val diff = MarkerDiffCalculator.calculateDiff(activeStationMarkers.keys, stations) { it.id }
-
-        diff.toRemoveIds.forEach { stationId ->
-            val marker = activeStationMarkers.remove(stationId)
-            marker?.let {
-                map.removeMarker(it)
-                markerStationMap.remove(it.id)
+        // Бэклог №10: если включена кластеризация — станции идут через SymbolLayer,
+        // а Marker API используется только для finish/userLocation/focus.
+        if (useClustering) {
+            map.style?.let { style ->
+                clusterManager.updateStations(style, stations, selectedFuelTypes)
             }
-        }
+            // Маркеры станций через Marker API больше не нужны — чистим
+            if (activeStationMarkers.isNotEmpty()) {
+                activeStationMarkers.values.forEach { m ->
+                    try { map.removeMarker(m) } catch (_: Throwable) {}
+                }
+                activeStationMarkers.clear()
+                markerStationMap.clear()
+            }
+        } else {
+            // Совместимость: старый путь через Marker API (если useClustering=false)
+            val diff = MarkerDiffCalculator.calculateDiff(activeStationMarkers.keys, stations) { it.id }
 
-        diff.toAdd.forEach { station ->
-            val markerColor = getMarkerColor(station, selectedFuelTypes)
-            val drawable = createColoredMarker(context, markerColor)
-            val bitmap = drawableToBitmap(drawable)
-            val icon = iconFactory.fromBitmap(bitmap)
+            diff.toRemoveIds.forEach { stationId ->
+                val marker = activeStationMarkers.remove(stationId)
+                marker?.let {
+                    map.removeMarker(it)
+                    markerStationMap.remove(it.id)
+                }
+            }
 
-            val markerOptions = MarkerOptions()
-                .position(LatLng(station.latitude, station.longitude))
-                .title(station.name)
-                .snippet(buildStationSnippet(station, selectedFuelTypes))
-                .icon(icon)
-
-            val addedMarker: Marker = map.addMarker(markerOptions)
-            activeStationMarkers[station.id] = addedMarker
-            markerStationMap[addedMarker.id] = station
-        }
-
-        diff.toUpdate.forEach { station ->
-            val existingMarker = activeStationMarkers[station.id]
-            if (existingMarker != null) {
-                existingMarker.position = LatLng(station.latitude, station.longitude)
-                existingMarker.title = station.name
-                existingMarker.snippet = buildStationSnippet(station, selectedFuelTypes)
+            diff.toAdd.forEach { station ->
                 val markerColor = getMarkerColor(station, selectedFuelTypes)
                 val drawable = createColoredMarker(context, markerColor)
                 val bitmap = drawableToBitmap(drawable)
                 val icon = iconFactory.fromBitmap(bitmap)
-                existingMarker.icon = icon
-                markerStationMap[existingMarker.id] = station
+
+                val markerOptions = MarkerOptions()
+                    .position(LatLng(station.latitude, station.longitude))
+                    .title(station.name)
+                    .snippet(buildStationSnippet(station, selectedFuelTypes))
+                    .icon(icon)
+
+                val addedMarker: Marker = map.addMarker(markerOptions)
+                activeStationMarkers[station.id] = addedMarker
+                markerStationMap[addedMarker.id] = station
+            }
+
+            diff.toUpdate.forEach { station ->
+                val existingMarker = activeStationMarkers[station.id]
+                if (existingMarker != null) {
+                    existingMarker.position = LatLng(station.latitude, station.longitude)
+                    existingMarker.title = station.name
+                    existingMarker.snippet = buildStationSnippet(station, selectedFuelTypes)
+                    val markerColor = getMarkerColor(station, selectedFuelTypes)
+                    val drawable = createColoredMarker(context, markerColor)
+                    val bitmap = drawableToBitmap(drawable)
+                    val icon = iconFactory.fromBitmap(bitmap)
+                    existingMarker.icon = icon
+                    markerStationMap[existingMarker.id] = station
+                }
             }
         }
 
@@ -339,6 +373,9 @@ fun MapLibreView(
      * и не добавлял маркеры заново → «серый лист без пинов» после каждого fallback.
      *
      * Вызывать ПЕРЕД любым setStyle (в начале applyStyleWithFallback и в switchToNextSource).
+     *
+     * Бэклог №10: также сбрасываем флаг layersAttached в clusterManager —
+     * после setStyle слои нужно пересоздать на новом стиле.
      */
     fun resetMarkerTrackers(map: MapLibreMap) {
         // 1. Удаляем физические маркеры с карты (на случай, если они ещё висят)
@@ -363,6 +400,8 @@ fun MapLibreView(
         finishMarkerRef[0] = null
         userLocationMarkerRef[0] = null
         focusMarkerRef[0] = null  // будет пересоздан в LaunchedEffect(focusPoint) или updateMarkers
+        // Бэклог №10: сброс флага кластерных слоёв — новый стиль = новые слои
+        clusterManager.resetLayersAttached()
         Timber.tag("MapLibreView").d("Marker trackers reset (stationMarkers=%d, stationMap=%d)",
             activeStationMarkers.size, markerStationMap.size)
     }
@@ -472,7 +511,10 @@ fun MapLibreView(
             updateMarkers(map)
             updateRouteLayer(style)
 
-            // Attach dynamic tile source at runtime onto local style
+            // Бэклог №10: прикрепляем кластеризованные слои ПОВЕРХ тайл-слоя.
+            // Важно: attachTileSourceToStyle должен идти ПЕРЕД clusterManager.attachToStyle,
+            // чтобы кластерные слои оказались выше тайлов на z-оси.
+            // attach dynamic tile source at runtime onto local style
             try {
                 attachTileSourceToStyle(style, sourceKey)
             } catch (e: Exception) {
@@ -480,6 +522,16 @@ fun MapLibreView(
                 MapDiagnosticsTracker.recordTileFallback("$sourceKey:attach_error")
                 switchToNextSource()
                 return@setStyle
+            }
+
+            // Бэклог №10: прикрепляем кластерные слои после тайл-слоя
+            if (useClustering) {
+                try {
+                    clusterManager.attachToStyle(style, stations, selectedFuelTypes)
+                    Timber.tag("MapLibreView").d("Cluster layers attached for %d stations", stations.size)
+                } catch (e: Exception) {
+                    Timber.tag("MapLibreView").e(e, "Failed to attach cluster layers")
+                }
             }
 
             // P0-2: таймер больше НЕ переключает источник только из-за tilesLoadedCount==0.
@@ -515,6 +567,25 @@ fun MapLibreView(
         }
     }
 
+    // P1: TTL для failedSources — сброс при возвращении сети.
+    // Объявлен ПОСЛЕ applyStyleWithFallback, чтобы Kotlin разрешал ссылку.
+    LaunchedEffect(isOnline) {
+        if (isOnline) {
+            val hadFailed = failedSources.isNotEmpty()
+            if (hadFailed) {
+                Timber.tag("MapLibreView").i("Network restored (isOnline=true); clearing %d failed sources: %s",
+                    failedSources.size, failedSources.joinToString())
+                failedSources.clear()
+                // Перезапускаем применение стиля — теперь все источники снова валидны.
+                // Используем currentSourceIndex, чтобы сохранить пользовательский выбор,
+                // если он был сохранён ранее.
+                mapLibreMap?.let { map ->
+                    applyStyleWithFallback(map, currentSourceIndex)
+                }
+            }
+        }
+    }
+
     LaunchedEffect(route) {
         mapLibreMap?.let { map ->
             map.style?.let { style ->
@@ -543,6 +614,16 @@ fun MapLibreView(
     LaunchedEffect(zoomInRequest) {
         if (zoomInRequest > 0) {
             mapLibreMap?.animateCamera(CameraUpdateFactory.zoomIn())
+        }
+    }
+
+    // Бэклог №10: при изменении списка станций или выбранных типов топлива
+    // обновляем GeoJSON в кластерном source (без пересоздания слоёв).
+    LaunchedEffect(stations, selectedFuelTypes, useClustering) {
+        if (useClustering) {
+            mapLibreMap?.style?.let { style ->
+                clusterManager.updateStations(style, stations, selectedFuelTypes)
+            }
         }
     }
 
@@ -642,6 +723,22 @@ fun MapLibreView(
                         } else {
                             false
                         }
+                    }
+
+                    // Бэклог №10: обработка кликов по кластерным слоям.
+                    // MapLibre SymbolLayer/CircleLayer не генерируют marker-click события,
+                    // поэтому используем setOnMapClickListener + queryRenderedFeatures.
+                    if (useClustering) {
+                        map.addOnMapClickListener { point ->
+                            clusterManager.handleClick(
+                                map = map,
+                                stations = stations,
+                                lat = point.latitude,
+                                lon = point.longitude,
+                                onStationClick = onStationClick
+                            )
+                        }
+                        Timber.tag("MapLibreView").d("Cluster click listener attached")
                     }
 
                     mapLibreMap = map
