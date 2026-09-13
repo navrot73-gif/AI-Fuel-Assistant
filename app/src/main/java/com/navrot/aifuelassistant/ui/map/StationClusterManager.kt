@@ -1,13 +1,6 @@
 package com.navrot.aifuelassistant.ui.map
 
-import android.content.Context
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Paint
-import android.graphics.drawable.Drawable
-import androidx.compose.ui.graphics.Color as ComposeColor
-import androidx.compose.ui.graphics.toArgb
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
 import com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator
@@ -15,9 +8,9 @@ import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.Style
 import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.CircleLayer
-import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory
 import org.maplibre.android.style.layers.SymbolLayer
+import org.maplibre.android.style.sources.GeoJsonOptions
 import org.maplibre.android.style.sources.GeoJsonSource
 import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
@@ -120,15 +113,17 @@ class StationClusterManager {
                 else -> COLOR_UNKNOWN
             }
 
-            Feature.fromGeometry(
-                Point.fromLngLat(station.longitude, station.latitude),
-                mapOf(
-                    PROP_STATION_ID to station.id,
-                    PROP_STATION_NAME to station.name,
-                    PROP_AVAILABILITY to availability,
-                    PROP_COLOR to color
-                )
+            val feature = Feature.fromGeometry(
+                Point.fromLngLat(station.longitude, station.latitude)
             )
+            // Properties добавляем через addStringProperty — надёжнее, чем mapOf,
+            // который требует совпадения типов JsonValue и может не скомпилироваться
+            // в разных версиях MapLibre geojson.
+            feature.addStringProperty(PROP_STATION_ID, station.id.toString())
+            feature.addStringProperty(PROP_STATION_NAME, station.name)
+            feature.addStringProperty(PROP_AVAILABILITY, availability)
+            feature.addStringProperty(PROP_COLOR, color)
+            feature
         }
         return FeatureCollection.fromFeatures(features)
     }
@@ -149,13 +144,14 @@ class StationClusterManager {
             currentSource = existing
             Timber.tag(TAG).d("Updated existing cluster source with %d stations", stations.size)
         } else {
+            val clusterOptions = GeoJsonOptions()
+                .withCluster(true)
+                .withClusterMaxZoom(CLUSTER_MAX_ZOOM)
+                .withClusterRadius(CLUSTER_RADIUS)
             val source = GeoJsonSource(
                 SOURCE_ID,
                 featureCollection,
-                GeoJsonSource.Options()
-                    .withCluster(true)
-                    .withClusterMaxZoom(CLUSTER_MAX_ZOOM)
-                    .withClusterRadius(CLUSTER_RADIUS)
+                clusterOptions
             )
             style.addSource(source)
             currentSource = source

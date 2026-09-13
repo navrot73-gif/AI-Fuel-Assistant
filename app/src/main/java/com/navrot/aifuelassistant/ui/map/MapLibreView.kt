@@ -141,22 +141,10 @@ fun MapLibreView(
     //
     // Теперь: при переходе isOnline false → true очищаем failedSources и
     // повторно пробуем текущий активный источник (если он был в failed list).
-    LaunchedEffect(isOnline) {
-        if (isOnline) {
-            val hadFailed = failedSources.isNotEmpty()
-            if (hadFailed) {
-                Timber.tag("MapLibreView").i("Network restored (isOnline=true); clearing %d failed sources: %s",
-                    failedSources.size, failedSources.joinToString())
-                failedSources.clear()
-                // Перезапускаем применение стиля — теперь все источники снова валидны.
-                // Используем currentSourceIndex, чтобы сохранить пользовательский выбор,
-                // если он был сохранён ранее.
-                mapLibreMap?.let { map ->
-                    applyStyleWithFallback(map, currentSourceIndex)
-                }
-            }
-        }
-    }
+    //
+    // ВАЖНО: этот LaunchedEffect должен идти ПОСЛЕ объявления applyStyleWithFallback,
+    // иначе Kotlin не сможет разрешить ссылку на локальную функцию. Поэтому
+    // сам effect объявлен ниже (после LaunchedEffect(isDarkMode)).
 
     fun updateRouteLayer(style: Style) {
         val existingSource = style.getSourceAs<GeoJsonSource>(ROUTE_SOURCE_ID)
@@ -576,6 +564,25 @@ fun MapLibreView(
     LaunchedEffect(isDarkMode) {
         mapLibreMap?.let { map ->
             applyStyleWithFallback(map, currentSourceIndex)
+        }
+    }
+
+    // P1: TTL для failedSources — сброс при возвращении сети.
+    // Объявлен ПОСЛЕ applyStyleWithFallback, чтобы Kotlin разрешал ссылку.
+    LaunchedEffect(isOnline) {
+        if (isOnline) {
+            val hadFailed = failedSources.isNotEmpty()
+            if (hadFailed) {
+                Timber.tag("MapLibreView").i("Network restored (isOnline=true); clearing %d failed sources: %s",
+                    failedSources.size, failedSources.joinToString())
+                failedSources.clear()
+                // Перезапускаем применение стиля — теперь все источники снова валидны.
+                // Используем currentSourceIndex, чтобы сохранить пользовательский выбор,
+                // если он был сохранён ранее.
+                mapLibreMap?.let { map ->
+                    applyStyleWithFallback(map, currentSourceIndex)
+                }
+            }
         }
     }
 
