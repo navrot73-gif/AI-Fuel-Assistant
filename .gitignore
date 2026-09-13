@@ -25,6 +25,12 @@ captures/
 *.apk
 output-metadata.json
 
+# Build artifacts — never commit compiled jars/aars.
+# Regression guard: classes.jar was committed in c09ee8b and remained in the
+# repo despite CHANGELOG.md claiming it was removed. This rule prevents recurrence.
+*.jar
+*.aar
+
 # IntelliJ
 *.iml
 .idea/
