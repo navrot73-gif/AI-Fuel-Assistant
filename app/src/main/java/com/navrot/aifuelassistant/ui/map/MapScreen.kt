@@ -344,6 +344,7 @@ fun MapScreen(
                         focusPoint = geocodedLocation?.let { Pair(it.latitude, it.longitude) },
                         isOnline = isOnline,
                         useClustering = true,  // Бэклог №10: кластеризация в стиле ГдеБЕНЗ
+                        mapStyleCache = viewModel.mapStyleCache,  // PR #185: локальный кеш Style JSON
                         onStationClick = { selectedStation = it }
                     )
                 } else {

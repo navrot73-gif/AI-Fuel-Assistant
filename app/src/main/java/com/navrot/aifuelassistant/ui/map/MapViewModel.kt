@@ -43,6 +43,7 @@ class MapViewModel @Inject constructor(
     private val networkMonitor: NetworkMonitor,
     private val userPreferencesRepository: UserPreferencesRepository,
     val vectorOfflineManager: VectorOfflineManager,
+    val mapStyleCache: MapStyleCache,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -58,7 +59,8 @@ class MapViewModel @Inject constructor(
         networkMonitor: NetworkMonitor,
         context: Context,
         userPreferencesRepository: UserPreferencesRepository = UserPreferencesRepository(context),
-        vectorOfflineManager: VectorOfflineManager = VectorOfflineManager(context)
+        vectorOfflineManager: VectorOfflineManager = VectorOfflineManager(context),
+        mapStyleCache: MapStyleCache = MapStyleCache(context, okhttp3.OkHttpClient())
     ) : this(
         searchDelegate = MapSearchDelegate(geocodingProvider, benzonavtProvider, repository, tileWarmupService, userPreferencesRepository),
         routeDelegate = MapRouteDelegate(fuelApi, routeStateManager),
@@ -69,6 +71,7 @@ class MapViewModel @Inject constructor(
         networkMonitor = networkMonitor,
         userPreferencesRepository = userPreferencesRepository,
         vectorOfflineManager = vectorOfflineManager,
+        mapStyleCache = mapStyleCache,
         context = context
     )
 
