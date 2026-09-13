@@ -12,7 +12,7 @@ import javax.inject.Singleton
 import kotlin.concurrent.thread
 
 /**
- * PR #185: Локальный кеш для векторных стилей MapLibre (OpenFreeMap liberty/bright).
+ * PR #185 / #187: Локальный кеш для векторных стилей MapLibre (OpenFreeMap liberty/bright).
  *
  * Проблема (map-logs6.txt):
  *   T+0ms     activity_created
@@ -25,27 +25,32 @@ import kotlin.concurrent.thread
  *   https://tiles.openfreemap.org/styles/liberty. При повторных запусках
  *   скачивание повторяется каждый раз.
  *
- * Решение:
- *   - При первом запуске скачиваем JSON синхронно (один раз) и сохраняем
- *     в filesDir/map_styles/<key>.json.
- *   - При последующих запусках возвращаем file:// URI — загрузка стиля
- *     занимает <100мс вместо 2-3 секунд.
- *   - В фоне (daemon thread) раз в REFRESH_INTERVAL_MS обновляем кеш,
- *     чтобы подхватывать обновления спрайтов/глифов.
+ * Решение (offline-first, background-populated):
+ *   - resolveStyleUri() НЕ блокирует main thread.
+ *   - Если валидный кеш есть — возвращает file:// URI мгновенно.
+ *   - Если кеша НЕТ — возвращает remote URL сразу, а в background thread
+ *     скачивает Style JSON и сохраняет в filesDir/map_styles/<key>.json.
+ *     На следующем запуске кеш уже будет валиден — загрузка мгновенная.
+ *   - Если кеш устарел (> 7 дней) — фоновое обновление (старый кеш остаётся
+ *     рабочим, пока не приедет новый).
  *
- *   Ожидаемый win: 13 сек → ~10 сек (ускорение ~25% на старте).
- *   На повторных запусках: 13 сек → ~10 сек (Style JSON мгновенно,
- *   тайлы всё равно с CDN).
+ *   ВАЖНО (map-logs7.txt regression): в PR #185 resolveStyleUri() вызывал
+ *   OkHttp.execute() синхронно из main thread (applyStyleWithFallback →
+ *   onMapReady callback), что вызывало android.os.NetworkOnMainThreadException
+ *   и кеш НЕ создавался. В #187 скачивание перенесено в background thread.
  *
- *   Если CDN совсем медленный или оффлайн — кеш позволит хотя бы показать
- *   UI каркаса карты (background, water), не блокируя запуск.
+ *   Ожидаемый win:
+ *     - Первый запуск: ведёт себя как раньше (remote URL, 2-3 сек).
+ *       НО в фоне кеш готовится для следующего запуска.
+ *     - Второй и последующие запуски: file:// → <100мс вместо 2-3 сек.
+ *     - Оффлайн: file:// → карта (background/water/road casing) отрисуется
+ *       из кеша, тайлы поверх — по мере поступления.
  *
  * Использование (в MapLibreView.applyStyleWithFallback):
  *   val styleUri = mapStyleCache.resolveStyleUri(
  *       sourceKey = "openfreemap",
  *       remoteUrl = "https://tiles.openfreemap.org/styles/liberty",
- *       cacheKey = "openfreemap_light",
- *       isDarkMode = isDarkMode
+ *       cacheKey = "openfreemap_light"
  *   )
  *   map.setStyle(Style.Builder().fromUri(styleUri)) { ... }
  *
@@ -73,23 +78,26 @@ class MapStyleCache @Inject constructor(
     }
 
     /**
-     * Возвращает URI стиля для загрузки.
+     * Возвращает URI стиля для загрузки. НЕ блокирует main thread.
      *
-     * Стратегия (offline-first):
+     * Стратегия (offline-first, background-populated — PR #187):
      *  1. Если в кеше есть ВАЛИДНЫЙ файл (≥1 КБ) — возвращаем file:// URI.
      *     Параллельно, если кеш устарел (> 7 дней), запускаем фоновое обновление.
-     *  2. Если кеша нет — синхронно скачиваем один раз (это первый запуск).
-     *     Если синхронная загрузка упала — возвращаем remote URL как fallback.
+     *  2. Если кеша НЕТ — возвращаем remoteUrl сразу и в фоне скачиваем файл
+     *     для следующего запуска. Текущий запуск использует remote URL,
+     *     что эквивалентно поведению без кеша (PR #183).
      *
-     * ВАЖНО: метод НЕ блокирует, если кеш валиден. Только первый запуск заблокирует
-     * на время скачивания (~1-3 сек).
+     * ВАЖНО: resolveStyleUri() вызывается из applyStyleWithFallback, который
+     * работает на main thread (getMapAsync callback). Поэтому сетевой запрос
+     * должен быть asynchronous — иначе android.os.NetworkOnMainThreadException
+     * (regression PR #185, fixed в PR #187).
      *
      * @param sourceKey ключ источника (например, "openfreemap").
      * @param remoteUrl URL Style JSON с сети.
      * @param cacheKey уникальный ключ для кеша (например, "openfreemap_light").
      *                 Один и тот же стиль для light/dark должен иметь РАЗНЫЕ cacheKey.
      * @return URI для передачи в Style.Builder().fromUri() — либо "file://...",
-     *         либо исходный remoteUrl, либо "asset://..." при критической ошибке.
+     *         либо исходный remoteUrl.
      */
     fun resolveStyleUri(
         sourceKey: String,
@@ -115,24 +123,14 @@ class MapStyleCache @Inject constructor(
             return "file://${cacheFile.absolutePath}"
         }
 
-        // Кеша нет — синхронно скачиваем (первый запуск).
-        // Это блокирует applyStyleWithFallback на 1-3 сек, но это лучше,
-        // чем загружать remote URL каждый раз (было 3 сек КАЖДЫЙ запуск).
-        return try {
-            downloadToBlocking(cacheFile, remoteUrl)
-            Timber.tag(TAG).i(
-                "First-time download of style %s succeeded (size=%dB)",
-                cacheKey, cacheFile.length()
-            )
-            "file://${cacheFile.absolutePath}"
-        } catch (e: Exception) {
-            Timber.tag(TAG).w(
-                e,
-                "First-time download failed for %s (url=%s), falling back to remote URL",
-                cacheKey, remoteUrl
-            )
-            remoteUrl
-        }
+        // Кеша нет — НЕ блокируем main thread.
+        // Возвращаем remote URL сразу, а кеш готовим в фоне для следующего запуска.
+        Timber.tag(TAG).i(
+            "No cached style %s — using remote URL, scheduling background download for next launch",
+            cacheKey
+        )
+        scheduleRefresh(cacheKey, remoteUrl)
+        return remoteUrl
     }
 
     /**
@@ -144,20 +142,20 @@ class MapStyleCache @Inject constructor(
     }
 
     private fun scheduleRefresh(cacheKey: String, remoteUrl: String) {
-        // Используем thread вместо coroutine, чтобы не тащить зависимость от
-        // Dispatchers.IO в non-suspend context.
+        // PR #187: daemon thread, не блокирует main thread.
+        // OkHttp.execute() — блокирующий вызов, но он в background.
         thread(name = "MapStyleCache-refresh-$cacheKey", isDaemon = true) {
             try {
                 val cacheFile = File(cacheDir, "$cacheKey.json")
                 downloadToBlocking(cacheFile, remoteUrl)
-                Timber.tag(TAG).d(
-                    "Background refresh of style %s succeeded (size=%dB)",
+                Timber.tag(TAG).i(
+                    "Background download of style %s succeeded (size=%dB) — will be used on next launch",
                     cacheKey, cacheFile.length()
                 )
             } catch (e: Exception) {
                 Timber.tag(TAG).w(
                     e,
-                    "Background refresh of style %s failed (url=%s)",
+                    "Background download of style %s failed (url=%s)",
                     cacheKey, remoteUrl
                 )
             }
@@ -165,9 +163,9 @@ class MapStyleCache @Inject constructor(
     }
 
     /**
-     * Синхронная (блокирующая) версия скачивания — для первого запуска, когда
-     * кеша ещё нет и мы хотим его создать ДО того, как вернуть URI вызывающему
-     * коду. OkHttp.newCall().execute() — блокирующий вызов, корутины не нужны.
+     * Синхронная (блокирующая) версия скачивания — вызывается ТОЛЬКО из
+     * background thread (scheduleRefresh). На main thread не вызывать:
+     * android.os.NetworkOnMainThreadException.
      *
      * Атомарность: пишет во временный файл, потом rename. Если что-то упало —
      * старый кеш НЕ затрагивается.
