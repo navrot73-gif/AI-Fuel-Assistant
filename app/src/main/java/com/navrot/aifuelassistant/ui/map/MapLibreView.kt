@@ -527,11 +527,14 @@ fun MapLibreView(
             // Бэклог №10: прикрепляем кластерные слои после тайл-слоя
             if (useClustering) {
                 try {
+                    Timber.tag("MapLibreView").i("About to call clusterManager.attachToStyle (stations=%d)", stations.size)
                     clusterManager.attachToStyle(style, stations, selectedFuelTypes)
-                    Timber.tag("MapLibreView").d("Cluster layers attached for %d stations", stations.size)
+                    Timber.tag("MapLibreView").i("Cluster layers attached for %d stations", stations.size)
                 } catch (e: Exception) {
                     Timber.tag("MapLibreView").e(e, "Failed to attach cluster layers")
                 }
+            } else {
+                Timber.tag("MapLibreView").w("useClustering=false — stations may not be visible (legacy Marker API path)")
             }
 
             // P0-2: таймер больше НЕ переключает источник только из-за tilesLoadedCount==0.
