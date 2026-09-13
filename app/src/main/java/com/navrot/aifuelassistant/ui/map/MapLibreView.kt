@@ -706,17 +706,32 @@ fun MapLibreView(
                 }
                 onCreate(null)
                 getMapAsync { map ->
-                    applyStyleWithFallback(map, currentSourceIndex)
-
+                    // P0-фикс #179: устанавливаем камеру ДО applyStyleWithFallback,
+                    // потому что setStyle асинхронен и может сбросить позицию.
                     val centerLat = userLocation?.latitude?.takeIf { it != 0.0 } ?: 55.1644
                     val centerLon = userLocation?.longitude?.takeIf { it != 0.0 } ?: 61.4368
                     val initialCenter = LatLng(centerLat, centerLon)
                     val initialZoom = if (userLocation != null && userLocation.latitude != 0.0) 15.0 else 12.0
+
+                    // Сначала устанавливаем камеру (до стиля)
                     map.cameraPosition = CameraPosition.Builder()
                         .target(initialCenter)
                         .zoom(initialZoom)
                         .build()
                     Timber.tag("MapLibreView").d("Camera initialized at target: %s, zoom: %.1f", initialCenter, initialZoom)
+
+                    // P0-фикс #179: setStyle асинхронен и может сбросить камеру.
+                    // MapView имеет addOnDidFinishLoadingStyleListener, MapLibreMap — нет.
+                    // Используем mapViewRef для регистрации listener на MapView.
+                    mapViewRef[0]?.addOnDidFinishLoadingStyleListener {
+                        map.cameraPosition = CameraPosition.Builder()
+                            .target(initialCenter)
+                            .zoom(initialZoom)
+                            .build()
+                        Timber.tag("MapLibreView").d("Camera RE-applied after style load: %s, zoom: %.1f", initialCenter, initialZoom)
+                    }
+
+                    applyStyleWithFallback(map, currentSourceIndex)
 
                     map.setOnMarkerClickListener { marker ->
                         val station = markerStationMap[marker.id]
