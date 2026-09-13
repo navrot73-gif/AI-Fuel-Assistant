@@ -64,9 +64,13 @@ class StationClusterManagerTest {
         assertNotNull("Feature must have geometry", geometry)
 
         // GeoJSON Point: координаты в порядке [longitude, latitude]
+        // Point.coordinates() в MapLibre geojson возвращает List<Double>
         val coords = (geometry as org.maplibre.geojson.Point).coordinates()
-        assertEquals(61.4368, coords.longitude(), 0.0001)
-        assertEquals(55.1644, coords.latitude(), 0.0001)
+        assertNotNull("Coordinates must not be null", coords)
+        assertTrue("Coordinates must have at least 2 elements", coords.size >= 2)
+        // GeoJSON порядок: [longitude, latitude]
+        assertEquals(61.4368, coords[0], 0.0001)
+        assertEquals(55.1644, coords[1], 0.0001)
     }
 
     @Test

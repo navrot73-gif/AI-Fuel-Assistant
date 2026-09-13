@@ -293,20 +293,23 @@ class StationClusterManager {
             // Геометрия кластера — Point с центром
             val geometry = feature.geometry()
             if (geometry is Point) {
-                val zoomToApply = (map.cameraPosition.zoom + 1.5).coerceAtMost(20.0)
-                map.animateCamera(
-                    org.maplibre.android.camera.CameraUpdateFactory.newLatLngZoom(
-                        org.maplibre.android.geometry.LatLng(
-                            geometry.latitude(),
-                            geometry.longitude()
+                // GeoJSON Point.coordinates() → List<Double> в порядке [longitude, latitude]
+                val coords = geometry.coordinates()
+                if (coords != null && coords.size >= 2) {
+                    val lon = coords[0]
+                    val lat = coords[1]
+                    val zoomToApply = (map.cameraPosition.zoom + 1.5).coerceAtMost(20.0)
+                    map.animateCamera(
+                        org.maplibre.android.camera.CameraUpdateFactory.newLatLngZoom(
+                            org.maplibre.android.geometry.LatLng(lat, lon),
+                            zoomToApply
                         ),
-                        zoomToApply
-                    ),
-                    400
-                )
-                Timber.tag(TAG).d("Cluster click: zooming to (%.4f, %.4f) zoom=%.1f",
-                    geometry.latitude(), geometry.longitude(), zoomToApply)
-                return true
+                        400
+                    )
+                    Timber.tag(TAG).d("Cluster click: zooming to (%.4f, %.4f) zoom=%.1f",
+                        lat, lon, zoomToApply)
+                    return true
+                }
             }
         }
 
