@@ -58,6 +58,7 @@ class StationClusterManager {
         const val COLOR_AVAILABLE = "#4CAF50"  // зелёный (Mint)
         const val COLOR_NO_FUEL = "#F44336"    // красный (Coral)
         const val COLOR_UNKNOWN = "#9E9E9E"    // серый (InkFaint)
+        const val COLOR_CLUSTER = "#51bbd6"    // голубой для кластеров
 
         // Public references для тестов (StationClusterManagerTest)
         val COLOR_AVAILABLE_REF = COLOR_AVAILABLE
@@ -223,9 +224,14 @@ class StationClusterManager {
         //         сложные Expression.step (заменены на простые литералы).
         //
         // Стратегия: рисуем ВСЕ точки из source. Кластеры автоматически получают
-        // point_count от MapLibre, отдельные станции — нет. Через Expression.coalesce
+        // point_count от MapLibre, отдельные станции — нет. Через Expression.switchCase
         // получаем число для размера круга: если point_count есть — это кластер
         // (большой круг), иначе — отдельная станция (маленький круг с цветом).
+        //
+        // ВАЖНО по цветам (P0-фикс #179): MapLibre Expression.literal(Int) для цвета
+        // НЕ работает — выдаёт "Expected color but found number instead".
+        // Нужно передавать СТРОКУ "#RRGGBB" — MapLibre сам парсит.
+        // Color.parseColor() возвращает Int, что ломает Expression.
 
         // 1. Слой всех точек — круги. Размер зависит от наличия point_count.
         val unclusteredLayer = CircleLayer(LAYER_UNCLUSTERED, SOURCE_ID).apply {
@@ -238,12 +244,22 @@ class StationClusterManager {
                         Expression.literal(STATION_CIRCLE_RADIUS)
                     )
                 ),
-                // Цвет: если кластер — голубой, иначе цвет станции (зелёный/красный/серый)
+                // Цвет для кластеров — голубой, для станций — по доступности топлива.
+                // P0-фикс: используем СТРОКИ "#RRGGBB", не Color.parseColor (Int).
+                // MapLibre Expression.literal(Int) для цвета выдаёт
+                // "Expected color but found number instead" — поэтому только строки.
                 PropertyFactory.circleColor(
                     Expression.switchCase(
                         Expression.has("point_count"),
-                        Expression.literal(Color.parseColor("#51bbd6")),
-                        Expression.get(PROP_COLOR)
+                        Expression.literal(COLOR_CLUSTER),
+                        // Для отдельных станций: цвет по доступности топлива
+                        Expression.switchCase(
+                            Expression.eq(Expression.literal(FuelAvailabilityStatus.NO_FUEL.name), Expression.get(PROP_AVAILABILITY)),
+                            Expression.literal(COLOR_NO_FUEL),
+                            Expression.eq(Expression.literal(FuelAvailabilityStatus.UNKNOWN.name), Expression.get(PROP_AVAILABILITY)),
+                            Expression.literal(COLOR_UNKNOWN),
+                            Expression.literal(COLOR_AVAILABLE)  // default = AVAILABLE
+                        )
                     )
                 ),
                 PropertyFactory.circleStrokeColor(Color.WHITE),
@@ -278,8 +294,6 @@ class StationClusterManager {
                 PropertyFactory.textHaloWidth(1.5f),
                 PropertyFactory.textAllowOverlap(true),
                 PropertyFactory.textIgnorePlacement(true)
-                // textFont УБРАН — вызывает ошибки на устройствах без указанных шрифтов.
-                // MapLibre использует дефолтный шрифт.
             )
         }
         try {
@@ -287,7 +301,6 @@ class StationClusterManager {
             Timber.tag(TAG).d("✅ Added SymbolLayer '%s'", LAYER_CLUSTERS_COUNT)
         } catch (e: Exception) {
             Timber.tag(TAG).e(e, "❌ Failed to add SymbolLayer '%s' — continuing without it", LAYER_CLUSTERS_COUNT)
-            // Не бросаем исключение — текст не критичен, главное круги
         }
 
         Timber.tag(TAG).d("Attached %d cluster layers", 2)
