@@ -21,9 +21,9 @@ import com.navrot.aifuelassistant.domain.usecase.StationQueryFacade
 import com.navrot.aifuelassistant.features.dashboard.delegate.StationRecommendationDelegate
 import com.navrot.aifuelassistant.network.FuelApi
 import com.navrot.aifuelassistant.network.FuelApiImpl
+import com.navrot.aifuelassistant.ui.map.TILE_SOURCE_CARTO
 import com.navrot.aifuelassistant.ui.map.TILE_SOURCE_OPENFREEMAP
 import com.navrot.aifuelassistant.ui.map.TILE_SOURCE_OSM_RASTER
-import com.navrot.aifuelassistant.ui.map.TILE_SOURCE_VERSATILES
 import com.navrot.aifuelassistant.ui.map.delegate.MapRouteDelegate
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -275,7 +275,7 @@ class DeviceScenarioUnitGate {
         val prefsRepo = UserPreferencesRepository(context)
         prefsRepo.setMapEngine(UserPreferencesRepository.ENGINE_MAPLIBRE)
 
-        val tileChain = listOf(TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP, TILE_SOURCE_VERSATILES)
+        val tileChain = listOf(TILE_SOURCE_CARTO, TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP)
         val failedSources = mutableSetOf<String>()
 
         var currentIdx = 0
@@ -295,7 +295,7 @@ class DeviceScenarioUnitGate {
             }
         }
 
-        assertEquals(listOf(TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP, TILE_SOURCE_VERSATILES), sequence)
+        assertEquals(listOf(TILE_SOURCE_CARTO, TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP), sequence)
         assertEquals(3, failedSources.size)
 
         prefsRepo.setMapEngine(UserPreferencesRepository.ENGINE_OSMDROID)
@@ -600,9 +600,9 @@ class DeviceScenarioUnitGate {
         val styleJson = stream.bufferedReader().use { it.readText() }
         assertTrue("map_style_local.json must contain background layer", styleJson.contains("\"bg\""))
 
+        MapDiagnosticsTracker.recordTileFallback("carto:map_load_fail")
         MapDiagnosticsTracker.recordTileFallback("osm_raster:map_load_fail")
         MapDiagnosticsTracker.recordTileFallback("openfreemap:map_load_fail")
-        MapDiagnosticsTracker.recordTileFallback("versatiles:map_load_fail")
         MapDiagnosticsTracker.recordTileFallback("all_sources_failed_fallback_osmdroid")
 
         val logs = MapDiagnosticsTracker.fallbackChainLogs

@@ -27,25 +27,25 @@ class MapTileSourceFallbackTest {
 
     @Test
     fun testTileSourceFallbackChainOrderAndPersistence() = runBlocking {
-        // Initial state should be null (default to openfreemap)
+        // Initial state should be null (default to carto)
         val initialSource = repository.mapTileSource.first()
         assertNull(initialSource)
 
-        val tileChain = listOf(TILE_SOURCE_OPENFREEMAP, TILE_SOURCE_VERSATILES, TILE_SOURCE_OSM_RASTER)
+        val tileChain = listOf(TILE_SOURCE_CARTO, TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP)
         assertEquals(3, tileChain.size)
-        assertEquals(TILE_SOURCE_OPENFREEMAP, tileChain[0])
-        assertEquals(TILE_SOURCE_VERSATILES, tileChain[1])
-        assertEquals(TILE_SOURCE_OSM_RASTER, tileChain[2])
+        assertEquals(TILE_SOURCE_CARTO, tileChain[0])
+        assertEquals(TILE_SOURCE_OSM_RASTER, tileChain[1])
+        assertEquals(TILE_SOURCE_OPENFREEMAP, tileChain[2])
 
-        // When fallback to VERSATILES occurs, save to DataStore
-        repository.setMapTileSource(TILE_SOURCE_VERSATILES)
-        val secondSource = repository.mapTileSource.first()
-        assertEquals(TILE_SOURCE_VERSATILES, secondSource)
-
-        // When vector fails completely, fallback to OSM_RASTER
+        // When fallback to OSM_RASTER occurs, save to DataStore
         repository.setMapTileSource(TILE_SOURCE_OSM_RASTER)
-        val rasterSource = repository.mapTileSource.first()
-        assertEquals(TILE_SOURCE_OSM_RASTER, rasterSource)
+        val secondSource = repository.mapTileSource.first()
+        assertEquals(TILE_SOURCE_OSM_RASTER, secondSource)
+
+        // When OSM_RASTER fails, fallback to OPENFREEMAP
+        repository.setMapTileSource(TILE_SOURCE_OPENFREEMAP)
+        val openfreemapSource = repository.mapTileSource.first()
+        assertEquals(TILE_SOURCE_OPENFREEMAP, openfreemapSource)
     }
 
     @Test
