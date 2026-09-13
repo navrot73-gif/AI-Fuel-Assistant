@@ -311,12 +311,45 @@ fun MapLibreView(
         }
     }
 
+    /**
+     * Сброс трекеров маркеров при смене стиля.
+     *
+     * КОРНЕВОЙ ФИКС (P0-1): MapLibre.setStyle() визуально удаляет все маркеры,
+     * но наши трекеры [activeStationMarkers] / [markerStationMap] об этом не знали.
+     * MarkerDiffCalculator на следующем updateMarkers видел, что ID уже в existingIds,
+     * и не добавлял маркеры заново → «серый лист без пинов» после каждого fallback.
+     *
+     * Вызывать ПЕРЕД любым setStyle (в начале applyStyleWithFallback и в switchToNextSource).
+     */
+    fun resetMarkerTrackers(map: MapLibreMap) {
+        // 1. Удаляем физические маркеры с карты (на случай, если они ещё висят)
+        activeStationMarkers.values.forEach { marker ->
+            try { map.removeMarker(marker) } catch (_: Throwable) {}
+        }
+        finishMarkerRef[0]?.let { m ->
+            try { map.removeMarker(m) } catch (_: Throwable) {}
+        }
+        userLocationMarkerRef[0]?.let { m ->
+            try { map.removeMarker(m) } catch (_: Throwable) {}
+        }
+        // 2. Чистим трекеры — теперь updateMarkers добавит все маркеры заново
+        activeStationMarkers.clear()
+        markerStationMap.clear()
+        finishMarkerRef[0] = null
+        userLocationMarkerRef[0] = null
+        Timber.tag("MapLibreView").d("Marker trackers reset (stationMarkers=%d, stationMap=%d)",
+            activeStationMarkers.size, markerStationMap.size)
+    }
+
     fun applyStyleWithFallback(map: MapLibreMap, sourceIndex: Int) {
         val sourceKey = tileSourceChain.getOrElse(sourceIndex) { TILE_SOURCE_OSM_RASTER }
         activeTileSource = sourceKey
         MapDiagnosticsTracker.activeTileSource = sourceKey
         Timber.tag("MapLibreView").d("Applying style for source [%d/%d]: %s (isDarkMode=%b)",
             sourceIndex + 1, tileSourceChain.size, sourceKey, isDarkMode)
+
+        // P0-1: сброс трекеров перед каждой сменой стиля — иначе «undead contracts»
+        resetMarkerTrackers(map)
 
         var fallbackTimerJob: Job? = null
         var tilesLoadedCount = 0
@@ -362,6 +395,10 @@ fun MapLibreView(
             mapView?.removeOnDidFailLoadingMapListener(failMapListener)
             mapView?.removeOnDidFinishLoadingStyleListener(finishStyleListener)
 
+            // P0-1: повторный сброс перед рекурсивным applyStyleWithFallback —
+            // защищает от гонок, если маркеры успели добавиться между setStyle и switch
+            resetMarkerTrackers(map)
+
             val nextUnfailedIndex = tileSourceChain.indices.firstOrNull { it > sourceIndex && !failedSources.contains(tileSourceChain[it]) }
             if (nextUnfailedIndex != null) {
                 currentSourceIndex = nextUnfailedIndex
@@ -404,7 +441,8 @@ fun MapLibreView(
                 Timber.tag("MapLibreView").w(e, "Error applying Russian labels to symbol layers")
             }
 
-            // Immediately draw markers & route on local style
+            // Immediately draw markers & route on local style.
+            // P0-1: трекеры уже сброшены выше, поэтому updateMarkers добавит все маркеры.
             updateMarkers(map)
             updateRouteLayer(style)
 
@@ -418,14 +456,24 @@ fun MapLibreView(
                 return@setStyle
             }
 
-            // Start 6-second timer to verify tile loading for active source
+            // P0-2: таймер больше НЕ переключает источник только из-за tilesLoadedCount==0.
+            // Оффлайн = серый фон + пины — это нормальное состояние, не авария.
+            // Переключаем только при явной ошибке загрузки карты (onDidFailLoadingMap).
+            // Таймаут увеличен с 6 до 10 секунд — даём сети шанс на плохом коннекте.
             fallbackTimerJob = scope.launch {
-                delay(6000L)
-                if (tilesLoadedCount == 0 || hasFailedMapLoad) {
-                    Timber.tag("MapLibreView").w("MapChange/Timeout: 6s passed with %d tiles (failed=%b) for source: %s, switching source",
-                        tilesLoadedCount, hasFailedMapLoad, sourceKey)
-                    MapDiagnosticsTracker.recordTileFallback("$sourceKey:timeout_6s")
+                delay(10000L)
+                if (hasFailedMapLoad) {
+                    Timber.tag("MapLibreView").w("MapChange/Timeout: 10s passed with map_load_fail=true for source: %s, switching source",
+                        sourceKey)
+                    MapDiagnosticsTracker.recordTileFallback("$sourceKey:timeout_10s_map_fail")
                     switchToNextSource()
+                } else if (tilesLoadedCount == 0) {
+                    // Оффлайн или кеш пуст — НЕ переключаем. Пины уже нарисованы,
+                    // тайлы подтянутся когда появится сеть.
+                    Timber.tag("MapLibreView").i("Offline-like state: 0 tiles loaded, but no map_load_fail for %s — keeping source, markers visible",
+                        sourceKey)
+                    MapDiagnosticsTracker.tileStatus = "offline_ok"
+                    MapDiagnosticsTracker.activeTileSource = sourceKey
                 } else {
                     Timber.tag("MapLibreView").i("Tile source %s active and loaded %d tiles within timeout", sourceKey, tilesLoadedCount)
                     MapDiagnosticsTracker.tileStatus = "ok"
