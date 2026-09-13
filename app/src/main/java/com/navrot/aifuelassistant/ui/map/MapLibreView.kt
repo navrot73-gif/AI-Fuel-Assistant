@@ -96,6 +96,7 @@ fun MapLibreView(
     zoomInRequest: Int = 0,
     zoomOutRequest: Int = 0,
     focusPoint: Pair<Double, Double>? = null,
+    isOnline: Boolean = true,
     onStationClick: (GasStation) -> Unit
 ) {
     val context = LocalContext.current
@@ -126,6 +127,30 @@ fun MapLibreView(
             activeTileSource = savedSource
             currentSourceIndex = tileSourceChain.indexOf(savedSource)
             Timber.tag("MapLibreView").d("Restored tile source preference: %s", savedSource)
+        }
+    }
+
+    // P1: TTL для failedSources — сброс при возвращении сети.
+    // Раньше однажды провалившийся источник помечался навсегда в рамках сессии
+    // Composable. Если сеть возвращалась, повтора не было — пользователь видел
+    // «ослабленный» набор источников до перезапуска приложения.
+    //
+    // Теперь: при переходе isOnline false → true очищаем failedSources и
+    // повторно пробуем текущий активный источник (если он был в failed list).
+    LaunchedEffect(isOnline) {
+        if (isOnline) {
+            val hadFailed = failedSources.isNotEmpty()
+            if (hadFailed) {
+                Timber.tag("MapLibreView").i("Network restored (isOnline=true); clearing %d failed sources: %s",
+                    failedSources.size, failedSources.joinToString())
+                failedSources.clear()
+                // Перезапускаем применение стиля — теперь все источники снова валидны.
+                // Используем currentSourceIndex, чтобы сохранить пользовательский выбор,
+                // если он был сохранён ранее.
+                mapLibreMap?.let { map ->
+                    applyStyleWithFallback(map, currentSourceIndex)
+                }
+            }
         }
     }
 
