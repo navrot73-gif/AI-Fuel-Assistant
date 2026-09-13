@@ -95,6 +95,7 @@ fun MapLibreView(
     recenterRequest: Int = 0,
     zoomInRequest: Int = 0,
     zoomOutRequest: Int = 0,
+    focusPoint: Pair<Double, Double>? = null,
     onStationClick: (GasStation) -> Unit
 ) {
     val context = LocalContext.current
@@ -108,6 +109,8 @@ fun MapLibreView(
     val activeStationMarkers = remember { mutableMapOf<Int, Marker>() }
     val finishMarkerRef = remember { arrayOfNulls<Marker>(1) }
     val userLocationMarkerRef = remember { arrayOfNulls<Marker>(1) }
+    val focusMarkerRef = remember { arrayOfNulls<Marker>(1) }
+    val lastFocusPoint = remember { arrayOfNulls<Pair<Double, Double>>(1) }
 
     val tileSourceChain = remember {
         listOf(TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP, TILE_SOURCE_VERSATILES)
@@ -257,6 +260,22 @@ fun MapLibreView(
             userLocationMarkerRef[0] = null
         }
 
+        // Восстановление фокус-маркера после сброса трекеров (P2).
+        // resetMarkerTrackers обнуляет focusMarkerRef, но lastFocusPoint сохраняется.
+        // Здесь мы пересоздаём синий пин найденного адреса на свежем стиле.
+        lastFocusPoint[0]?.let { fp ->
+            if (focusMarkerRef[0] == null && fp.first != 0.0 && fp.second != 0.0) {
+                val bluePinDrawable = createBlueAddressPinIcon(context)
+                val bluePinBitmap = drawableToBitmap(bluePinDrawable)
+                val bluePinIcon = iconFactory.fromBitmap(bluePinBitmap)
+                val focusMarkerOptions = MarkerOptions()
+                    .position(LatLng(fp.first, fp.second))
+                    .title("Найденный адрес")
+                    .icon(bluePinIcon)
+                focusMarkerRef[0] = map.addMarker(focusMarkerOptions)
+            }
+        }
+
         map.style?.let { style ->
             updateRouteLayer(style)
         }
@@ -332,11 +351,18 @@ fun MapLibreView(
         userLocationMarkerRef[0]?.let { m ->
             try { map.removeMarker(m) } catch (_: Throwable) {}
         }
-        // 2. Чистим трекеры — теперь updateMarkers добавит все маркеры заново
+        focusMarkerRef[0]?.let { m ->
+            try { map.removeMarker(m) } catch (_: Throwable) {}
+        }
+        // 2. Чистим трекеры — теперь updateMarkers добавит все маркеры заново.
+        //    focusMarkerRef НЕ обнуляем: LaunchedEffect(focusPoint) пересоздаст его
+        //    после setStyle, и процессБ-лог lastFocusPoint сохраним, чтобы знать,
+        //    что точку нужно перерисовать.
         activeStationMarkers.clear()
         markerStationMap.clear()
         finishMarkerRef[0] = null
         userLocationMarkerRef[0] = null
+        focusMarkerRef[0] = null  // будет пересоздан в LaunchedEffect(focusPoint) или updateMarkers
         Timber.tag("MapLibreView").d("Marker trackers reset (stationMarkers=%d, stationMap=%d)",
             activeStationMarkers.size, markerStationMap.size)
     }
@@ -533,6 +559,46 @@ fun MapLibreView(
                     CameraUpdateFactory.newLatLngZoom(LatLng(loc.latitude, loc.longitude), 15.0)
                 )
             }
+        }
+    }
+
+    // P2: обработка focusPoint — паритет с OsmMapView.
+    // Синий пин найденного адреса + плавная анимация камеры с зумом 16.
+    LaunchedEffect(focusPoint) {
+        val map = mapLibreMap ?: return@LaunchedEffect
+
+        // Удаляем старый маркер фокуса, если был
+        focusMarkerRef[0]?.let { oldMarker ->
+            try { map.removeMarker(oldMarker) } catch (_: Throwable) {}
+            focusMarkerRef[0] = null
+        }
+
+        val newPoint = focusPoint
+        if (newPoint != null) {
+            val (lat, lon) = newPoint
+            if (lat != 0.0 && lon != 0.0) {
+                val iconFactory = IconFactory.getInstance(context)
+                val bluePinDrawable = createBlueAddressPinIcon(context)
+                val bluePinBitmap = drawableToBitmap(bluePinDrawable)
+                val bluePinIcon = iconFactory.fromBitmap(bluePinBitmap)
+
+                val focusMarkerOptions = MarkerOptions()
+                    .position(LatLng(lat, lon))
+                    .title("Найденный адрес")
+                    .icon(bluePinIcon)
+                focusMarkerRef[0] = map.addMarker(focusMarkerOptions)
+                lastFocusPoint[0] = newPoint
+
+                // Плавная анимация камеры к точке с зумом 16 (как в OsmMapView)
+                val targetZoom = if (map.cameraPosition.zoom < 16.0) 16.0 else map.cameraPosition.zoom
+                map.animateCamera(
+                    CameraUpdateFactory.newLatLngZoom(LatLng(lat, lon), targetZoom),
+                    600  // мс — плавнее, чем дефолт
+                )
+                Timber.tag("MapLibreView").d("Focus marker added at (%.5f, %.5f), zoom=%.1f", lat, lon, targetZoom)
+            }
+        } else {
+            lastFocusPoint[0] = null
         }
     }
 

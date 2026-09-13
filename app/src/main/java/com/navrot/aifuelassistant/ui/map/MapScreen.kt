@@ -341,6 +341,7 @@ fun MapScreen(
                         isDarkMode = isDarkMode,
                         recenterRequest = recenterTick,
                         zoomInRequest = zoomInTick, zoomOutRequest = zoomOutTick,
+                        focusPoint = geocodedLocation?.let { Pair(it.latitude, it.longitude) },
                         onStationClick = { selectedStation = it }
                     )
                 } else {
