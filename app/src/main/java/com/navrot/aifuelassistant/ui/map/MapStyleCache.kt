@@ -2,11 +2,6 @@ package com.navrot.aifuelassistant.ui.map
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import timber.log.Timber
@@ -14,6 +9,7 @@ import java.io.File
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.concurrent.thread
 
 /**
  * PR #185: Локальный кеш для векторных стилей MapLibre (OpenFreeMap liberty/bright).
@@ -34,7 +30,7 @@ import javax.inject.Singleton
  *     в filesDir/map_styles/<key>.json.
  *   - При последующих запусках возвращаем file:// URI — загрузка стиля
  *     занимает <100мс вместо 2-3 секунд.
- *   - В фоне (CoroutineScope.IO) раз в REFRESH_INTERVAL_MS обновляем кеш,
+ *   - В фоне (daemon thread) раз в REFRESH_INTERVAL_MS обновляем кеш,
  *     чтобы подхватывать обновления спрайтов/глифов.
  *
  *   Ожидаемый win: 13 сек → ~10 сек (ускорение ~25% на старте).
@@ -71,8 +67,6 @@ class MapStyleCache @Inject constructor(
         /** Минимальный размер файла, чтобы считать кеш валидным (защита от пустых записей). */
         private const val MIN_VALID_CACHE_SIZE_BYTES = 1024L
     }
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val cacheDir: File by lazy {
         File(context.filesDir, STYLE_DIR_NAME).also { it.mkdirs() }
@@ -125,7 +119,7 @@ class MapStyleCache @Inject constructor(
         // Это блокирует applyStyleWithFallback на 1-3 сек, но это лучше,
         // чем загружать remote URL каждый раз (было 3 сек КАЖДЫЙ запуск).
         return try {
-            downloadTo(cacheFile, remoteUrl)
+            downloadToBlocking(cacheFile, remoteUrl)
             Timber.tag(TAG).i(
                 "First-time download of style %s succeeded (size=%dB)",
                 cacheKey, cacheFile.length()
@@ -150,10 +144,12 @@ class MapStyleCache @Inject constructor(
     }
 
     private fun scheduleRefresh(cacheKey: String, remoteUrl: String) {
-        scope.launch {
+        // Используем thread вместо coroutine, чтобы не тащить зависимость от
+        // Dispatchers.IO в non-suspend context.
+        thread(name = "MapStyleCache-refresh-$cacheKey", isDaemon = true) {
             try {
                 val cacheFile = File(cacheDir, "$cacheKey.json")
-                downloadTo(cacheFile, remoteUrl)
+                downloadToBlocking(cacheFile, remoteUrl)
                 Timber.tag(TAG).d(
                     "Background refresh of style %s succeeded (size=%dB)",
                     cacheKey, cacheFile.length()
@@ -169,42 +165,44 @@ class MapStyleCache @Inject constructor(
     }
 
     /**
-     * Скачивает Style JSON атомарно: сначала во .tmp, потом rename.
-     * Если что-то пошло не так — старый кеш НЕ затрагивается.
+     * Синхронная (блокирующая) версия скачивания — для первого запуска, когда
+     * кеша ещё нет и мы хотим его создать ДО того, как вернуть URI вызывающему
+     * коду. OkHttp.newCall().execute() — блокирующий вызов, корутины не нужны.
+     *
+     * Атомарность: пишет во временный файл, потом rename. Если что-то упало —
+     * старый кеш НЕ затрагивается.
      *
      * @throws IOException при сетевой ошибке или ошибке записи.
      */
     @Throws(IOException::class)
-    private suspend fun downloadTo(cacheFile: File, remoteUrl: String) {
-        withContext(Dispatchers.IO) {
-            val tmpFile = File(cacheDir, "${cacheFile.name}.tmp")
-            val request = Request.Builder()
-                .url(remoteUrl)
-                .header("User-Agent", context.packageName)
-                .header("Accept", "application/json")
-                .build()
+    private fun downloadToBlocking(cacheFile: File, remoteUrl: String) {
+        val tmpFile = File(cacheDir, "${cacheFile.name}.tmp")
+        val request = Request.Builder()
+            .url(remoteUrl)
+            .header("User-Agent", context.packageName)
+            .header("Accept", "application/json")
+            .build()
 
-            httpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw IOException("HTTP ${response.code} ${response.message} for $remoteUrl")
-                }
-                val body = response.body
-                    ?: throw IOException("Empty response body for $remoteUrl")
+        httpClient.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw IOException("HTTP ${response.code} ${response.message} for $remoteUrl")
+            }
+            val body = response.body
+                ?: throw IOException("Empty response body for $remoteUrl")
 
-                tmpFile.outputStream().use { out ->
-                    body.byteStream().use { it.copyTo(out) }
-                }
+            tmpFile.outputStream().use { out ->
+                body.byteStream().use { it.copyTo(out) }
+            }
 
-                if (tmpFile.length() < MIN_VALID_CACHE_SIZE_BYTES) {
-                    tmpFile.delete()
-                    throw IOException("Downloaded file too small (${tmpFile.length()}B) for $remoteUrl")
-                }
+            if (tmpFile.length() < MIN_VALID_CACHE_SIZE_BYTES) {
+                tmpFile.delete()
+                throw IOException("Downloaded file too small (${tmpFile.length()}B) for $remoteUrl")
+            }
 
-                // Atomic replace
-                if (cacheFile.exists()) cacheFile.delete()
-                if (!tmpFile.renameTo(cacheFile)) {
-                    throw IOException("Failed to rename ${tmpFile.name} to ${cacheFile.name}")
-                }
+            // Atomic replace: удаляем старый, переименовываем tmp в финальный.
+            if (cacheFile.exists()) cacheFile.delete()
+            if (!tmpFile.renameTo(cacheFile)) {
+                throw IOException("Failed to rename ${tmpFile.name} to ${cacheFile.name}")
             }
         }
     }
