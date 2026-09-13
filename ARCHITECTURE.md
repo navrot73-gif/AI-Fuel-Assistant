@@ -44,7 +44,7 @@ Room DAO  /  Remote API (Benzonavt / Overpass / Russiabase через фиче-�
 **`StationRegistry` (`assets/stations.json`, 100+ АЗС) — единственный источник координат.**
 - Внешние источники (Benzonavt / Russiabase / Overpass) могут обогащать ТОЛЬКО цены и статус наличия топлива.
 - Ни один внешний источник **не имеет права** менять координаты или создавать автономные точки.
-- Все внешние провайдеры изолированы фиче-флагами в DataStore: `src_benzonavt`, `src_russiabase`, `src_overpass` (по умолчанию **выключены**).
+- Все внешние провайдеры изолированы фиче-флагами в DataStore: `src_benzonavt` (default: **`true`** с PR #176 — обогащает только цены), `src_russiabase`, `src_overpass` (по умолчанию **выключены**).
 
 ## AI-роутер
 

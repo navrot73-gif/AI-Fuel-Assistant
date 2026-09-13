@@ -95,6 +95,7 @@ fun MapLibreView(
     recenterRequest: Int = 0,
     zoomInRequest: Int = 0,
     zoomOutRequest: Int = 0,
+    focusPoint: Pair<Double, Double>? = null,
     onStationClick: (GasStation) -> Unit
 ) {
     val context = LocalContext.current
@@ -108,6 +109,8 @@ fun MapLibreView(
     val activeStationMarkers = remember { mutableMapOf<Int, Marker>() }
     val finishMarkerRef = remember { arrayOfNulls<Marker>(1) }
     val userLocationMarkerRef = remember { arrayOfNulls<Marker>(1) }
+    val focusMarkerRef = remember { arrayOfNulls<Marker>(1) }
+    val lastFocusPoint = remember { arrayOfNulls<Pair<Double, Double>>(1) }
 
     val tileSourceChain = remember {
         listOf(TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP, TILE_SOURCE_VERSATILES)
@@ -257,6 +260,22 @@ fun MapLibreView(
             userLocationMarkerRef[0] = null
         }
 
+        // Восстановление фокус-маркера после сброса трекеров (P2).
+        // resetMarkerTrackers обнуляет focusMarkerRef, но lastFocusPoint сохраняется.
+        // Здесь мы пересоздаём синий пин найденного адреса на свежем стиле.
+        lastFocusPoint[0]?.let { fp ->
+            if (focusMarkerRef[0] == null && fp.first != 0.0 && fp.second != 0.0) {
+                val bluePinDrawable = createBlueAddressPinIcon(context)
+                val bluePinBitmap = drawableToBitmap(bluePinDrawable)
+                val bluePinIcon = iconFactory.fromBitmap(bluePinBitmap)
+                val focusMarkerOptions = MarkerOptions()
+                    .position(LatLng(fp.first, fp.second))
+                    .title("Найденный адрес")
+                    .icon(bluePinIcon)
+                focusMarkerRef[0] = map.addMarker(focusMarkerOptions)
+            }
+        }
+
         map.style?.let { style ->
             updateRouteLayer(style)
         }
@@ -311,12 +330,52 @@ fun MapLibreView(
         }
     }
 
+    /**
+     * Сброс трекеров маркеров при смене стиля.
+     *
+     * КОРНЕВОЙ ФИКС (P0-1): MapLibre.setStyle() визуально удаляет все маркеры,
+     * но наши трекеры [activeStationMarkers] / [markerStationMap] об этом не знали.
+     * MarkerDiffCalculator на следующем updateMarkers видел, что ID уже в existingIds,
+     * и не добавлял маркеры заново → «серый лист без пинов» после каждого fallback.
+     *
+     * Вызывать ПЕРЕД любым setStyle (в начале applyStyleWithFallback и в switchToNextSource).
+     */
+    fun resetMarkerTrackers(map: MapLibreMap) {
+        // 1. Удаляем физические маркеры с карты (на случай, если они ещё висят)
+        activeStationMarkers.values.forEach { marker ->
+            try { map.removeMarker(marker) } catch (_: Throwable) {}
+        }
+        finishMarkerRef[0]?.let { m ->
+            try { map.removeMarker(m) } catch (_: Throwable) {}
+        }
+        userLocationMarkerRef[0]?.let { m ->
+            try { map.removeMarker(m) } catch (_: Throwable) {}
+        }
+        focusMarkerRef[0]?.let { m ->
+            try { map.removeMarker(m) } catch (_: Throwable) {}
+        }
+        // 2. Чистим трекеры — теперь updateMarkers добавит все маркеры заново.
+        //    focusMarkerRef НЕ обнуляем: LaunchedEffect(focusPoint) пересоздаст его
+        //    после setStyle, и процессБ-лог lastFocusPoint сохраним, чтобы знать,
+        //    что точку нужно перерисовать.
+        activeStationMarkers.clear()
+        markerStationMap.clear()
+        finishMarkerRef[0] = null
+        userLocationMarkerRef[0] = null
+        focusMarkerRef[0] = null  // будет пересоздан в LaunchedEffect(focusPoint) или updateMarkers
+        Timber.tag("MapLibreView").d("Marker trackers reset (stationMarkers=%d, stationMap=%d)",
+            activeStationMarkers.size, markerStationMap.size)
+    }
+
     fun applyStyleWithFallback(map: MapLibreMap, sourceIndex: Int) {
         val sourceKey = tileSourceChain.getOrElse(sourceIndex) { TILE_SOURCE_OSM_RASTER }
         activeTileSource = sourceKey
         MapDiagnosticsTracker.activeTileSource = sourceKey
         Timber.tag("MapLibreView").d("Applying style for source [%d/%d]: %s (isDarkMode=%b)",
             sourceIndex + 1, tileSourceChain.size, sourceKey, isDarkMode)
+
+        // P0-1: сброс трекеров перед каждой сменой стиля — иначе «undead contracts»
+        resetMarkerTrackers(map)
 
         var fallbackTimerJob: Job? = null
         var tilesLoadedCount = 0
@@ -362,6 +421,10 @@ fun MapLibreView(
             mapView?.removeOnDidFailLoadingMapListener(failMapListener)
             mapView?.removeOnDidFinishLoadingStyleListener(finishStyleListener)
 
+            // P0-1: повторный сброс перед рекурсивным applyStyleWithFallback —
+            // защищает от гонок, если маркеры успели добавиться между setStyle и switch
+            resetMarkerTrackers(map)
+
             val nextUnfailedIndex = tileSourceChain.indices.firstOrNull { it > sourceIndex && !failedSources.contains(tileSourceChain[it]) }
             if (nextUnfailedIndex != null) {
                 currentSourceIndex = nextUnfailedIndex
@@ -404,7 +467,8 @@ fun MapLibreView(
                 Timber.tag("MapLibreView").w(e, "Error applying Russian labels to symbol layers")
             }
 
-            // Immediately draw markers & route on local style
+            // Immediately draw markers & route on local style.
+            // P0-1: трекеры уже сброшены выше, поэтому updateMarkers добавит все маркеры.
             updateMarkers(map)
             updateRouteLayer(style)
 
@@ -418,14 +482,24 @@ fun MapLibreView(
                 return@setStyle
             }
 
-            // Start 6-second timer to verify tile loading for active source
+            // P0-2: таймер больше НЕ переключает источник только из-за tilesLoadedCount==0.
+            // Оффлайн = серый фон + пины — это нормальное состояние, не авария.
+            // Переключаем только при явной ошибке загрузки карты (onDidFailLoadingMap).
+            // Таймаут увеличен с 6 до 10 секунд — даём сети шанс на плохом коннекте.
             fallbackTimerJob = scope.launch {
-                delay(6000L)
-                if (tilesLoadedCount == 0 || hasFailedMapLoad) {
-                    Timber.tag("MapLibreView").w("MapChange/Timeout: 6s passed with %d tiles (failed=%b) for source: %s, switching source",
-                        tilesLoadedCount, hasFailedMapLoad, sourceKey)
-                    MapDiagnosticsTracker.recordTileFallback("$sourceKey:timeout_6s")
+                delay(10000L)
+                if (hasFailedMapLoad) {
+                    Timber.tag("MapLibreView").w("MapChange/Timeout: 10s passed with map_load_fail=true for source: %s, switching source",
+                        sourceKey)
+                    MapDiagnosticsTracker.recordTileFallback("$sourceKey:timeout_10s_map_fail")
                     switchToNextSource()
+                } else if (tilesLoadedCount == 0) {
+                    // Оффлайн или кеш пуст — НЕ переключаем. Пины уже нарисованы,
+                    // тайлы подтянутся когда появится сеть.
+                    Timber.tag("MapLibreView").i("Offline-like state: 0 tiles loaded, but no map_load_fail for %s — keeping source, markers visible",
+                        sourceKey)
+                    MapDiagnosticsTracker.tileStatus = "offline_ok"
+                    MapDiagnosticsTracker.activeTileSource = sourceKey
                 } else {
                     Timber.tag("MapLibreView").i("Tile source %s active and loaded %d tiles within timeout", sourceKey, tilesLoadedCount)
                     MapDiagnosticsTracker.tileStatus = "ok"
@@ -485,6 +559,46 @@ fun MapLibreView(
                     CameraUpdateFactory.newLatLngZoom(LatLng(loc.latitude, loc.longitude), 15.0)
                 )
             }
+        }
+    }
+
+    // P2: обработка focusPoint — паритет с OsmMapView.
+    // Синий пин найденного адреса + плавная анимация камеры с зумом 16.
+    LaunchedEffect(focusPoint) {
+        val map = mapLibreMap ?: return@LaunchedEffect
+
+        // Удаляем старый маркер фокуса, если был
+        focusMarkerRef[0]?.let { oldMarker ->
+            try { map.removeMarker(oldMarker) } catch (_: Throwable) {}
+            focusMarkerRef[0] = null
+        }
+
+        val newPoint = focusPoint
+        if (newPoint != null) {
+            val (lat, lon) = newPoint
+            if (lat != 0.0 && lon != 0.0) {
+                val iconFactory = IconFactory.getInstance(context)
+                val bluePinDrawable = createBlueAddressPinIcon(context)
+                val bluePinBitmap = drawableToBitmap(bluePinDrawable)
+                val bluePinIcon = iconFactory.fromBitmap(bluePinBitmap)
+
+                val focusMarkerOptions = MarkerOptions()
+                    .position(LatLng(lat, lon))
+                    .title("Найденный адрес")
+                    .icon(bluePinIcon)
+                focusMarkerRef[0] = map.addMarker(focusMarkerOptions)
+                lastFocusPoint[0] = newPoint
+
+                // Плавная анимация камеры к точке с зумом 16 (как в OsmMapView)
+                val targetZoom = if (map.cameraPosition.zoom < 16.0) 16.0 else map.cameraPosition.zoom
+                map.animateCamera(
+                    CameraUpdateFactory.newLatLngZoom(LatLng(lat, lon), targetZoom),
+                    600  // мс — плавнее, чем дефолт
+                )
+                Timber.tag("MapLibreView").d("Focus marker added at (%.5f, %.5f), zoom=%.1f", lat, lon, targetZoom)
+            }
+        } else {
+            lastFocusPoint[0] = null
         }
     }
 
