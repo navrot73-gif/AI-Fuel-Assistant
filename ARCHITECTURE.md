@@ -108,8 +108,11 @@ score = 72.9 + 1000 = 1072.9   ← уходит в конец списка, но
 
 - **MapLibre GL Android SDK 11.5.0** — основной векторный движок (OpenFreeMap → VersaTiles → OSM raster fallback)
 - **osmdroid 6.1.17** — аварийный растровый фолбэк при сбоях MapLibre
+- **StationClusterManager** (Бэклог №10) — кластеризация пинов АЗС в стиле ГдеБЕНЗ через `GeoJsonSource(cluster=true)` + `CircleLayer`/`SymbolLayer`. Кластеры группируются до zoom 14, при клике — zoom +1.5. Цвет отдельных пинов: 🟢 AVAILABLE / 🔴 NO_FUEL / ⚪ UNKNOWN (паритет с `getMarkerColor`).
 - **FusedLocationProvider** — геолокация
 - Маршруты строятся через **Cloudflare Worker `/route`** (OSRM под капотом)
+- **VectorOfflineManager** — скачивание оффлайн-регионов. Использует локальный стиль `asset://map_style_local.json` (не удалённый), что позволяет скачивать регионы без сети.
+- **failedSources TTL** — при переходе `isOnline` false → true список провалившихся тайл-источников сбрасывается, и пользовательский preferred source ретраится автоматически.
 
 ## Хранение и шифрование
 

@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### Added
+- **Бэклог №10 (кластеризация пинов):** `StationClusterManager` — кластеризация АЗС в стиле ГдеБЕНЗ через `GeoJsonSource(cluster=true)` + `CircleLayer`/`SymbolLayer`. Кластеры группируются до zoom 14, при клике — zoom +1.5. Цвет отдельных пинов: 🟢 AVAILABLE / 🔴 NO_FUEL / ⚪ UNKNOWN. Маркер API остаётся для finish/userLocation/focus.
 - Документация: `docs/SCORING.md` с полной формулой скоринга и примерами
 - Документация: синхронизирован `ARCHITECTURE.md` с реальной формулой из `GetBestStationsUseCase.kt`
 
@@ -16,7 +17,10 @@
 - **Карта (P0):** корневая причина «undead map» — `MapLibre.setStyle()` визуально удалял маркеры, но трекеры `activeStationMarkers`/`markerStationMap` не сбрасывались, из-за чего `MarkerDiffCalculator` пропускал повторное добавление пинов после каждого fallback тайлов. Добавлен `resetMarkerTrackers()` в `MapLibreView`.
 - **Карта (P0):** 6-секундный таймер ошибочно трактовал оффлайн (`tilesLoadedCount==0`) как аварию и переключал источник. Теперь переключение происходит только при явном `onDidFailLoadingMap`. Таймаут увеличен до 10 с.
 - **Карта (P0):** `map_style_local.json` — добавлены `name` и `metadata` для spec-совместимости, фон смягчён с `#f5f5f5` до `#E8EAEC`.
+- **Карта (P1):** `VectorOfflineManager.DEFAULT_STYLE_URL` изменён с удалённого `https://demotiles.maplibre.org/style.json` на локальный `asset://map_style_local.json`. Раньше скачивание оффлайн-региона требовало сети для самого стиля — теперь работает полностью офлайн.
+- **Карта (P1):** `failedSources` (список провалившихся тайл-источников) теперь сбрасывается при переходе `isOnline` false → true. Раньше однажды провалившийся источник помечался навсегда в рамках сессии Composable.
 - **Карта (P2):** `MapLibreView` теперь принимает `focusPoint` — паритет с `OsmMapView` (синий пин найденного адреса).
+- **Карта (P2):** `MapLibreView` теперь принимает `isOnline` для управления TTL `failedSources`.
 - **Документация:** `CONTEXT.md`, `ARCHITECTURE.md`, `PROJECT_GUIDE.md`, `AGENTS.md` синхронизированы с реальным дефолтом `src_benzonavt=true` (включён в PR #176, но не отражён в доках).
 
 ### Removed
