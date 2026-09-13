@@ -13,6 +13,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -121,6 +122,14 @@ fun MapLibreView(
     val scope = rememberCoroutineScope()
     val userPrefsRepo = remember { UserPreferencesRepository(context) }
 
+    // PR #184: userLocation captured via rememberUpdatedState so the style-load
+    // listener (registered once inside AndroidView factory) can read the LATEST
+    // value at the moment style finishes loading — not the stale value captured
+    // at factory time. Without this, openfreemap's ~3-second style load overwrites
+    // any camera animation done by LaunchedEffect(recenterRequest) with the
+    // hardcoded Chelyabinsk center (55.1644, 61.4368).
+    val currentUserLocation by rememberUpdatedState(userLocation)
+
     val mapViewRef = remember { arrayOfNulls<MapView>(1) }
     var mapLibreMap by remember { mutableStateOf<MapLibreMap?>(null) }
     val markerStationMap = remember { mutableMapOf<Long, GasStation>() }
@@ -129,6 +138,13 @@ fun MapLibreView(
     val userLocationMarkerRef = remember { arrayOfNulls<Marker>(1) }
     val focusMarkerRef = remember { arrayOfNulls<Marker>(1) }
     val lastFocusPoint = remember { arrayOfNulls<Pair<Double, Double>>(1) }
+
+    // PR #184: флаг «первая загрузка стиля уже произошла».
+    // onDidFinishLoadingStyle срабатывает каждый раз при смене источника тайлов
+    // (включая fallback osm_raster → versatiles при ошибке). Анимация камеры на
+    // userLocation оправдана только в первый раз — потом пользователь мог
+    // самостоятельно переместить камеру, и автоматический «прыжок» будет раздражать.
+    val firstStyleLoadDone = remember { arrayOf(false) }
 
     // Бэклог №10: менеджер кластеризации. Один экземпляр на Composable.
     val clusterManager = remember { StationClusterManager() }
@@ -822,12 +838,63 @@ fun MapLibreView(
                     // P0-фикс #179: setStyle асинхронен и может сбросить камеру.
                     // MapView имеет addOnDidFinishLoadingStyleListener, MapLibreMap — нет.
                     // Используем mapViewRef для регистрации listener на MapView.
+                    //
+                    // PR #184: ВАЖНО — этот listener регистрируется ОДИН РАЗ (внутри
+                    // AndroidView factory), но срабатывает каждый раз при загрузке стиля.
+                    // Раньше он захватывал `initialCenter` из замыкания — это значение
+                    // вычислялось в момент getMapAsync (когда userLocation был null →
+                    // hardcoded 55.1644, 61.4368). Когда стиль грузился 2-3 секунды,
+                    // FusedLocation уже доставлял реальную координату, LaunchedEffect
+                    // (recenterRequest) анимировал камеру — а потом listener срабатывал
+                    // и СБРАСЫВАЛ камеру обратно на hardcoded Chelyabinsk center.
+                    //
+                    // Теперь: используем rememberUpdatedState (currentUserLocation),
+                    // который всегда читает последнее значение. Если к моменту загрузки
+                    // стиля userLocation уже доступен — анимируем камеру на него.
+                    // Если нет — оставляем initial Chelyabinsk center.
                     mapViewRef[0]?.addOnDidFinishLoadingStyleListener {
-                        map.cameraPosition = CameraPosition.Builder()
-                            .target(initialCenter)
-                            .zoom(initialZoom)
-                            .build()
-                        Timber.tag("MapLibreView").d("Camera RE-applied after style load: %s, zoom: %.1f", initialCenter, initialZoom)
+                        // PR #184: Только при ПЕРВОЙ загрузке стиля автоматически
+                        // анимируем камеру на userLocation (если он уже приехал).
+                        // При последующих (fallback при ошибке источника) — сохраняем
+                        // текущую позицию камеры, чтобы не «прыгать» под пользователем.
+                        val isFirstLoad = !firstStyleLoadDone[0]
+                        firstStyleLoadDone[0] = true
+
+                        val loc = currentUserLocation
+                        if (isFirstLoad && loc != null && loc.latitude != 0.0 && loc.longitude != 0.0) {
+                            // PR #184: userLocation приехал раньше, чем стиль загрузился —
+                            // анимируем камеру на реальную позицию (zoom 15, 300мс).
+                            map.animateCamera(
+                                CameraUpdateFactory.newLatLngZoom(
+                                    LatLng(loc.latitude, loc.longitude),
+                                    15.0
+                                ),
+                                300
+                            )
+                            Timber.tag("MapLibreView").d(
+                                "Camera animated to user location after first style load: (%.5f, %.5f)",
+                                loc.latitude, loc.longitude
+                            )
+                        } else if (isFirstLoad) {
+                            // userLocation ещё не приехал — оставляем initial center
+                            // (либо Chelyabinsk по умолчанию, либо реальную позицию,
+                            // если она уже была в момент getMapAsync).
+                            map.cameraPosition = CameraPosition.Builder()
+                                .target(initialCenter)
+                                .zoom(initialZoom)
+                                .build()
+                            Timber.tag("MapLibreView").d(
+                                "Camera kept at initial center after first style load (no user location yet): %s, zoom: %.1f",
+                                initialCenter, initialZoom
+                            )
+                        } else {
+                            // Последующая загрузка стиля (fallback) — НЕ трогаем камеру,
+                            // пользователь мог её уже переместить.
+                            Timber.tag("MapLibreView").d(
+                                "Style reloaded (fallback), camera preserved at: %s, zoom: %.1f",
+                                map.cameraPosition.target, map.cameraPosition.zoom
+                            )
+                        }
                     }
 
                     applyStyleWithFallback(map, currentSourceIndex)
