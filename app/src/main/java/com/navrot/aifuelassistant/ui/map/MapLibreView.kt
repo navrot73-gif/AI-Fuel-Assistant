@@ -115,6 +115,7 @@ fun MapLibreView(
     focusPoint: Pair<Double, Double>? = null,
     isOnline: Boolean = true,
     useClustering: Boolean = true,
+    mapStyleCache: MapStyleCache? = null,
     onStationClick: (GasStation) -> Unit
 ) {
     val context = LocalContext.current
@@ -573,8 +574,8 @@ fun MapLibreView(
         // Для растровых источников (osm_raster) — старая схема: локальный минимальный
         // стиль + RasterSource поверх него.
         val isVectorStyle = isVectorStyleSource(sourceKey)
-        val styleUri = if (isVectorStyle) {
-            val remoteUrl = if (isDarkMode) {
+        val remoteUrl = if (isVectorStyle) {
+            if (isDarkMode) {
                 when (sourceKey) {
                     TILE_SOURCE_OPENFREEMAP -> OPENFREEMAP_DARK_URL
                     TILE_SOURCE_VERSATILES -> VERSATILES_DARK_URL
@@ -587,13 +588,44 @@ fun MapLibreView(
                     else -> LOCAL_STYLE_ASSET_URL
                 }
             }
-            Timber.tag("MapLibreView").i("Using vector Style JSON: %s (isDarkMode=%b)", remoteUrl, isDarkMode)
+        } else {
+            LOCAL_STYLE_ASSET_URL
+        }
+
+        // PR #185: для векторных стилей используем локальный кеш, если он доступен.
+        // resolveStyleUri вернёт file:// URI, если кеш валиден (мгновенная загрузка),
+        // либо remoteUrl, если кеша нет / упал. Только openfreemap кешируем — versatiles
+        // возвращает 404, и кешировать ошибку бессмысленно.
+        val styleUri = if (isVectorStyle && mapStyleCache != null && sourceKey == TILE_SOURCE_OPENFREEMAP) {
+            val cacheKey = if (isDarkMode) "openfreemap_dark" else "openfreemap_light"
+            try {
+                val cached = mapStyleCache.resolveStyleUri(
+                    sourceKey = sourceKey,
+                    remoteUrl = remoteUrl,
+                    cacheKey = cacheKey
+                )
+                Timber.tag("MapLibreView").i(
+                    "Using vector Style JSON: %s (isDarkMode=%b, cached=%b)",
+                    cached, isDarkMode, cached.startsWith("file://")
+                )
+                cached
+            } catch (e: Exception) {
+                Timber.tag("MapLibreView").w(
+                    e, "MapStyleCache.resolveStyleUri threw, falling back to remote URL"
+                )
+                remoteUrl
+            }
+        } else if (isVectorStyle) {
+            Timber.tag("MapLibreView").i(
+                "Using vector Style JSON: %s (isDarkMode=%b, no cache)",
+                remoteUrl, isDarkMode
+            )
             remoteUrl
         } else {
             LOCAL_STYLE_ASSET_URL
         }
 
-        // Start from local style asset (offline-first!) OR remote vector style (PR #183)
+        // Start from local style asset (offline-first!) OR remote/cached vector style (PR #183/#185)
         map.setStyle(Style.Builder().fromUri(styleUri)) { style ->
             Timber.tag("MapLibreView").d("Style loaded successfully for source %s (uri=%s)", sourceKey, styleUri)
 
