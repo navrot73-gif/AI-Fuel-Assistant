@@ -60,13 +60,29 @@ const val TILE_SOURCE_VERSATILES = "versatiles"
 
 private const val LOCAL_STYLE_ASSET_URL = "asset://map_style_local.json"
 
+// OpenFreeMap — это MapLibre Style JSON целиком (со встроенным векторным источником
+// "openmaptiles"). Грузить нужно через map.setStyle(url), НЕ через RasterSource.
+// См. PR #183.
 private const val OPENFREEMAP_LIGHT_URL = "https://tiles.openfreemap.org/styles/liberty"
 private const val OPENFREEMAP_DARK_URL = "https://tiles.openfreemap.org/styles/bright"
 
+// Versatiles — публичный CDN не раздаёт готовый style JSON (404 на всех вариантах).
+// Источник оставлен в цепочке для будущего, но будет автоматически fallback на следующий.
 private const val VERSATILES_LIGHT_URL = "https://tiles.versatiles.org/assets/star.json"
 private const val VERSATILES_DARK_URL = "https://tiles.versatiles.org/assets/neutral.json"
 
 private const val OSM_RASTER_URL = "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+
+/**
+ * true, если sourceKey — это MapLibre Style JSON целиком (грузится через setStyle(url)).
+ * false, если это растровый URL тайлов (грузится через RasterSource поверх local style).
+ * См. PR #183.
+ */
+fun isVectorStyleSource(sourceKey: String): Boolean = when (sourceKey) {
+    TILE_SOURCE_OPENFREEMAP -> true
+    TILE_SOURCE_VERSATILES -> true  // потенциально векторный, но URL пока 404
+    else -> false  // osm_raster
+}
 
 private const val ROUTE_SOURCE_ID = "osrm-route-source"
 private const val ROUTE_CASING_LAYER_ID = "osrm-route-casing-layer"
@@ -117,20 +133,29 @@ fun MapLibreView(
     // Бэклог №10: менеджер кластеризации. Один экземпляр на Composable.
     val clusterManager = remember { StationClusterManager() }
 
+    // PR #183: openfreemap (векторный) теперь в начале цепочки — даст чистую векторную
+    // карту вместо растровых OSM-тайлов. Если OpenFreeMap недоступен — fallback на
+    // osm_raster, потом на versatiles.
     val tileSourceChain = remember {
-        listOf(TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP, TILE_SOURCE_VERSATILES)
+        listOf(TILE_SOURCE_OPENFREEMAP, TILE_SOURCE_OSM_RASTER, TILE_SOURCE_VERSATILES)
     }
     var currentSourceIndex by remember { mutableIntStateOf(0) }
-    var activeTileSource by remember { mutableStateOf(TILE_SOURCE_OSM_RASTER) }
+    var activeTileSource by remember { mutableStateOf(TILE_SOURCE_OPENFREEMAP) }
     val failedSources = remember { mutableSetOf<String>() }
 
-    // Load initial persisted tile source preference
+    // Load initial persisted tile source preference.
+    // PR #183: если у пользователя сохранён osm_raster от прошлых запусков — НЕ honoured,
+    // потому что мы сменили дефолт на векторный. Преимущество векторной карты перевешивает.
+    // Пользователь по-прежнему может переключаться вручную (через будущий UI), но
+    // при первом запуске после обновления будет векторный.
     LaunchedEffect(Unit) {
         val savedSource = userPrefsRepo.mapTileSource.first()
-        if (savedSource != null && tileSourceChain.contains(savedSource) && !failedSources.contains(savedSource)) {
+        if (savedSource == TILE_SOURCE_OPENFREEMAP && tileSourceChain.contains(savedSource) && !failedSources.contains(savedSource)) {
             activeTileSource = savedSource
             currentSourceIndex = tileSourceChain.indexOf(savedSource)
             Timber.tag("MapLibreView").d("Restored tile source preference: %s", savedSource)
+        } else if (savedSource != null) {
+            Timber.tag("MapLibreView").i("Ignoring saved tile source '%s' — PR #183 made openfreemap the default", savedSource)
         }
     }
 
@@ -526,10 +551,39 @@ fun MapLibreView(
             }
         }
 
-        // Start from local style asset (offline-first!), then attach runtime tile source
-        map.setStyle(Style.Builder().fromUri(LOCAL_STYLE_ASSET_URL)) { style ->
-            Timber.tag("MapLibreView").d("Local style loaded successfully for source %s", sourceKey)
+        // PR #183: для векторных источников (openfreemap, versatiles) грузим готовый
+        // MapLibre Style JSON целиком через setStyle(remoteUrl). Внутри такого стиля
+        // уже есть векторный source + все слои (background, water, roads, labels, ...).
+        // Для растровых источников (osm_raster) — старая схема: локальный минимальный
+        // стиль + RasterSource поверх него.
+        val isVectorStyle = isVectorStyleSource(sourceKey)
+        val styleUri = if (isVectorStyle) {
+            val remoteUrl = if (isDarkMode) {
+                when (sourceKey) {
+                    TILE_SOURCE_OPENFREEMAP -> OPENFREEMAP_DARK_URL
+                    TILE_SOURCE_VERSATILES -> VERSATILES_DARK_URL
+                    else -> LOCAL_STYLE_ASSET_URL
+                }
+            } else {
+                when (sourceKey) {
+                    TILE_SOURCE_OPENFREEMAP -> OPENFREEMAP_LIGHT_URL
+                    TILE_SOURCE_VERSATILES -> VERSATILES_LIGHT_URL
+                    else -> LOCAL_STYLE_ASSET_URL
+                }
+            }
+            Timber.tag("MapLibreView").i("Using vector Style JSON: %s (isDarkMode=%b)", remoteUrl, isDarkMode)
+            remoteUrl
+        } else {
+            LOCAL_STYLE_ASSET_URL
+        }
 
+        // Start from local style asset (offline-first!) OR remote vector style (PR #183)
+        map.setStyle(Style.Builder().fromUri(styleUri)) { style ->
+            Timber.tag("MapLibreView").d("Style loaded successfully for source %s (uri=%s)", sourceKey, styleUri)
+
+            // Russian labels — только для растровых стилей (где SymbolLayer — это наши
+            // локальные слои). В векторных стилях OpenFreeMap/versatiles это тоже сработает,
+            // но свойства могут отличаться; оборачиваем в try/catch.
             try {
                 for (layer in style.layers) {
                     if (layer is SymbolLayer) {
@@ -547,22 +601,26 @@ fun MapLibreView(
                 Timber.tag("MapLibreView").w(e, "Error applying Russian labels to symbol layers")
             }
 
-            // Immediately draw markers & route on local style.
+            // Immediately draw markers & route on style.
             // P0-1: трекеры уже сброшены выше, поэтому updateMarkers добавит все маркеры.
             updateMarkers(map)
             updateRouteLayer(style)
 
-            // Бэклог №10: прикрепляем кластеризованные слои ПОВЕРХ тайл-слоя.
-            // Важно: attachTileSourceToStyle должен идти ПЕРЕД clusterManager.attachToStyle,
-            // чтобы кластерные слои оказались выше тайлов на z-оси.
-            // attach dynamic tile source at runtime onto local style
-            try {
-                attachTileSourceToStyle(style, sourceKey)
-            } catch (e: Exception) {
-                Timber.tag("MapLibreView").e(e, "Error attaching tile source %s, switching", sourceKey)
-                MapDiagnosticsTracker.recordTileFallback("$sourceKey:attach_error")
-                switchToNextSource()
-                return@setStyle
+            // Бэклог №10 + PR #183: прикрепляем растровый тайл-слой ТОЛЬКО для
+            // растровых источников (osm_raster). Векторные стили (openfreemap, versatiles)
+            // уже содержат свои тайл-слои внутри Style JSON — attachTileSourceToStyle
+            // там не нужен и сломает z-order.
+            if (!isVectorStyle) {
+                try {
+                    attachTileSourceToStyle(style, sourceKey)
+                } catch (e: Exception) {
+                    Timber.tag("MapLibreView").e(e, "Error attaching tile source %s, switching", sourceKey)
+                    MapDiagnosticsTracker.recordTileFallback("$sourceKey:attach_error")
+                    switchToNextSource()
+                    return@setStyle
+                }
+            } else {
+                Timber.tag("MapLibreView").i("Vector style — skipping attachTileSourceToStyle (Style JSON already has layers)")
             }
 
             // Бэклог №10: прикрепляем кластерные слои после тайл-слоя
