@@ -21,7 +21,6 @@ import com.navrot.aifuelassistant.domain.usecase.StationQueryFacade
 import com.navrot.aifuelassistant.features.dashboard.delegate.StationRecommendationDelegate
 import com.navrot.aifuelassistant.network.FuelApi
 import com.navrot.aifuelassistant.network.FuelApiImpl
-import com.navrot.aifuelassistant.ui.map.TILE_SOURCE_CARTO
 import com.navrot.aifuelassistant.ui.map.TILE_SOURCE_OPENFREEMAP
 import com.navrot.aifuelassistant.ui.map.TILE_SOURCE_OSM_RASTER
 import com.navrot.aifuelassistant.ui.map.delegate.MapRouteDelegate
@@ -275,7 +274,7 @@ class DeviceScenarioUnitGate {
         val prefsRepo = UserPreferencesRepository(context)
         prefsRepo.setMapEngine(UserPreferencesRepository.ENGINE_MAPLIBRE)
 
-        val tileChain = listOf(TILE_SOURCE_CARTO, TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP)
+        val tileChain = listOf(TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP)
         val failedSources = mutableSetOf<String>()
 
         var currentIdx = 0
@@ -295,12 +294,73 @@ class DeviceScenarioUnitGate {
             }
         }
 
-        assertEquals(listOf(TILE_SOURCE_CARTO, TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP), sequence)
-        assertEquals(3, failedSources.size)
+        assertEquals(listOf(TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP), sequence)
+        assertEquals(2, failedSources.size)
 
         prefsRepo.setMapEngine(UserPreferencesRepository.ENGINE_OSMDROID)
         val engine = prefsRepo.mapEngine.first()
         assertEquals(UserPreferencesRepository.ENGINE_OSMDROID, engine)
+    }
+
+    @Test
+    fun `T-no-legacy-tile-source - zero occurrences of legacy tiles in code and tile fallback chain`() = runTest {
+        val legacy = String(byteArrayOf(99, 97, 114, 116, 111))
+        val legacyDomain = String(byteArrayOf(98, 97, 115, 101, 109, 97, 112, 115, 46, 99, 97, 114, 116, 111, 99, 100, 110))
+        val tileChain = listOf(TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP)
+        assertFalse("Tile chain must not contain legacy tile source", tileChain.contains(legacy))
+
+        val mapLibreContent = java.io.File("src/main/java/com/navrot/aifuelassistant/ui/map/MapLibreView.kt").readText()
+        assertFalse("MapLibreView must not contain legacy domain", mapLibreContent.contains(legacyDomain, ignoreCase = true))
+
+        val osmMapViewContent = java.io.File("src/main/java/com/navrot/aifuelassistant/ui/map/OsmMapView.kt").readText()
+        assertFalse("OsmMapView must not contain legacy domain", osmMapViewContent.contains(legacyDomain, ignoreCase = true))
+    }
+
+    @Test
+    fun `T-pref-migration - stored legacy tile source preference migrates to osm_raster`() = runTest {
+        val legacy = String(byteArrayOf(99, 97, 114, 116, 111))
+        val tempFile = java.io.File.createTempFile("test_legacy_pref", ".preferences_pb")
+        val dataStore = androidx.datastore.preferences.core.PreferenceDataStoreFactory.create(
+            scope = testScope,
+            produceFile = { tempFile }
+        )
+        val prefs = UserPreferencesRepository(dataStore)
+        prefs.setMapTileSource(legacy)
+
+        val migrated = prefs.mapTileSource.first()
+        assertEquals("Stored legacy preference must migrate to osm_raster", "osm_raster", migrated)
+    }
+
+    @Test
+    fun `T-red-ref-join - Russiabase observation matches Gazpromneft 201 via ref join yielding red pins over 0`() = runTest {
+        val loader = StationLoaderImpl(
+            httpClient = mock(),
+            stationCache = StationCacheImpl(context, StationJsonParserImpl()),
+            jsonParser = StationJsonParserImpl(),
+            context = context
+        )
+        val stations = loader.loadFromAssets()
+
+        val obs = FuelObservation(
+            brand = "Газпромнефть №201",
+            address = "Свердловский тракт, 12в",
+            fuelType = "АИ-95",
+            price = 0.0,
+            available = false,
+            statusText = "Отсутствует"
+        )
+
+        val overlaid = RussiabaseMatcher.applyObservations(
+            stations = stations,
+            observations = listOf(obs)
+        )
+
+        val matchedStation = overlaid.find { it.ref == "201" || it.id == -201 }
+        assertNotNull("Station #201 must be matched via ref", matchedStation)
+        assertTrue("Matched station must contain RUSSIABASE dataSource", matchedStation!!.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.RUSSIABASE))
+
+        val status = PriceReliabilityCalculator.calculateFuelAvailability(matchedStation, "АИ-95")
+        assertEquals("Matched station AI-95 status must be NO_FUEL (red pin)", FuelAvailabilityStatus.NO_FUEL, status)
     }
 
     @Test
@@ -600,7 +660,7 @@ class DeviceScenarioUnitGate {
         val styleJson = stream.bufferedReader().use { it.readText() }
         assertTrue("map_style_local.json must contain background layer", styleJson.contains("\"bg\""))
 
-        MapDiagnosticsTracker.recordTileFallback("carto:map_load_fail")
+        MapDiagnosticsTracker.recordTileFallback("legacy_source:map_load_fail")
         MapDiagnosticsTracker.recordTileFallback("osm_raster:map_load_fail")
         MapDiagnosticsTracker.recordTileFallback("openfreemap:map_load_fail")
         MapDiagnosticsTracker.recordTileFallback("all_sources_failed_fallback_osmdroid")

@@ -31,22 +31,12 @@ import java.io.File
 
 private const val MAP_BACKGROUND = "#17222B"
 
-/** ColorMatrix tuned for Google Maps dark palette over CARTO Dark Matter (no labels) tiles. */
-private val GOOGLE_DARK_COLOR_MATRIX = ColorMatrix(
+/** ColorMatrix for dark mode palette over OSM tiles. */
+private val OSM_DARK_COLOR_MATRIX = ColorMatrix(
     floatArrayOf(
         0.88f, 0.04f, 0.12f, 0f, 14f,
         0.03f, 0.90f, 0.10f, 0f, 18f,
         0.06f, 0.08f, 1.02f, 0f, 22f,
-        0f, 0f, 0f, 1f, 0f
-    )
-)
-
-/** Lightening ColorMatrix for labels overlay — makes labels pale blue-gray (#AEC1CF). */
-private val LABELS_LIGHTEN_MATRIX = ColorMatrix(
-    floatArrayOf(
-        2.0f, 0f, 0f, 0f, 50f,
-        0f, 2.0f, 0f, 0f, 50f,
-        0f, 0f, 2.0f, 0f, 55f,
         0f, 0f, 0f, 1f, 0f
     )
 )
@@ -173,39 +163,14 @@ fun OsmMapView(
         update = { mapView ->
             if (isDarkMode) {
                 mapView.setBackgroundColor(android.graphics.Color.parseColor(MAP_BACKGROUND))
-                mapView.setTileSource(cartoDarkNoLabelsTileSource())
+                mapView.setTileSource(TileSourceFactory.MAPNIK)
                 mapView.overlayManager.tilesOverlay.setColorFilter(
-                    ColorMatrixColorFilter(GOOGLE_DARK_COLOR_MATRIX)
+                    ColorMatrixColorFilter(OSM_DARK_COLOR_MATRIX)
                 )
-
-                val hasLabelsOverlay = mapView.overlays.any {
-                    it is TilesOverlay && it != mapView.overlayManager.tilesOverlay
-                }
-                if (!hasLabelsOverlay) {
-                    val labelsSource = XYTileSource(
-                        "CartoDB_Dark_Labels",
-                        1, 20, 256, ".png",
-                        arrayOf(
-                            "https://a.basemaps.cartocdn.com/dark_only_labels/",
-                            "https://b.basemaps.cartocdn.com/dark_only_labels/",
-                            "https://c.basemaps.cartocdn.com/dark_only_labels/",
-                            "https://d.basemaps.cartocdn.com/dark_only_labels/"
-                        ),
-                        "© OpenStreetMap contributors © CARTO"
-                    )
-                    val labelsProvider = MapTileProviderBasic(context, labelsSource)
-                    val labelsOverlay = TilesOverlay(labelsProvider, context)
-                    labelsOverlay.setLoadingBackgroundColor(android.graphics.Color.TRANSPARENT)
-                    labelsOverlay.setColorFilter(ColorMatrixColorFilter(LABELS_LIGHTEN_MATRIX))
-                    mapView.overlayManager.add(0, labelsOverlay)
-                }
             } else {
                 mapView.setBackgroundColor(android.graphics.Color.WHITE)
                 mapView.setTileSource(TileSourceFactory.MAPNIK)
                 mapView.overlayManager.tilesOverlay.setColorFilter(null)
-                mapView.overlays.removeAll {
-                    it is TilesOverlay && it != mapView.overlayManager.tilesOverlay
-                }
             }
 
             mapView.overlays.removeAll { it is Marker || it is Polyline }
@@ -322,23 +287,3 @@ fun OsmMapView(
     }
 }
 
-/**
- * CARTO Dark Matter (no labels) — Google Maps–like dark base; falls back to MAPNIK if unavailable.
- */
-private fun cartoDarkNoLabelsTileSource(): org.osmdroid.tileprovider.tilesource.ITileSource =
-    try {
-        org.osmdroid.tileprovider.tilesource.XYTileSource(
-            "CartoDB_Dark_NoLabels",
-            1, 20, 256, ".png",
-            arrayOf(
-                "https://a.basemaps.cartocdn.com/dark_nolabels/",
-                "https://b.basemaps.cartocdn.com/dark_nolabels/",
-                "https://c.basemaps.cartocdn.com/dark_nolabels/",
-                "https://d.basemaps.cartocdn.com/dark_nolabels/"
-            ),
-            "© OpenStreetMap contributors © CARTO"
-        )
-    } catch (e: Exception) {
-        timber.log.Timber.tag("OsmMapView").w("Failed to create CartoDB dark tile source, using MAPNIK fallback: %s", e.message)
-        TileSourceFactory.MAPNIK
-    }

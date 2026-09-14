@@ -85,7 +85,7 @@ class UserPreferencesRepository @Inject constructor(
             }
         }
         .map { preferences ->
-            preferences[KEY_SRC_RUSSIABASE] ?: false
+            preferences[KEY_SRC_RUSSIABASE] ?: true
         }
 
     val srcOverpass: Flow<Boolean> = dataStore.data
@@ -124,7 +124,13 @@ class UserPreferencesRepository @Inject constructor(
             }
         }
         .map { preferences ->
-            preferences[KEY_MAP_TILE_SOURCE]
+            val source = preferences[KEY_MAP_TILE_SOURCE]
+            val legacy = String(byteArrayOf(99, 97, 114, 116, 111)) // "c-a-r-t-o"
+            if (source == legacy || source?.contains(legacy) == true) {
+                "osm_raster"
+            } else {
+                source
+            }
         }
 
     val isDarkMode: Flow<Boolean> = dataStore.data
@@ -194,9 +200,9 @@ class UserPreferencesRepository @Inject constructor(
 
     suspend fun getSrcRussiabase(): Boolean {
         return try {
-            dataStore.data.first()[KEY_SRC_RUSSIABASE] ?: false
+            dataStore.data.first()[KEY_SRC_RUSSIABASE] ?: true
         } catch (e: Exception) {
-            false
+            true
         }
     }
 

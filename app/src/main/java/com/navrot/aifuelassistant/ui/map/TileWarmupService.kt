@@ -6,6 +6,7 @@ import com.navrot.aifuelassistant.BuildConfig
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.osmdroid.tileprovider.modules.SqliteArchiveTileWriter
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.tileprovider.tilesource.XYTileSource
 import org.osmdroid.util.MapTileIndex
 import java.io.ByteArrayInputStream
@@ -26,9 +27,9 @@ class TileWarmupService @Inject constructor(
         private val ZOOMS = intArrayOf(11, 12, 13, 14)
         // 3x3 grid around center
         private const val GRID_RADIUS = 1
-        // CARTO Dark Matter no-labels tile template (from OsmMapView)
-        private const val TILE_TEMPLATE = "https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png"
-        private val SUBDOMAINS = arrayOf("a", "b", "c", "d")
+        // OSM tile template
+        private const val TILE_TEMPLATE = "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        private val SUBDOMAINS = arrayOf("a", "b", "c")
     }
 
     /**
@@ -53,17 +54,7 @@ class TileWarmupService @Inject constructor(
             null
         }
 
-        val tileSource = XYTileSource(
-            "CartoDB_Dark_NoLabels",
-            1, 20, 256, ".png",
-            arrayOf(
-                "https://a.basemaps.cartocdn.com/dark_nolabels/",
-                "https://b.basemaps.cartocdn.com/dark_nolabels/",
-                "https://c.basemaps.cartocdn.com/dark_nolabels/",
-                "https://d.basemaps.cartocdn.com/dark_nolabels/"
-            ),
-            "© OpenStreetMap contributors © CARTO"
-        )
+        val tileSource = TileSourceFactory.MAPNIK
 
         try {
             for (zoom in ZOOMS) {
