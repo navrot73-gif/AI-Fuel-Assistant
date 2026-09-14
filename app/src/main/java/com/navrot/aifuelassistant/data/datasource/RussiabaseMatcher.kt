@@ -30,7 +30,7 @@ object RussiabaseMatcher {
 
         for (obs in observations) {
             val matchingStation = stations.firstOrNull { station ->
-                matchesBrandAndAddress(station, obs)
+                matchesBrandAndRefOrAddress(station, obs)
             }
 
             if (matchingStation != null) {
@@ -78,14 +78,35 @@ object RussiabaseMatcher {
         return updatedStations
     }
 
-    fun matchesBrandAndAddress(station: GasStation, obs: FuelObservation): Boolean {
+    fun extractRef(text: String): String? {
+        if (text.isBlank()) return null
+        // Match numbers following №, #, АЗС, or standalone numbers in brand names (e.g. "Газпромнефть №201" -> 201)
+        val markedMatch = Regex("(?:№|#|АЗС\\s*№?)\\s*(\\d{1,5})\\b", RegexOption.IGNORE_CASE).find(text)
+        if (markedMatch != null) return markedMatch.groupValues[1]
+        val brandNumMatch = Regex("\\b(\\d{1,5})\\b").find(text)
+        return brandNumMatch?.groupValues?.get(1)
+    }
+
+    fun matchesBrandAndRefOrAddress(station: GasStation, obs: FuelObservation): Boolean {
         val brandMatch = station.matchesBrand(obs.brand) ||
                 obs.brand.contains(station.brand, ignoreCase = true) ||
                 station.brand.contains(obs.brand, ignoreCase = true)
 
         if (!brandMatch) return false
 
+        val stationRef = station.ref
+        if (!stationRef.isNullOrBlank()) {
+            val obsRef = extractRef(obs.brand)
+            if (obsRef != null && obsRef == stationRef) {
+                return true
+            }
+        }
+
         return isAddressMatch(station.address, obs.address)
+    }
+
+    fun matchesBrandAndAddress(station: GasStation, obs: FuelObservation): Boolean {
+        return matchesBrandAndRefOrAddress(station, obs)
     }
 
     fun isAddressMatch(baseAddress: String, obsAddress: String): Boolean {
@@ -202,7 +223,7 @@ object RussiabaseMatcher {
 
         for (obs in observations) {
             val matchingStation = stations.firstOrNull { station ->
-                matchesBrandAndAddress(station, obs)
+                matchesBrandAndRefOrAddress(station, obs)
             }
 
             if (matchingStation != null) {

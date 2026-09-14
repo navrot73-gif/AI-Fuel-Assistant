@@ -55,16 +55,11 @@ import org.maplibre.geojson.Point
 import timber.log.Timber
 
 // Tile source fallback chain constants
-const val TILE_SOURCE_CARTO = "carto"
 const val TILE_SOURCE_OSM_RASTER = "osm_raster"
 const val TILE_SOURCE_OPENFREEMAP = "openfreemap"
 const val TILE_SOURCE_VERSATILES = "versatiles"
 
 private const val LOCAL_STYLE_ASSET_URL = "asset://map_style_local.json"
-
-// CARTO basemaps (raster) — day = voyager, night = dark_matter
-private const val CARTO_VOYAGER_URL = "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
-private const val CARTO_DARK_MATTER_URL = "https://basemaps.cartocdn.com/rastertiles/dark_matter/{z}/{x}/{y}.png"
 
 // OpenFreeMap — это MapLibre Style JSON целиком (со встроенным векторным источником
 // "openmaptiles"). Грузить нужно через map.setStyle(url), НЕ через RasterSource.
@@ -152,24 +147,21 @@ fun MapLibreView(
     // Бэклог №10: менеджер кластеризации. Один экземпляр на Composable.
     val clusterManager = remember { StationClusterManager() }
 
-    // CARTO basemaps (voyager / dark_matter) как первый источник в цепочке,
-    // с фолбэками на osm_raster -> openfreemap.
+    // Цепочка источников тайлов: osm_raster -> openfreemap (один переход при ошибках)
     val tileSourceChain = remember {
-        listOf(TILE_SOURCE_CARTO, TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP)
+        listOf(TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP)
     }
     var currentSourceIndex by remember { mutableIntStateOf(0) }
-    var activeTileSource by remember { mutableStateOf(TILE_SOURCE_CARTO) }
+    var activeTileSource by remember { mutableStateOf(TILE_SOURCE_OSM_RASTER) }
     val failedSources = remember { mutableSetOf<String>() }
 
     // Load initial persisted tile source preference.
     LaunchedEffect(Unit) {
         val savedSource = userPrefsRepo.mapTileSource.first()
-        if (savedSource == TILE_SOURCE_CARTO && tileSourceChain.contains(savedSource) && !failedSources.contains(savedSource)) {
+        if (savedSource != null && tileSourceChain.contains(savedSource) && !failedSources.contains(savedSource)) {
             activeTileSource = savedSource
             currentSourceIndex = tileSourceChain.indexOf(savedSource)
             Timber.tag("MapLibreView").d("Restored tile source preference: %s", savedSource)
-        } else if (savedSource != null) {
-            Timber.tag("MapLibreView").i("Ignoring saved tile source '%s' — CARTO is the default tile source", savedSource)
         }
     }
 
@@ -400,16 +392,6 @@ fun MapLibreView(
         }
 
         when (sourceKey) {
-            TILE_SOURCE_CARTO -> {
-                val tileUrl = if (isDarkMode) CARTO_DARK_MATTER_URL else CARTO_VOYAGER_URL
-                val tileSet = TileSet("2.2.0", tileUrl).apply {
-                    attribution = "© OpenStreetMap contributors © CARTO"
-                }
-                val rasterSource = RasterSource(sourceId, tileSet, 256)
-                val rasterLayer = RasterLayer(layerId, sourceId)
-                style.addSource(rasterSource)
-                addRasterLayerSafely(style, rasterLayer)
-            }
             TILE_SOURCE_OSM_RASTER -> {
                 val tileSet = TileSet("2.2.0", OSM_RASTER_URL).apply {
                     attribution = "© OpenStreetMap contributors"

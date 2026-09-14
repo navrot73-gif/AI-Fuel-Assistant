@@ -23,7 +23,8 @@ data class GasStation(
     val monumentPhotoUrl: String? = null,
     val entrancePhotoUrl: String? = null,
     val openingHours: String? = null,
-    val osmId: String? = null
+    val osmId: String? = null,
+    val ref: String? = null
 ) : Parcelable
 
 fun GasStation.signature(): String {
