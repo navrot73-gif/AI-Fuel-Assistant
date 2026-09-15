@@ -187,20 +187,37 @@ fun OsmMapView(
                 dot.update(mapView, location, routeGeoPoints)
             }
 
+            var renderedMarkers = 0
+            var invalidMarkers = 0
+
             stations.forEach { station ->
-                val marker = Marker(mapView)
-                marker.position = GeoPoint(station.latitude, station.longitude)
-                marker.title = station.name
-                marker.snippet = buildStationSnippet(station, selectedFuelTypes)
-                marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-                val markerColor = getMarkerColor(station, selectedFuelTypes)
-                marker.icon = createColoredMarker(context, markerColor)
-                marker.setOnMarkerClickListener { _, _ ->
-                    onStationClick(station)
-                    true
+                if (station.latitude == 0.0 || station.longitude == 0.0 ||
+                    station.latitude !in 54.0..56.0 || station.longitude !in 60.0..63.0) {
+                    invalidMarkers++
+                } else {
+                    val marker = Marker(mapView)
+                    marker.position = GeoPoint(station.latitude, station.longitude)
+                    marker.title = station.name
+                    marker.snippet = buildStationSnippet(station, selectedFuelTypes)
+                    marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+                    val markerColor = getMarkerColor(station, selectedFuelTypes)
+                    marker.icon = createColoredMarker(context, markerColor)
+                    marker.setOnMarkerClickListener { _, _ ->
+                        onStationClick(station)
+                        true
+                    }
+                    mapView.overlays.add(marker)
+                    renderedMarkers++
                 }
-                mapView.overlays.add(marker)
             }
+
+            com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.pinsFeaturesCount = renderedMarkers
+            timber.log.Timber.tag("OsmMapView").i(
+                "MAP_DIAGNOSTIC registry=%d markers=%d invalid=%d",
+                stations.size,
+                renderedMarkers,
+                invalidMarkers
+            )
 
             // Добавляем синюю метку фокуса обратно (после очистки overlays)
             focusMarkerRef[0]?.let { marker ->
