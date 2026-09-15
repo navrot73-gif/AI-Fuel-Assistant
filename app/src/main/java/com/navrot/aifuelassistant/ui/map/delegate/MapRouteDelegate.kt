@@ -109,11 +109,19 @@ class MapRouteDelegate @Inject constructor(
                     }
                     val min = Math.round(optionData.durationSeconds / 60.0).toInt()
                     val durText = if (min < 60) "$min мин" else "${min / 60} ч ${min % 60} мин"
+                    val distKm = optionData.distanceMeters / 1000.0
+
+                    Timber.tag(TAG).i(
+                        "ROUTE_DIAGNOSTIC distanceKm=%.2f points=%d destination=%s",
+                        distKm,
+                        routePoints.size,
+                        station.brand
+                    )
 
                     _route.value = RouteOptionUiState(
                         title = "Быстрый",
                         points = routePoints,
-                        distanceText = "${Format.km(optionData.distanceMeters / 1000.0)} км",
+                        distanceText = "${Format.km(distKm)} км",
                         durationText = durText,
                         destination = station.brand,
                         isStraightLine = false,

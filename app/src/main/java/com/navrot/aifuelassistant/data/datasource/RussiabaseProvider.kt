@@ -254,6 +254,7 @@ class RussiabaseProviderImpl @Inject constructor(
         val normalizedCity = citySlug.trim().lowercase()
 
         val raionId = getRaionForCityOrCoords(normalizedCity, lat, lon) ?: run {
+            Timber.tag(TAG).d("RUSSIABASE_DIAGNOSTIC received=0 parsed=0 withRef=0 matched=0 unmatched=0 error=unmapped_city")
             Timber.tag(TAG).d("City %s (lat=%s, lon=%s) not mapped in russiabase_regions.json, skipping", normalizedCity, lat, lon)
             return@withContext emptyList()
         }
@@ -313,6 +314,8 @@ class RussiabaseProviderImpl @Inject constructor(
                 val entry = CacheEntry(now, allObservations)
                 inMemoryCache[cacheKey] = entry
                 writeToDiskCache(cacheKey, entry)
+                val withRef = allObservations.count { obs -> RussiabaseMatcher.extractRef(obs.brand) != null }
+                Timber.tag(TAG).i("RUSSIABASE_DIAGNOSTIC received=%d parsed=%d withRef=%d matched=pending unmatched=pending", allObservations.size, allObservations.size, withRef)
                 Timber.tag(TAG).i("Successfully fetched %d Russiabase observations for %s", allObservations.size, normalizedCity)
                 return@withContext allObservations
             }
@@ -351,6 +354,10 @@ class RussiabaseProviderImpl @Inject constructor(
                     is JSONObject -> value.optInt("raion")
                     else -> null
                 }
+            }
+
+            if (citySlug == "челябинск" || citySlug == "chelyabinsk") {
+                return 468
             }
 
             // If nearby mode or citySlug not found directly, check by lat/lon against bboxes

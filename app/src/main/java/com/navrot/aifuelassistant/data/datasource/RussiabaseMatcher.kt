@@ -65,14 +65,18 @@ object RussiabaseMatcher {
             }
         }
 
+        val withRef = observations.count { extractRef(it.brand) != null }
         Timber.tag("GasStationRepo").i(
-            "russiabase: mode=%s, region=%s, http=%d, observations=%d, matched=%d, red=%d",
+            "RUSSIABASE_DIAGNOSTIC received=%d parsed=%d withRef=%d matched=%d unmatched=%d red=%d mode=%s region=%s http=%d",
+            observations.size,
+            observations.size,
+            withRef,
+            matchedIds.size,
+            unmatchedCount,
+            redCount,
             mode,
             region,
-            httpCode,
-            observations.size,
-            matchedIds.size,
-            redCount
+            httpCode
         )
 
         return updatedStations
@@ -244,6 +248,13 @@ object RussiabaseMatcher {
         }
 
         com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.benzonavtUnmatched = unmatchedCount
+        Timber.tag("GasStationRepo").i(
+            "BENZONAVT_DIAGNOSTIC received=%d parsed=%d matched=%d unmatched=%d",
+            observations.size,
+            observations.size,
+            matchedIds.size,
+            unmatchedCount
+        )
         return stations.map { matchedStationMap[it.id] ?: it }
     }
 
