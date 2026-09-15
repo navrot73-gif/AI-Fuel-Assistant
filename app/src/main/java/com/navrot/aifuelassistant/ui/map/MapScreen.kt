@@ -336,7 +336,8 @@ fun MapScreen(
                     recenterRequest = recenterTick,
                     zoomInRequest = zoomInTick, zoomOutRequest = zoomOutTick,
                     focusPoint = geocodedLocation?.let { OsmGeoPoint(it.latitude, it.longitude) },
-                    onStationClick = { selectedStation = it }
+                    onStationClick = { selectedStation = it },
+                    mapEngine = mapEngine
                 )
 
                 LocationStatusIndicator(status = locationStatus, visible = userLocation == null)
@@ -541,10 +542,34 @@ fun MapScreen(
             text = {
                 Column {
                     Text(
-                        "Движок карты: osmdroid",
+                        "Движок карты:",
                         style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { viewModel.setMapEngine("osmdroid") },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = mapEngine == "osmdroid",
+                            onClick = { viewModel.setMapEngine("osmdroid") }
+                        )
+                        Text("osmdroid", modifier = Modifier.padding(start = 8.dp))
+                    }
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { viewModel.setMapEngine("maplibre") },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = mapEngine == "maplibre",
+                            onClick = { viewModel.setMapEngine("maplibre") }
+                        )
+                        Text("MapLibre", modifier = Modifier.padding(start = 8.dp))
+                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
                     TextButton(
