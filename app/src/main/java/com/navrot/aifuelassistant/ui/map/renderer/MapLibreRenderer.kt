@@ -43,26 +43,6 @@ import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
 import timber.log.Timber
 
-private const val OSM_RASTER_STYLE_JSON = """{
-  "version": 8,
-  "sources": {
-    "osm-tiles": {
-      "type": "raster",
-      "tiles": ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
-      "tileSize": 256,
-      "attribution": "OpenStreetMap contributors"
-    }
-  },
-  "layers": [
-    {
-      "id": "osm-tiles-layer",
-      "type": "raster",
-      "source": "osm-tiles",
-      "minzoom": 0,
-      "maxzoom": 19
-    }
-  ]
-}"""
 
 private fun drawableToBitmap(drawable: Drawable): Bitmap {
     if (drawable is BitmapDrawable && drawable.bitmap != null) {
@@ -167,7 +147,16 @@ class MapLibreRenderer : MapRenderer {
                     mapViewRef[0] = mapView
                     mapView.onCreate(null)
                     mapView.getMapAsync { map ->
-                        map.setStyle(Style.Builder().fromJson(OSM_RASTER_STYLE_JSON)) {
+                        val styleJson = try {
+                            ctx.assets.open("map_style_dark.json").bufferedReader().use { it.readText() }
+                        } catch (e: Exception) {
+                            Timber.tag("MapLibreView").e(e, "Failed to load dark map style from assets")
+                            MapDiagnosticsTracker.tileStatus = "error: ${e.message}"
+                            ""
+                        }
+                        map.setStyle(Style.Builder().fromJson(styleJson)) {
+                            MapDiagnosticsTracker.activeTileSource = "openfreemap"
+                            MapDiagnosticsTracker.tileStatus = "ok"
                             val userPt = userLocation?.toGeoPoint()
                             val centerPt = if (userPt != null && userPt.latitude != 0.0 && userPt.longitude != 0.0) {
                                 LatLng(userPt.latitude, userPt.longitude)
