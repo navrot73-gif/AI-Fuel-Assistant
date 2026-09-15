@@ -8,9 +8,14 @@ enum class PriceSource {
 }
 
 enum class FuelAvailabilityStatus {
-    AVAILABLE, // 🟢 есть свежие метки "есть топливо"
-    NO_FUEL,   // 🔴 есть свежие метки "нет топлива"
-    UNKNOWN    // ⚪ меток нет или они старше 8 часов
+    AVAILABLE,   // 🟢 есть свежие метки "есть топливо"
+    UNAVAILABLE, // 🔴 есть свежие метки "нет топлива"
+    UNKNOWN;     // ⚪ меток нет или они старше 8 часов
+
+    companion object {
+        @JvmField
+        val NO_FUEL = UNAVAILABLE
+    }
 }
 
 data class PriceReliability(

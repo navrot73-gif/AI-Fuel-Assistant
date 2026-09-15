@@ -578,7 +578,7 @@ class GasStationRepository @Inject constructor(
         for (st in stations) {
             when (PriceReliabilityCalculator.calculateFuelAvailability(st, currentTimeMs = now)) {
                 FuelAvailabilityStatus.AVAILABLE -> greenCount++
-                FuelAvailabilityStatus.NO_FUEL -> redCount++
+                FuelAvailabilityStatus.UNAVAILABLE, FuelAvailabilityStatus.NO_FUEL -> redCount++
                 FuelAvailabilityStatus.UNKNOWN -> grayCount++
             }
         }

@@ -73,19 +73,19 @@ fun StationDetailCard(
 
     val statusBadgeText = when (availabilityStatus) {
         FuelAvailabilityStatus.AVAILABLE -> "🟢 Есть топливо"
-        FuelAvailabilityStatus.NO_FUEL -> "🔴 Нет топлива"
+        FuelAvailabilityStatus.UNAVAILABLE, FuelAvailabilityStatus.NO_FUEL -> "🔴 Нет топлива"
         FuelAvailabilityStatus.UNKNOWN -> "⚪ Нет данных"
     }
 
     val statusBadgeBg = when (availabilityStatus) {
         FuelAvailabilityStatus.AVAILABLE -> FueldeckColors.MintSoft
-        FuelAvailabilityStatus.NO_FUEL -> FueldeckColors.CoralSoft
+        FuelAvailabilityStatus.UNAVAILABLE, FuelAvailabilityStatus.NO_FUEL -> FueldeckColors.CoralSoft
         FuelAvailabilityStatus.UNKNOWN -> Color(0x0AFFFFFF)
     }
 
     val statusBadgeTextColor = when (availabilityStatus) {
         FuelAvailabilityStatus.AVAILABLE -> FueldeckColors.Mint
-        FuelAvailabilityStatus.NO_FUEL -> FueldeckColors.Coral
+        FuelAvailabilityStatus.UNAVAILABLE, FuelAvailabilityStatus.NO_FUEL -> FueldeckColors.Coral
         FuelAvailabilityStatus.UNKNOWN -> FueldeckColors.InkFaint
     }
 

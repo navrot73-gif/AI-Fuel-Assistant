@@ -56,7 +56,7 @@ object FuelAnalysisPromptBuilder {
                 val dist = "${Format.km(distKm)} км"
                 val statusStr = when (PriceReliabilityCalculator.calculateFuelAvailability(st, vehicle?.fuelType)) {
                     FuelAvailabilityStatus.AVAILABLE -> "🟢 есть топливо"
-                    FuelAvailabilityStatus.NO_FUEL -> "🔴 нет топлива"
+                    FuelAvailabilityStatus.UNAVAILABLE, FuelAvailabilityStatus.NO_FUEL -> "🔴 нет топлива"
                     FuelAvailabilityStatus.UNKNOWN -> "⚪ нет данных"
                 }
                 "- [${st.id}] ${st.brand} (${st.name}): $price, $dist ($statusStr)"

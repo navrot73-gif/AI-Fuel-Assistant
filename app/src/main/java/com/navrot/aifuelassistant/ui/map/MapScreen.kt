@@ -601,7 +601,8 @@ fun MapScreen(
         val russiabaseMatched = stations.count { it.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.RUSSIABASE) }
         val userCount = stations.count { it.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.USER_REPORT) }
         val redCount = stations.count {
-            com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator.calculateFuelAvailability(it) == com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus.NO_FUEL
+            val status = com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator.calculateFuelAvailability(it)
+            status == com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus.NO_FUEL || status == com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus.UNAVAILABLE
         }
         val benzonavtActive = stations.any { it.dataSources.contains(com.navrot.aifuelassistant.data.model.FuelDataSource.BENZONAVT) }
 
@@ -704,7 +705,7 @@ fun MapScreen(
                         candidates.forEach { c ->
                             val statusStr = when (c.status) {
                                 com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus.AVAILABLE -> "🟢 AVAILABLE"
-                                com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus.NO_FUEL -> "🔴 NO_FUEL"
+                                com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus.UNAVAILABLE, com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus.NO_FUEL -> "🔴 NO_FUEL"
                                 com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus.UNKNOWN -> "⚪ UNKNOWN"
                             }
                             Text("  • ${c.brand} (${c.name}): ${"%.2f".format(c.distanceKm)}км, $statusStr [id=${c.id}]")

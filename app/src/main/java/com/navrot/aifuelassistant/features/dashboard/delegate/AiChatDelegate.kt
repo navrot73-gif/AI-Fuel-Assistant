@@ -222,7 +222,7 @@ class AiChatDelegate @Inject constructor(
                     val status = PriceReliabilityCalculator.calculateFuelAvailability(station, fuel?.type)
                     val statusStr = when (status) {
                         FuelAvailabilityStatus.AVAILABLE -> "🟢 есть топливо"
-                        FuelAvailabilityStatus.NO_FUEL -> if (station.dataSources.contains(FuelDataSource.RUSSIABASE)) "🔴 нет топлива (по данным Russiabase)" else "🔴 нет топлива"
+                            FuelAvailabilityStatus.UNAVAILABLE, FuelAvailabilityStatus.NO_FUEL -> if (station.dataSources.contains(FuelDataSource.RUSSIABASE)) "🔴 нет топлива (по данным Russiabase)" else "🔴 нет топлива"
                         FuelAvailabilityStatus.UNKNOWN -> "⚪ нет данных"
                     }
                     val formattedPrice = if (price > 0.0) "${Format.price(price)}₽" else "цена не указана"
@@ -359,7 +359,7 @@ class AiChatDelegate @Inject constructor(
             val isRussiabase = station.dataSources.contains(FuelDataSource.RUSSIABASE)
             val statusStr = when (status) {
                 FuelAvailabilityStatus.AVAILABLE -> "🟢 есть топливо"
-                FuelAvailabilityStatus.NO_FUEL -> if (isRussiabase) "🔴 нет топлива (⚠️ по данным Russiabase топлива нет)" else "🔴 нет топлива"
+                FuelAvailabilityStatus.UNAVAILABLE, FuelAvailabilityStatus.NO_FUEL -> if (isRussiabase) "🔴 нет топлива (⚠️ по данным Russiabase топлива нет)" else "🔴 нет топлива"
                 FuelAvailabilityStatus.UNKNOWN -> "⚪ нет данных"
             }
             val formattedPrice = if (price > 0.0) "${Format.price(price)}₽" else "цена не указана"
