@@ -5,9 +5,22 @@ import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.isKnownClosed
 import com.navrot.aifuelassistant.domain.recommendation.RecommendationConfidence
 import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
+import com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator
 import timber.log.Timber
 
 object FuelIntelligenceResolver {
+
+    fun isObservationExpired(obs: FuelSourceObservation, now: Long): Boolean {
+        val observedAt = obs.observedAt ?: return true
+        if (observedAt <= 0L) return true
+        val diffMs = maxOf(0L, now - observedAt)
+        val threshold = if (obs.source == FuelDataSource.RUSSIABASE) {
+            PriceReliabilityCalculator.RUSSIABASE_FRESHNESS_THRESHOLD_MS
+        } else {
+            PriceReliabilityCalculator.FRESHNESS_THRESHOLD_MS
+        }
+        return diffMs > threshold
+    }
 
     fun resolve(
         observations: List<FuelSourceObservation>,
@@ -44,9 +57,17 @@ object FuelIntelligenceResolver {
         val lastUpdatedAt = timestamps.maxOrNull()
         val freshness = FuelFreshness.calculateFreshness(lastUpdatedAt, now)
 
-        // Availability evaluation
-        val availableObs = matching.filter { it.availability == FuelAvailabilityStatus.AVAILABLE }
-        val unavailableObs = matching.filter { it.availability == FuelAvailabilityStatus.UNAVAILABLE }
+        // Effective availability taking expiration thresholds (8h standard / 24h Russiabase) into account
+        val effectiveObservations = matching.map { obs ->
+            if (isObservationExpired(obs, now)) {
+                obs.copy(availability = FuelAvailabilityStatus.UNKNOWN)
+            } else {
+                obs
+            }
+        }
+
+        val availableObs = effectiveObservations.filter { it.availability == FuelAvailabilityStatus.AVAILABLE }
+        val unavailableObs = effectiveObservations.filter { it.availability == FuelAvailabilityStatus.UNAVAILABLE }
 
         val availCount = availableObs.size
         val unavailCount = unavailableObs.size
@@ -205,7 +226,7 @@ object FuelIntelligenceResolver {
     /**
      * Converts a domain GasStation into a List<FuelSourceObservation> for resolution.
      */
-    fun extractObservations(station: GasStation): List<FuelSourceObservation> {
+    fun extractObservations(station: GasStation, now: Long = System.currentTimeMillis()): List<FuelSourceObservation> {
         val observations = mutableListOf<FuelSourceObservation>()
 
         for (fp in station.fuelTypes) {
@@ -218,7 +239,16 @@ object FuelIntelligenceResolver {
             val isRussiabase = fp.source == FuelDataSource.RUSSIABASE || station.dataSources.contains(FuelDataSource.RUSSIABASE)
             val isClosed = station.isKnownClosed()
 
+            val threshold = if (isRussiabase) {
+                PriceReliabilityCalculator.RUSSIABASE_FRESHNESS_THRESHOLD_MS
+            } else {
+                PriceReliabilityCalculator.FRESHNESS_THRESHOLD_MS
+            }
+
+            val isExpired = timestamp == null || (now - timestamp > threshold)
+
             val avail = when {
+                isExpired -> FuelAvailabilityStatus.UNKNOWN
                 !fp.available || (isRussiabase && isClosed) -> FuelAvailabilityStatus.UNAVAILABLE
                 fp.available -> FuelAvailabilityStatus.AVAILABLE
                 else -> FuelAvailabilityStatus.UNKNOWN
@@ -238,7 +268,11 @@ object FuelIntelligenceResolver {
 
             // If station has additional dataSources like RUSSIABASE alongside BENZONAVT, record observations
             if (station.dataSources.contains(FuelDataSource.RUSSIABASE) && fp.source != FuelDataSource.RUSSIABASE) {
-                val russiabaseAvail = if (isClosed || !fp.available) FuelAvailabilityStatus.UNAVAILABLE else FuelAvailabilityStatus.AVAILABLE
+                val russiabaseAvail = when {
+                    isExpired -> FuelAvailabilityStatus.UNKNOWN
+                    isClosed || !fp.available -> FuelAvailabilityStatus.UNAVAILABLE
+                    else -> FuelAvailabilityStatus.AVAILABLE
+                }
                 observations.add(
                     FuelSourceObservation(
                         stationId = station.id,
@@ -264,7 +298,7 @@ object FuelIntelligenceResolver {
         fuelType: String,
         now: Long = System.currentTimeMillis()
     ): StationFuelSnapshot {
-        val obs = extractObservations(station)
+        val obs = extractObservations(station, now)
         return resolve(obs, station.id, fuelType, now)
     }
 }
