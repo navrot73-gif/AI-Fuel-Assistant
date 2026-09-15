@@ -21,8 +21,6 @@ import com.navrot.aifuelassistant.domain.usecase.StationQueryFacade
 import com.navrot.aifuelassistant.features.dashboard.delegate.StationRecommendationDelegate
 import com.navrot.aifuelassistant.network.FuelApi
 import com.navrot.aifuelassistant.network.FuelApiImpl
-import com.navrot.aifuelassistant.ui.map.TILE_SOURCE_OPENFREEMAP
-import com.navrot.aifuelassistant.ui.map.TILE_SOURCE_OSM_RASTER
 import com.navrot.aifuelassistant.ui.map.delegate.MapRouteDelegate
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
@@ -272,9 +270,9 @@ class DeviceScenarioUnitGate {
     @Test
     fun `T7 - Tile source fallback chain transitions ordered without repeating failed source`() = runTest {
         val prefsRepo = UserPreferencesRepository(context)
-        prefsRepo.setMapEngine(UserPreferencesRepository.ENGINE_MAPLIBRE)
+        prefsRepo.setMapEngine(UserPreferencesRepository.ENGINE_OSMDROID)
 
-        val tileChain = listOf(TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP)
+        val tileChain = listOf("osm_raster", "openfreemap")
         val failedSources = mutableSetOf<String>()
 
         var currentIdx = 0
@@ -294,10 +292,9 @@ class DeviceScenarioUnitGate {
             }
         }
 
-        assertEquals(listOf(TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP), sequence)
+        assertEquals(listOf("osm_raster", "openfreemap"), sequence)
         assertEquals(2, failedSources.size)
 
-        prefsRepo.setMapEngine(UserPreferencesRepository.ENGINE_OSMDROID)
         val engine = prefsRepo.mapEngine.first()
         assertEquals(UserPreferencesRepository.ENGINE_OSMDROID, engine)
     }
@@ -306,11 +303,8 @@ class DeviceScenarioUnitGate {
     fun `T-no-legacy-tile-source - zero occurrences of legacy tiles in code and tile fallback chain`() = runTest {
         val legacy = String(byteArrayOf(99, 97, 114, 116, 111))
         val legacyDomain = String(byteArrayOf(98, 97, 115, 101, 109, 97, 112, 115, 46, 99, 97, 114, 116, 111, 99, 100, 110))
-        val tileChain = listOf(TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP)
+        val tileChain = listOf("osm_raster", "openfreemap")
         assertFalse("Tile chain must not contain legacy tile source", tileChain.contains(legacy))
-
-        val mapLibreContent = java.io.File("src/main/java/com/navrot/aifuelassistant/ui/map/MapLibreView.kt").readText()
-        assertFalse("MapLibreView must not contain legacy domain", mapLibreContent.contains(legacyDomain, ignoreCase = true))
 
         val osmMapViewContent = java.io.File("src/main/java/com/navrot/aifuelassistant/ui/map/OsmMapView.kt").readText()
         assertFalse("OsmMapView must not contain legacy domain", osmMapViewContent.contains(legacyDomain, ignoreCase = true))
@@ -654,19 +648,12 @@ class DeviceScenarioUnitGate {
     }
 
     @Test
-    fun `T-undead - map_style_local asset exists and map stays rendered when all tile sources fail`() = runTest {
-        val stream = javaClass.classLoader?.getResourceAsStream("map_style_local.json")
-            ?: context.assets.open("map_style_local.json")
-        val styleJson = stream.bufferedReader().use { it.readText() }
-        assertTrue("map_style_local.json must contain background layer", styleJson.contains("\"bg\""))
-
-        MapDiagnosticsTracker.recordTileFallback("legacy_source:map_load_fail")
-        MapDiagnosticsTracker.recordTileFallback("osm_raster:map_load_fail")
-        MapDiagnosticsTracker.recordTileFallback("openfreemap:map_load_fail")
-        MapDiagnosticsTracker.recordTileFallback("all_sources_failed_fallback_osmdroid")
+    fun `T-undead - map stays rendered with gray background when all tile sources fail`() = runTest {
+        MapDiagnosticsTracker.recordTileFallback("osm_raster:tile_error")
+        MapDiagnosticsTracker.recordTileFallback("all_tile_sources_failed")
 
         val logs = MapDiagnosticsTracker.fallbackChainLogs
-        assertTrue("Diagnostics must log all tile sources failing", logs.contains("all_sources_failed_fallback_osmdroid"))
+        assertTrue("Diagnostics must log tile source error", logs.contains("all_tile_sources_failed"))
     }
 
     @Test
@@ -697,63 +684,74 @@ class DeviceScenarioUnitGate {
     }
 
     @Test
-    fun `T-pins-plain - station pins layer configuration has no cluster zoom restrictions and features match registry`() = runTest {
+    fun `T-pins-offline - airplane mode offline displays pins for stations in bbox and route polyline is built`() = runTest {
         val loader = StationLoaderImpl(
             httpClient = mock(),
             stationCache = StationCacheImpl(context, StationJsonParserImpl()),
             jsonParser = StationJsonParserImpl(),
             context = context
         )
-        val registryStations = loader.loadFromAssets()
+        val stations = loader.loadFromAssets()
+        assertTrue("Offline station count must be >= 100", stations.size >= 100)
 
-        val clusterManager = com.navrot.aifuelassistant.ui.map.StationClusterManager()
-        val featureCollection = clusterManager.stationsToFeatureCollection(registryStations, setOf("АИ-95"))
-        val features = featureCollection.features()
+        val targetStation = stations.first()
+        val fuelApi: FuelApi = mock()
+        val routeStateManager = RouteStateManager()
+        val routeDelegate = MapRouteDelegate(fuelApi, routeStateManager)
 
-        assertNotNull("Features collection must not be null", features)
-        assertEquals("Features count must match registry stations count", registryStations.size, features!!.size)
+        routeDelegate.buildRouteTo(
+            scope = testScope,
+            station = targetStation,
+            userLocation = Pair(55.1608, 61.3989),
+            onError = {}
+        )
 
-        for (feature in features) {
-            val statusColor = feature.getStringProperty(com.navrot.aifuelassistant.ui.map.StationClusterManager.PROP_STATUS_COLOR)
-            assertNotNull("Feature statusColor must not be null", statusColor)
-            assertTrue(
-                "statusColor must be one of available/no_fuel/unknown hex colors",
-                statusColor in listOf(
-                    com.navrot.aifuelassistant.ui.map.StationClusterManager.COLOR_AVAILABLE,
-                    com.navrot.aifuelassistant.ui.map.StationClusterManager.COLOR_NO_FUEL,
-                    com.navrot.aifuelassistant.ui.map.StationClusterManager.COLOR_UNKNOWN
-                )
-            )
-        }
+        val routeState = routeDelegate.route.value
+        assertNotNull("Route polyline must be generated offline", routeState)
+        assertTrue("Route points must be present", routeState!!.points.isNotEmpty())
     }
 
     @Test
-    fun `T-pins-visible-metric - first_pins_drawn metric recorded only when layer in style and features count greater than 0`() = runTest {
-        MapDiagnosticsTracker.resetStartupTimings()
-
-        assertEquals(0L, MapDiagnosticsTracker.firstPinsDrawnMs)
-        assertFalse("pinsLayerInStyle must be false initially", MapDiagnosticsTracker.pinsLayerInStyle)
-
-        val style: org.maplibre.android.maps.Style = mock()
-        val mockSource: org.maplibre.android.style.sources.GeoJsonSource = mock()
-        val mockLayer: org.maplibre.android.style.layers.Layer = mock()
-
-        whenever(style.getSourceAs<org.maplibre.android.style.sources.GeoJsonSource>(com.navrot.aifuelassistant.ui.map.StationClusterManager.SOURCE_ID)).doReturn(mockSource)
-        whenever(style.getLayer(com.navrot.aifuelassistant.ui.map.StationClusterManager.LAYER_PINS)).doReturn(mockLayer)
-
+    fun `T-route-independent - route polyline is built when tile provider errors or fails`() = runTest {
         val loader = StationLoaderImpl(
             httpClient = mock(),
             stationCache = StationCacheImpl(context, StationJsonParserImpl()),
             jsonParser = StationJsonParserImpl(),
             context = context
         )
-        val registryStations = loader.loadFromAssets()
+        val station = loader.loadFromAssets().first()
 
-        val manager = com.navrot.aifuelassistant.ui.map.StationClusterManager()
-        manager.updateStations(style, registryStations, setOf("АИ-95"))
+        MapDiagnosticsTracker.tileStatus = "tiles_failed"
+        MapDiagnosticsTracker.recordTileFallback("osm_raster:tile_error")
 
-        assertTrue("pinsLayerInStyle must be true after updateStations with layer present", MapDiagnosticsTracker.pinsLayerInStyle)
-        assertTrue("pinsFeaturesCount must match registry size", MapDiagnosticsTracker.pinsFeaturesCount == registryStations.size)
-        assertTrue("firstPinsDrawnMs must be set (> 0) when layer in style and features > 0", MapDiagnosticsTracker.firstPinsDrawnMs > 0L)
+        val fuelApi: FuelApi = mock()
+        val routeStateManager = RouteStateManager()
+        val routeDelegate = MapRouteDelegate(fuelApi, routeStateManager)
+
+        routeDelegate.buildRouteTo(
+            scope = testScope,
+            station = station,
+            userLocation = Pair(55.1608, 61.3989),
+            onError = {}
+        )
+
+        val routeState = routeDelegate.route.value
+        assertNotNull("Polyline route must be created independently of tile failure", routeState)
+        assertEquals("tiles_failed", MapDiagnosticsTracker.tileStatus)
+    }
+
+    @Test
+    fun `T-no-maplibre - zero occurrences of maplibre in production sources`() = runTest {
+        val srcDir = java.io.File("src/main/java")
+        val mapLibreMatches = mutableListOf<String>()
+
+        srcDir.walk().filter { it.isFile && it.extension == "kt" }.forEach { file ->
+            val content = file.readText()
+            if (content.contains("maplibre", ignoreCase = true)) {
+                mapLibreMatches.add(file.path)
+            }
+        }
+
+        assertTrue("Production sources must contain zero maplibre references, found in: $mapLibreMatches", mapLibreMatches.isEmpty())
     }
 }

@@ -88,9 +88,6 @@ class MapViewModelSearchTest {
     @Mock
     private lateinit var networkMonitor: NetworkMonitor
 
-    @Mock
-    private lateinit var vectorOfflineManager: VectorOfflineManager
-
     private lateinit var routeStateManager: RouteStateManager
 
     private lateinit var viewModel: MapViewModel
@@ -110,7 +107,6 @@ class MapViewModelSearchTest {
         whenever(userPreferencesRepository.isDarkMode).thenReturn(kotlinx.coroutines.flow.MutableStateFlow(false))
         whenever(userPreferencesRepository.mapEngine).thenReturn(kotlinx.coroutines.flow.MutableStateFlow(UserPreferencesRepository.ENGINE_OSMDROID))
         whenever(networkMonitor.isOnline).thenReturn(kotlinx.coroutines.flow.MutableStateFlow(true))
-        whenever(vectorOfflineManager.offlineState).thenReturn(kotlinx.coroutines.flow.MutableStateFlow(VectorOfflineState.Idle))
 
         runBlocking {
             whenever(benzonavtProvider.fetchCityPrices(org.mockito.kotlin.any())).thenReturn(emptyMap())

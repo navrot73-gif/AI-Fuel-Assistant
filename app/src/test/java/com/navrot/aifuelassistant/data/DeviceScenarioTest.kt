@@ -16,8 +16,6 @@ import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
 import com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.features.dashboard.delegate.StationRecommendationDelegate
-import com.navrot.aifuelassistant.ui.map.TILE_SOURCE_OPENFREEMAP
-import com.navrot.aifuelassistant.ui.map.TILE_SOURCE_OSM_RASTER
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.TestScope
@@ -100,9 +98,9 @@ class DeviceScenarioTest {
     @Test
     fun `T7 - Tile source fallback chain transitions ordered without repeating failed source`() = runTest {
         val prefsRepo = UserPreferencesRepository(context)
-        prefsRepo.setMapEngine(UserPreferencesRepository.ENGINE_MAPLIBRE)
+        prefsRepo.setMapEngine(UserPreferencesRepository.ENGINE_OSMDROID)
 
-        val tileChain = listOf(TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP)
+        val tileChain = listOf("osm_raster", "openfreemap")
         val failedSources = mutableSetOf<String>()
 
         var currentIdx = 0
@@ -122,11 +120,9 @@ class DeviceScenarioTest {
             }
         }
 
-        assertEquals(listOf(TILE_SOURCE_OSM_RASTER, TILE_SOURCE_OPENFREEMAP), sequence)
+        assertEquals(listOf("osm_raster", "openfreemap"), sequence)
         assertEquals(2, failedSources.size)
 
-        // When all sources fail, engine auto-switches to osmdroid
-        prefsRepo.setMapEngine(UserPreferencesRepository.ENGINE_OSMDROID)
         val engine = prefsRepo.mapEngine.first()
         assertEquals(UserPreferencesRepository.ENGINE_OSMDROID, engine)
     }

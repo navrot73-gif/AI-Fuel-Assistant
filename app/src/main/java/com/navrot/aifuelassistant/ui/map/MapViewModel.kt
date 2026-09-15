@@ -42,8 +42,6 @@ class MapViewModel @Inject constructor(
     private val tileWarmupService: TileWarmupService,
     private val networkMonitor: NetworkMonitor,
     private val userPreferencesRepository: UserPreferencesRepository,
-    val vectorOfflineManager: VectorOfflineManager,
-    val mapStyleCache: MapStyleCache,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
@@ -58,9 +56,7 @@ class MapViewModel @Inject constructor(
         routeStateManager: RouteStateManager,
         networkMonitor: NetworkMonitor,
         context: Context,
-        userPreferencesRepository: UserPreferencesRepository = UserPreferencesRepository(context),
-        vectorOfflineManager: VectorOfflineManager = VectorOfflineManager(context),
-        mapStyleCache: MapStyleCache = MapStyleCache(context, okhttp3.OkHttpClient())
+        userPreferencesRepository: UserPreferencesRepository = UserPreferencesRepository(context)
     ) : this(
         searchDelegate = MapSearchDelegate(geocodingProvider, benzonavtProvider, repository, tileWarmupService, userPreferencesRepository),
         routeDelegate = MapRouteDelegate(fuelApi, routeStateManager),
@@ -70,8 +66,6 @@ class MapViewModel @Inject constructor(
         tileWarmupService = tileWarmupService,
         networkMonitor = networkMonitor,
         userPreferencesRepository = userPreferencesRepository,
-        vectorOfflineManager = vectorOfflineManager,
-        mapStyleCache = mapStyleCache,
         context = context
     )
 
@@ -88,31 +82,11 @@ class MapViewModel @Inject constructor(
         _lastCacheUpdateTime.value = repository.getLastCacheUpdateTime()
     }
 
-    val vectorOfflineState: StateFlow<VectorOfflineState> = vectorOfflineManager.offlineState
-
     val isDarkMode: StateFlow<Boolean> = userPreferencesRepository.isDarkMode
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     val mapEngine: StateFlow<String> = userPreferencesRepository.mapEngine
-        .stateIn(viewModelScope, SharingStarted.Eagerly, UserPreferencesRepository.ENGINE_MAPLIBRE)
-
-    fun checkOfflineRegions() {
-        vectorOfflineManager.checkDownloadedRegions()
-    }
-
-    fun downloadOfflineRegion() {
-        val (lat, lon) = _userLocation.value ?: (55.1644 to 61.4368)
-        val city = currentCity.value
-        vectorOfflineManager.downloadCurrentCityRegion(
-            centerLat = lat,
-            centerLon = lon,
-            cityName = city
-        )
-    }
-
-    fun deleteOfflineRegion(regionId: Long) {
-        vectorOfflineManager.deleteRegion(regionId)
-    }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, UserPreferencesRepository.ENGINE_OSMDROID)
 
     fun toggleDarkMode() {
         val newMode = !isDarkMode.value

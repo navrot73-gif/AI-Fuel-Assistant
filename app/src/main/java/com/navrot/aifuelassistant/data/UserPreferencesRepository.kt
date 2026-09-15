@@ -59,7 +59,6 @@ class UserPreferencesRepository @Inject constructor(
         val KEY_SRC_OVERPASS = booleanPreferencesKey("src_overpass")
         private const val USER_PRICE_PREFIX = "price:"
         const val ENGINE_OSMDROID = "osmdroid"
-        const val ENGINE_MAPLIBRE = "maplibre"
     }
 
     val srcBenzonavt: Flow<Boolean> = dataStore.data
@@ -111,7 +110,7 @@ class UserPreferencesRepository @Inject constructor(
             }
         }
         .map { preferences ->
-            preferences[KEY_MAP_ENGINE] ?: ENGINE_MAPLIBRE
+            preferences[KEY_MAP_ENGINE] ?: ENGINE_OSMDROID
         }
 
     val mapTileSource: Flow<String?> = dataStore.data

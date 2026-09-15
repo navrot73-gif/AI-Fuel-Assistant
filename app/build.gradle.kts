@@ -176,7 +176,6 @@ dependencies {
 
     // Maps
     implementation(libs.osmdroid)
-    implementation("org.maplibre.gl:android-sdk:11.5.0")
 
     // Desugaring
     coreLibraryDesugaring(libs.desugar)
