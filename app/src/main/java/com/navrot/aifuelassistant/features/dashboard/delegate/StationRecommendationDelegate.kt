@@ -5,7 +5,10 @@ import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.stationListSignature
+import com.navrot.aifuelassistant.domain.recommendation.BestStationUseCase
+import com.navrot.aifuelassistant.domain.recommendation.BestStationResult
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
+import com.navrot.aifuelassistant.features.dashboard.BestStationUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -19,6 +22,7 @@ class StationRecommendationDelegate @Inject constructor(
     private val vehicleRepository: VehicleRepository,
     private val gasStationRepository: GasStationRepositoryInterface,
     private val getBestStationsUseCase: GetBestStationsUseCase,
+    private val bestStationUseCase: BestStationUseCase = BestStationUseCase(),
 ) {
     private val _vehicles = MutableStateFlow<List<VehicleEntity>>(emptyList())
     val vehicles: StateFlow<List<VehicleEntity>> = _vehicles.asStateFlow()
@@ -34,6 +38,12 @@ class StationRecommendationDelegate @Inject constructor(
 
     private val _bestStation = MutableStateFlow<GasStation?>(null)
     val bestStation: StateFlow<GasStation?> = _bestStation.asStateFlow()
+
+    private val _bestStationUiState = MutableStateFlow(BestStationUiState())
+    val bestStationUiState: StateFlow<BestStationUiState> = _bestStationUiState.asStateFlow()
+
+    private var userLat: Double? = null
+    private var userLon: Double? = null
 
     private var lastStationsSignature: String? = null
 
@@ -65,6 +75,12 @@ class StationRecommendationDelegate @Inject constructor(
         updateBestStation()
     }
 
+    fun updateUserLocation(lat: Double?, lon: Double?) {
+        this.userLat = lat
+        this.userLon = lon
+        updateBestStation()
+    }
+
     fun loadStations(scope: CoroutineScope) {
         scope.launch {
             try {
@@ -88,17 +104,40 @@ class StationRecommendationDelegate @Inject constructor(
 
     fun updateBestStation() {
         val fuelType = _selectedFuelType.value
-        val withFuel = _stations.value.filter { s -> s.fuelTypes.any { it.type == fuelType } }
-        val candidates = if (withFuel.isNotEmpty()) withFuel else _stations.value
-        val best = candidates.minByOrNull { s ->
-            getBestStationsUseCase.calculateScore(s, fuelType)
+        val currentStations = _stations.value
+
+        if (currentStations.isEmpty()) {
+            _bestStation.value = null
+            _bestStationUiState.value = BestStationUiState(
+                isLoading = false,
+                recommendation = null,
+                alternatives = emptyList(),
+                error = null
+            )
+            return
         }
-        if (_bestStation.value != best) {
-            _bestStation.value = best
-            if (best != null) {
+
+        val result: BestStationResult = bestStationUseCase.execute(
+            stations = currentStations,
+            fuelType = fuelType,
+            userLat = userLat,
+            userLon = userLon
+        )
+
+        val bestStationModel = result.best?.station
+        if (_bestStation.value != bestStationModel) {
+            _bestStation.value = bestStationModel
+            if (bestStationModel != null) {
                 val elapsed = System.currentTimeMillis() - com.navrot.aifuelassistant.data.diagnostics.MapDiagnosticsTracker.t0Ms
-                Timber.tag("StartupTimeline").i("T+%dms recommendation_shown (%s)", elapsed, best.name)
+                Timber.tag("StartupTimeline").i("T+%dms recommendation_shown (%s)", elapsed, bestStationModel.name)
             }
         }
+
+        _bestStationUiState.value = BestStationUiState(
+            isLoading = false,
+            recommendation = result.best,
+            alternatives = result.alternatives.take(2),
+            error = null
+        )
     }
 }

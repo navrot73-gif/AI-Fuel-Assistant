@@ -80,6 +80,7 @@ import com.navrot.aifuelassistant.ui.AddFuelRecordRoute
 import com.navrot.aifuelassistant.ui.MapBuildRouteRoute
 import com.navrot.aifuelassistant.ui.MapShowStationsRoute
 import com.navrot.aifuelassistant.ui.NavRoute
+import com.navrot.aifuelassistant.features.dashboard.components.BestStationCard
 import com.navrot.aifuelassistant.ui.map.components.LocationPermissionHandler
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
@@ -103,6 +104,9 @@ fun DashboardScreen(
     val pendingRouteMode by viewModel.pendingRouteMode.collectAsStateWithLifecycle()
     val pendingOpenStationId by viewModel.pendingOpenStationId.collectAsStateWithLifecycle()
     val chatMessages by viewModel.chatMessages.collectAsStateWithLifecycle(initialValue = emptyList())
+    val bestStationUiState by viewModel.bestStationUiState.collectAsStateWithLifecycle()
+    val selectedFuelType by viewModel.selectedFuelType.collectAsStateWithLifecycle()
+    val userLocation by viewModel.userLocation.collectAsStateWithLifecycle()
 
     val consumption = metrics.consumption
     val efficiency = metrics.efficiency
@@ -266,6 +270,21 @@ fun DashboardScreen(
                 } else {
                     navController.navigate(NavRoute.Garage)
                 }
+            },
+            modifier = Modifier.padding(horizontal = 16.dp)
+        )
+
+        // ===== 3.1. ЛУЧШАЯ АЗС СЕЙЧАС =====
+        BestStationCard(
+            uiState = bestStationUiState,
+            selectedFuelType = selectedFuelType,
+            userLat = userLocation?.first,
+            userLon = userLocation?.second,
+            onRouteClick = { stationId ->
+                navController.navigate(MapBuildRouteRoute(stationId))
+            },
+            onRefreshClick = {
+                viewModel.askUserQuestion("Обнови лучшие АЗС")
             },
             modifier = Modifier.padding(horizontal = 16.dp)
         )
