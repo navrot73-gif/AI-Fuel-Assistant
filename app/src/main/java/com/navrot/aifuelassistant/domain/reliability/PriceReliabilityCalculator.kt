@@ -3,26 +3,13 @@ package com.navrot.aifuelassistant.domain.reliability
 import com.navrot.aifuelassistant.data.model.FuelDataSource
 import com.navrot.aifuelassistant.data.model.FuelPrice
 import com.navrot.aifuelassistant.data.model.GasStation
-import com.navrot.aifuelassistant.data.model.isKnownClosed
+import com.navrot.aifuelassistant.domain.intelligence.FuelIntelligenceResolver
 
 object PriceReliabilityCalculator {
 
     const val FRESHNESS_THRESHOLD_MS = 8 * 60 * 60 * 1000L // 8 часов
     const val RUSSIABASE_FRESHNESS_THRESHOLD_MS = 24 * 60 * 60 * 1000L // 24 часа
 
-    /**
-     * In-memory кеш для calculate() и calculateFuelAvailability().
-     *
-     * Ключ: stationId + fuelType + priceUpdatedAt + stationUpdatedAt + (source, photoBonus, sourceCount)
-     * Значение: PriceReliability (для calculate) или FuelAvailabilityStatus (для calculateFuelAvailability).
-     *
-     * Размер кеша ограничен 256 записями (≈100 станций × 2-3 типа топлива).
-     * Инвалидация: при изменении любого компонента ключа кеш автоматически miss'ит,
-     * потому что ключ включает `updatedAt` и `source`.
-     *
-     * Потокобезопасность: synchronized-блок достаточен — методы calculate() короткие,
-     * contention минимален. Для UI-потока это ~1-5 мкс на попадание.
-     */
     private const val CACHE_MAX_SIZE = 256
     private data class CacheKey(
         val stationId: Int,
@@ -43,31 +30,11 @@ object PriceReliabilityCalculator {
     private val reliabilityCache = LinkedHashMap<CacheKey, CacheEntry<PriceReliability>>(CACHE_MAX_SIZE, 0.75f, true)
     private val availabilityCache = LinkedHashMap<CacheKey, CacheEntry<FuelAvailabilityStatus>>(CACHE_MAX_SIZE, 0.75f, true)
 
-    private fun <T> LinkedHashMap<CacheKey, CacheEntry<T>>.getOrPut(
-        key: CacheKey,
-        compute: () -> CacheEntry<T>
-    ): CacheEntry<T> = synchronized(this) {
-        // LRU: удаляем старейший если переполнен
-        while (size >= CACHE_MAX_SIZE) {
-            val oldest = keys.iterator()
-            if (oldest.hasNext()) {
-                oldest.next()
-                oldest.remove()
-            } else break
-        }
-        get(key) ?: compute().also { put(key, it) }
-    }
-
     fun clearCache() {
         synchronized(reliabilityCache) { reliabilityCache.clear() }
         synchronized(availabilityCache) { availabilityCache.clear() }
     }
 
-    /**
-     * Строит ключ кеша для станции. Включает все поля, от которых зависит результат:
-     * stationId, fuelType, updatedAt (для инвалидации по времени), source/sourceCount (для бонуса),
-     * available (для calculateFuelAvailability), hasPhoto (для бонуса reliability).
-     */
     private fun buildKey(station: GasStation, fuelType: String?, fuelPrice: FuelPrice?): CacheKey {
         val photoBonus = fuelPrice?.photoEvidence != null ||
                 station.photoEvidence.isNotEmpty() ||
@@ -90,28 +57,19 @@ object PriceReliabilityCalculator {
         fuelType: String? = null,
         currentTimeMs: Long = System.currentTimeMillis()
     ): FuelAvailabilityStatus {
-        val fuelPrice = if (fuelType != null) {
-            station.fuelTypes.find { it.type == fuelType }
-        } else {
-            station.fuelTypes.firstOrNull()
-        } ?: return FuelAvailabilityStatus.UNKNOWN
+        val targetFuelType = fuelType ?: station.fuelTypes.firstOrNull()?.type ?: return FuelAvailabilityStatus.UNKNOWN
+        val fuelPrice = station.fuelTypes.find { it.type == targetFuelType } ?: return FuelAvailabilityStatus.UNKNOWN
 
-        // Кеш: ключ включает все поля, от которых зависит результат + текущее время, округлённое до минуты
-        // (чтобы кеш оставался валидным секунду, а не miss'ил из-за каждого тика часов).
-        // currentTimeMs зависит от тика — поэтому округляем до минуты в ключе НЕ включаем,
-        // а вместо этого инвалидируем через diffMs в compute.
-        val cacheKey = buildKey(station, fuelType, fuelPrice)
-
+        val cacheKey = buildKey(station, targetFuelType, fuelPrice)
         val cached = synchronized(availabilityCache) { availabilityCache[cacheKey] }
         if (cached != null) {
-            // Если вычислялось недавно и station не изменилась — отдаём как есть,
-            // даже если currentTimeMs слегка сдвинулся (но в пределах freshness threshold).
             val ageSinceCompute = currentTimeMs - cached.computedAtMs
             if (ageSinceCompute < 60_000L) return cached.reliability
-            // Иначе пересчитываем только если результат зависит от времени
         }
 
-        val status = computeAvailability(fuelPrice, station, currentTimeMs)
+        val snapshot = FuelIntelligenceResolver.resolveSnapshot(station, targetFuelType, currentTimeMs)
+        val status = snapshot.availability
+
         synchronized(availabilityCache) {
             while (availabilityCache.size >= CACHE_MAX_SIZE) {
                 val it = availabilityCache.keys.iterator()
@@ -120,38 +78,6 @@ object PriceReliabilityCalculator {
             availabilityCache[cacheKey] = CacheEntry(status, null, currentTimeMs)
         }
         return status
-    }
-
-    private fun computeAvailability(
-        fuelPrice: FuelPrice,
-        station: GasStation,
-        currentTimeMs: Long
-    ): FuelAvailabilityStatus {
-        val timestamp = when {
-            fuelPrice.updatedAt > 0L -> fuelPrice.updatedAt
-            station.updatedAt > 0L -> station.updatedAt
-            else -> 0L
-        }
-
-        if (timestamp <= 0L) return FuelAvailabilityStatus.UNKNOWN
-
-        val diffMs = maxOf(0L, currentTimeMs - timestamp)
-
-        if (fuelPrice.source == FuelDataSource.RUSSIABASE || station.dataSources.contains(FuelDataSource.RUSSIABASE)) {
-            if (!fuelPrice.available || station.isKnownClosed()) {
-                if (diffMs <= RUSSIABASE_FRESHNESS_THRESHOLD_MS) {
-                    return FuelAvailabilityStatus.NO_FUEL
-                }
-            }
-        }
-
-        val threshold = if (fuelPrice.source == FuelDataSource.RUSSIABASE) RUSSIABASE_FRESHNESS_THRESHOLD_MS else FRESHNESS_THRESHOLD_MS
-
-        return if (diffMs <= threshold) {
-            if (fuelPrice.available) FuelAvailabilityStatus.AVAILABLE else FuelAvailabilityStatus.NO_FUEL
-        } else {
-            FuelAvailabilityStatus.UNKNOWN
-        }
     }
 
     fun calculate(
@@ -168,8 +94,6 @@ object PriceReliabilityCalculator {
         val cacheKey = buildKey(station, fuelType, fuelPrice)
         val cached = synchronized(reliabilityCache) { reliabilityCache[cacheKey] }
         if (cached != null) {
-            // Reliability зависит от currentTimeMs (через ageDays), но в пределах 1 дня
-            // разница мизерная — кешируем на 60 секунд.
             val ageSinceCompute = currentTimeMs - cached.computedAtMs
             if (ageSinceCompute < 60_000L) return cached.reliability
         }
@@ -200,7 +124,7 @@ object PriceReliabilityCalculator {
             val diffMs = maxOf(0L, currentTimeMs - timestamp)
             (diffMs / (1000L * 60 * 60 * 24)).toInt()
         } else {
-            30 // Изначальные данные из assets без timestamp считаются давними (> 7 дней)
+            30
         }
 
         val source = determinePriceSource(fuelPrice, station)

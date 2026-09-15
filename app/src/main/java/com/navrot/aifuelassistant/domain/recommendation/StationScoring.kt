@@ -178,12 +178,12 @@ object StationScoring {
         val availOrderA = when (availA) {
             FuelAvailabilityStatus.AVAILABLE -> 2
             FuelAvailabilityStatus.UNKNOWN -> 1
-            FuelAvailabilityStatus.NO_FUEL -> 0
+            FuelAvailabilityStatus.UNAVAILABLE, FuelAvailabilityStatus.NO_FUEL -> 0
         }
         val availOrderB = when (availB) {
             FuelAvailabilityStatus.AVAILABLE -> 2
             FuelAvailabilityStatus.UNKNOWN -> 1
-            FuelAvailabilityStatus.NO_FUEL -> 0
+            FuelAvailabilityStatus.UNAVAILABLE, FuelAvailabilityStatus.NO_FUEL -> 0
         }
         val availComp = availOrderB.compareTo(availOrderA)
         if (availComp != 0) return availComp

@@ -246,12 +246,12 @@ private fun BestStationContent(
         val availText = when (availability) {
             FuelAvailabilityStatus.AVAILABLE -> "✓ Топливо есть"
             FuelAvailabilityStatus.UNKNOWN -> "Наличие не подтверждено"
-            FuelAvailabilityStatus.NO_FUEL -> "Нет топлива"
+            FuelAvailabilityStatus.UNAVAILABLE, FuelAvailabilityStatus.NO_FUEL -> "Нет топлива"
         }
         val availColor = when (availability) {
             FuelAvailabilityStatus.AVAILABLE -> Color(0xFF3ECDB0)
             FuelAvailabilityStatus.UNKNOWN -> Color(0xFFF5A94E)
-            FuelAvailabilityStatus.NO_FUEL -> Color(0xFFFF6F61)
+            FuelAvailabilityStatus.UNAVAILABLE, FuelAvailabilityStatus.NO_FUEL -> Color(0xFFFF6F61)
         }
 
         Text(

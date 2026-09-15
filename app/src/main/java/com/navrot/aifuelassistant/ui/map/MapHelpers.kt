@@ -85,7 +85,7 @@ fun getMarkerColor(station: GasStation, selectedFuelTypes: Set<String>): Color {
     val selectedFuelType = selectedFuelTypes.firstOrNull()
     return when (PriceReliabilityCalculator.calculateFuelAvailability(station, selectedFuelType)) {
         FuelAvailabilityStatus.AVAILABLE -> FueldeckColors.Mint // 🟢 зелёный
-        FuelAvailabilityStatus.NO_FUEL -> FueldeckColors.Coral  // 🔴 красный
+        FuelAvailabilityStatus.UNAVAILABLE, FuelAvailabilityStatus.NO_FUEL -> FueldeckColors.Coral  // 🔴 красный
         FuelAvailabilityStatus.UNKNOWN -> FueldeckColors.InkFaint // ⚪ серый
     }
 }
@@ -97,7 +97,7 @@ fun buildStationSnippet(station: GasStation, selectedFuelTypes: Set<String>): St
             val tilde = if (it.isMedianFromNetwork) "~" else ""
             val statusStr = when (PriceReliabilityCalculator.calculateFuelAvailability(station, it.type)) {
                 FuelAvailabilityStatus.AVAILABLE -> "🟢"
-                FuelAvailabilityStatus.NO_FUEL -> "🔴"
+                FuelAvailabilityStatus.UNAVAILABLE, FuelAvailabilityStatus.NO_FUEL -> "🔴"
                 FuelAvailabilityStatus.UNKNOWN -> "⚪"
             }
             "${it.type}: $statusStr $tilde${Format.price(it.price)}₽"
