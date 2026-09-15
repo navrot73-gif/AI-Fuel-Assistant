@@ -17,8 +17,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -52,6 +50,7 @@ fun AddFuelRecordScreen(
     var pricePerLiter by remember { mutableStateOf("") }
     var selectedFuelType by remember { mutableStateOf(defaultFuelType) }
     var stationName by remember { mutableStateOf("") }
+    var isFullTank by remember { mutableStateOf(true) }
     var notes by remember { mutableStateOf("") }
 
     var latitude by remember { mutableStateOf<Double?>(null) }
@@ -206,6 +205,18 @@ fun AddFuelRecordScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Полный бак", style = MaterialTheme.typography.bodyLarge)
+                Switch(
+                    checked = isFullTank,
+                    onCheckedChange = { isFullTank = it }
+                )
+            }
+
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = {
@@ -278,7 +289,8 @@ fun AddFuelRecordScreen(
                                 stationName = stationName,
                                 notes = notes,
                                 latitude = latitude,
-                                longitude = longitude
+                                longitude = longitude,
+                                fullTank = isFullTank
                             )
                         )
                         onBack()

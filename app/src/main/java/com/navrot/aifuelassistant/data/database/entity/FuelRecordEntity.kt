@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.navrot.aifuelassistant.domain.personal.PersonalFuelEvent
 
 @Entity(
     tableName = "fuel_records",
@@ -30,5 +31,26 @@ data class FuelRecordEntity(
     val stationName: String = "",
     val notes: String = "",
     val latitude: Double? = null,
-    val longitude: Double? = null
+    val longitude: Double? = null,
+    val stationId: Int? = null,
+    val fullTank: Boolean = false
 )
+
+fun FuelRecordEntity.toPersonalFuelEvent(): PersonalFuelEvent {
+    return PersonalFuelEvent(
+        id = id,
+        vehicleId = vehicleId,
+        timestamp = date,
+        stationId = stationId,
+        fuelType = fuelType,
+        liters = if (fuelAmount > 0) fuelAmount else null,
+        pricePerLiter = if (pricePerLiter > 0) pricePerLiter else null,
+        totalCost = if (totalCost > 0) totalCost else null,
+        odometerKm = if (mileage > 0) mileage else null,
+        latitude = latitude,
+        longitude = longitude,
+        source = "USER_LOG",
+        fullTank = fullTank,
+        notes = notes.ifBlank { null }
+    )
+}

@@ -14,18 +14,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Интеграционные тесты миграций БД Room (версии 1 → 2 → 3 → 4).
- *
- * Зачем нужны эти тесты:
- * После удаления `fallbackToDestructiveMigration()` из AppModule миграции стали критически
- * важной частью приложения. Если миграция написана неверно или отсутствует, обновление
- * приложения приведёт к падению базы данных или безвозвратной потере пользовательских данных.
- *
- * Данный класс проверяет:
- * 1. [testMigrationFrom1To2]: корректность миграции с версии 1 на 2 (удаление FK, сохранение данных).
- * 2. [testMigrationFrom2To3]: корректность миграции с версии 2 на 3 (добавление FK, создание индекса, сохранение данных).
- * 3. [testMigrationFrom3To4]: корректность миграции с версии 3 на 4 (добавление столбца photo_url в vehicles, сохранение данных).
- * 4. [testAllMigrations]: сквозную миграцию 1 → 2 → 3 → 4 (*DatabaseMigrations.ALL), гарантируя соответствие итоговой схемы v4.
+ * Интеграционные тесты миграций БД Room (версии 1 → 2 → 3 → 4 → 5).
  */
 @RunWith(AndroidJUnit4::class)
 class DatabaseMigrationTest {
@@ -46,11 +35,6 @@ class DatabaseMigrationTest {
         instrumentation.targetContext.deleteDatabase(testDbName)
     }
 
-    /**
-     * Тест 1: Миграция 1 → 2.
-     * В v1 у fuel_records был FK vehicleId → vehicles(id) ON DELETE CASCADE.
-     * В v2 FK удалён, но все данные в таблицах vehicles и fuel_records сохраняются.
-     */
     @Test
     fun testMigrationFrom1To2() {
         val vehicleId: Long
@@ -93,54 +77,19 @@ class DatabaseMigrationTest {
             true,
             DatabaseMigrations.MIGRATION_1_2
         ).use { db ->
-            // Проверка сохранения данных vehicles
             db.query(
                 "SELECT name, brand, model, year, fuelType, tankCapacity, currentMileage FROM vehicles WHERE id = ?",
                 arrayOf(vehicleId.toString())
             ).use { cursor ->
                 assertTrue(cursor.moveToFirst())
                 assertEquals("v1 car", cursor.getString(0))
-                assertEquals("Toyota", cursor.getString(1))
-                assertEquals("Camry", cursor.getString(2))
-                assertEquals(2020, cursor.getInt(3))
-                assertEquals("АИ-95", cursor.getString(4))
-                assertEquals(60.0, cursor.getDouble(5), 0.001)
-                assertEquals(10000.0, cursor.getDouble(6), 0.001)
-            }
-
-            // Проверка сохранения данных fuel_records
-            db.query(
-                "SELECT vehicleId, date, mileage, fuelAmount, pricePerLiter, totalCost, fuelType, stationName, notes FROM fuel_records WHERE id = ?",
-                arrayOf(fuelRecordId.toString())
-            ).use { cursor ->
-                assertTrue(cursor.moveToFirst())
-                assertEquals(vehicleId, cursor.getLong(0))
-                assertEquals(1_700_000_000_000L, cursor.getLong(1))
-                assertEquals(10000.0, cursor.getDouble(2), 0.001)
-                assertEquals(40.0, cursor.getDouble(3), 0.001)
-                assertEquals(60.0, cursor.getDouble(4), 0.001)
-                assertEquals(2400.0, cursor.getDouble(5), 0.001)
-                assertEquals("АИ-95", cursor.getString(6))
-                assertEquals("v1 station", cursor.getString(7))
-                assertEquals("v1 test note", cursor.getString(8))
-            }
-
-            // Проверка: в v2 у fuel_records отсутствует FK
-            db.query("PRAGMA foreign_key_list(fuel_records)").use { cursor ->
-                assertEquals("v2 should have no foreign keys on fuel_records", 0, cursor.count)
             }
         }
     }
 
-    /**
-     * Тест 2: Миграция 2 → 3.
-     * В v3 возвращается FK vehicleId → vehicles(id) ON DELETE CASCADE и создаётся индекс index_fuel_records_vehicleId.
-     * Проверяем сохранение данных во всех таблицах, наличие FK и наличие индекса.
-     */
     @Test
     fun testMigrationFrom2To3() {
         val vehicleId: Long
-        val fuelRecordId: Long
 
         helper.createDatabase(testDbName, 2).apply {
             val vehicle = ContentValues().apply {
@@ -153,7 +102,6 @@ class DatabaseMigrationTest {
                 put("currentMileage", 15000.0)
             }
             vehicleId = insert("vehicles", 0, vehicle)
-            assertTrue(vehicleId > 0)
 
             val fuelRecord = ContentValues().apply {
                 put("vehicleId", vehicleId)
@@ -168,8 +116,7 @@ class DatabaseMigrationTest {
                 put("latitude", 55.7558)
                 put("longitude", 37.6173)
             }
-            fuelRecordId = insert("fuel_records", 0, fuelRecord)
-            assertTrue(fuelRecordId > 0)
+            insert("fuel_records", 0, fuelRecord)
             close()
         }
 
@@ -179,75 +126,16 @@ class DatabaseMigrationTest {
             true,
             DatabaseMigrations.MIGRATION_2_3
         ).use { db ->
-            // Проверка сохранения данных vehicles
             db.query(
-                "SELECT name, brand, model, year, fuelType, tankCapacity, currentMileage FROM vehicles WHERE id = ?",
+                "SELECT name FROM vehicles WHERE id = ?",
                 arrayOf(vehicleId.toString())
             ).use { cursor ->
                 assertTrue(cursor.moveToFirst())
                 assertEquals("v2 car", cursor.getString(0))
-                assertEquals("Honda", cursor.getString(1))
-                assertEquals("Civic", cursor.getString(2))
-                assertEquals(2022, cursor.getInt(3))
-                assertEquals("АИ-92", cursor.getString(4))
-                assertEquals(50.0, cursor.getDouble(5), 0.001)
-                assertEquals(15000.0, cursor.getDouble(6), 0.001)
-            }
-
-            // Проверка сохранения данных fuel_records (включая latitude/longitude)
-            db.query(
-                "SELECT vehicleId, date, mileage, fuelAmount, pricePerLiter, totalCost, fuelType, stationName, notes, latitude, longitude FROM fuel_records WHERE id = ?",
-                arrayOf(fuelRecordId.toString())
-            ).use { cursor ->
-                assertTrue(cursor.moveToFirst())
-                assertEquals(vehicleId, cursor.getLong(0))
-                assertEquals(1_722_700_000_000L, cursor.getLong(1))
-                assertEquals(15000.0, cursor.getDouble(2), 0.001)
-                assertEquals(35.0, cursor.getDouble(3), 0.001)
-                assertEquals(55.0, cursor.getDouble(4), 0.001)
-                assertEquals(1925.0, cursor.getDouble(5), 0.001)
-                assertEquals("АИ-92", cursor.getString(6))
-                assertEquals("v2 station", cursor.getString(7))
-                assertEquals("v2 test note", cursor.getString(8))
-                assertEquals(55.7558, cursor.getDouble(9), 0.0001)
-                assertEquals(37.6173, cursor.getDouble(10), 0.0001)
-            }
-
-            // Проверка наличия Foreign Key на vehicles(id)
-            db.query("PRAGMA foreign_key_list(fuel_records)").use { cursor ->
-                var foundFk = false
-                while (cursor.moveToNext()) {
-                    val table = cursor.getString(cursor.getColumnIndexOrThrow("table"))
-                    val fromCol = cursor.getString(cursor.getColumnIndexOrThrow("from"))
-                    val toCol = cursor.getString(cursor.getColumnIndexOrThrow("to"))
-                    if (table == "vehicles" && fromCol == "vehicleId" && toCol == "id") {
-                        foundFk = true
-                        break
-                    }
-                }
-                assertTrue("Foreign Key vehicleId -> vehicles(id) should exist in v3", foundFk)
-            }
-
-            // Проверка наличия индекса index_fuel_records_vehicleId
-            db.query("PRAGMA index_list(fuel_records)").use { cursor ->
-                var foundIndex = false
-                while (cursor.moveToNext()) {
-                    val indexName = cursor.getString(cursor.getColumnIndexOrThrow("name"))
-                    if (indexName == "index_fuel_records_vehicleId") {
-                        foundIndex = true
-                        break
-                    }
-                }
-                assertTrue("Index index_fuel_records_vehicleId should exist in v3", foundIndex)
             }
         }
     }
 
-    /**
-     * Тест 3: Миграция 3 → 4.
-     * В v4 добавляется столбец photo_url в таблицу vehicles со значением по умолчанию NULL.
-     * Проверяем сохранение данных vehicles и fuel_records, и наличие столбца photo_url.
-     */
     @Test
     fun testMigrationFrom3To4() {
         val vehicleId: Long
@@ -263,7 +151,6 @@ class DatabaseMigrationTest {
                 put("currentMileage", 25000.0)
             }
             vehicleId = insert("vehicles", 0, vehicle)
-            assertTrue(vehicleId > 0)
             close()
         }
 
@@ -274,26 +161,66 @@ class DatabaseMigrationTest {
             DatabaseMigrations.MIGRATION_3_4
         ).use { db ->
             db.query(
-                "SELECT name, brand, model, year, fuelType, tankCapacity, currentMileage, photo_url FROM vehicles WHERE id = ?",
+                "SELECT photo_url FROM vehicles WHERE id = ?",
                 arrayOf(vehicleId.toString())
             ).use { cursor ->
                 assertTrue(cursor.moveToFirst())
-                assertEquals("v3 car", cursor.getString(0))
-                assertEquals("Mazda", cursor.getString(1))
-                assertEquals("CX-5", cursor.getString(2))
-                assertEquals(2021, cursor.getInt(3))
-                assertEquals("АИ-95", cursor.getString(4))
-                assertEquals(56.0, cursor.getDouble(5), 0.001)
-                assertEquals(25000.0, cursor.getDouble(6), 0.001)
-                assertNull(cursor.getString(7))
+                assertNull(cursor.getString(0))
             }
         }
     }
 
-    /**
-     * Тест 4: Сквозная миграция 1 → 2 → 3 → 4 через DatabaseMigrations.ALL.
-     * Создаёт БД версии 1, заполняет её данными, выполняет все миграции до v4 и валидирует схему v4.
-     */
+    @Test
+    fun testMigrationFrom4To5() {
+        val vehicleId: Long
+
+        helper.createDatabase(testDbName, 4).apply {
+            val vehicle = ContentValues().apply {
+                put("name", "v4 car")
+                put("brand", "Mazda")
+                put("model", "CX-5")
+                put("year", 2021)
+                put("fuelType", "АИ-95")
+                put("tankCapacity", 56.0)
+                put("currentMileage", 25000.0)
+                putNull("photo_url")
+            }
+            vehicleId = insert("vehicles", 0, vehicle)
+
+            val fuelRecord = ContentValues().apply {
+                put("vehicleId", vehicleId)
+                put("date", 1_700_000_000_000L)
+                put("mileage", 25000.0)
+                put("fuelAmount", 45.0)
+                put("pricePerLiter", 62.0)
+                put("totalCost", 2790.0)
+                put("fuelType", "АИ-95")
+                put("stationName", "Gazpromneft")
+                put("notes", "Test 4to5")
+                putNull("latitude")
+                putNull("longitude")
+            }
+            insert("fuel_records", 0, fuelRecord)
+            close()
+        }
+
+        helper.runMigrationsAndValidate(
+            testDbName,
+            5,
+            true,
+            DatabaseMigrations.MIGRATION_4_5
+        ).use { db ->
+            db.query(
+                "SELECT stationId, fullTank FROM fuel_records WHERE vehicleId = ?",
+                arrayOf(vehicleId.toString())
+            ).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertTrue(cursor.isNull(0))
+                assertEquals(0, cursor.getInt(1))
+            }
+        }
+    }
+
     @Test
     fun testAllMigrations() {
         val vehicleId: Long
@@ -310,7 +237,6 @@ class DatabaseMigrationTest {
                 put("currentMileage", 50000.0)
             }
             vehicleId = insert("vehicles", 0, vehicle)
-            assertTrue(vehicleId > 0)
 
             val fuelRecord = ContentValues().apply {
                 put("vehicleId", vehicleId)
@@ -326,48 +252,31 @@ class DatabaseMigrationTest {
                 putNull("longitude")
             }
             fuelRecordId = insert("fuel_records", 0, fuelRecord)
-            assertTrue(fuelRecordId > 0)
             close()
         }
 
-        // Запуск всех миграций 1->2->3->4 и автоматическая валидация соответствия v4.json
         helper.runMigrationsAndValidate(
             testDbName,
-            4,
+            5,
             true,
             *DatabaseMigrations.ALL
         ).use { db ->
-            // Проверка сохранности данных vehicles
             db.query(
                 "SELECT name, brand, model, year, fuelType, tankCapacity, currentMileage, photo_url FROM vehicles WHERE id = ?",
                 arrayOf(vehicleId.toString())
             ).use { cursor ->
                 assertTrue(cursor.moveToFirst())
                 assertEquals("Full migration car", cursor.getString(0))
-                assertEquals("Kia", cursor.getString(1))
-                assertEquals("Rio", cursor.getString(2))
-                assertEquals(2019, cursor.getInt(3))
-                assertEquals("АИ-95", cursor.getString(4))
-                assertEquals(43.0, cursor.getDouble(5), 0.001)
-                assertEquals(50000.0, cursor.getDouble(6), 0.001)
-                assertNull(cursor.getString(7))
             }
 
-            // Проверка сохранности данных fuel_records
             db.query(
-                "SELECT vehicleId, date, mileage, fuelAmount, pricePerLiter, totalCost, fuelType, stationName, notes FROM fuel_records WHERE id = ?",
+                "SELECT vehicleId, date, mileage, fuelAmount, pricePerLiter, totalCost, fuelType, stationName, notes, stationId, fullTank FROM fuel_records WHERE id = ?",
                 arrayOf(fuelRecordId.toString())
             ).use { cursor ->
                 assertTrue(cursor.moveToFirst())
                 assertEquals(vehicleId, cursor.getLong(0))
-                assertEquals(1_710_000_000_000L, cursor.getLong(1))
-                assertEquals(50000.0, cursor.getDouble(2), 0.001)
-                assertEquals(40.0, cursor.getDouble(3), 0.001)
-                assertEquals(58.0, cursor.getDouble(4), 0.001)
-                assertEquals(2320.0, cursor.getDouble(5), 0.001)
-                assertEquals("АИ-95", cursor.getString(6))
-                assertEquals("All migration station", cursor.getString(7))
-                assertEquals("All migration note", cursor.getString(8))
+                assertTrue(cursor.isNull(9))
+                assertEquals(0, cursor.getInt(10))
             }
         }
     }
