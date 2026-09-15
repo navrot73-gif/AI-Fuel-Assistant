@@ -1,30 +1,17 @@
 package com.navrot.aifuelassistant.ui.vehicles
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,8 +21,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.navrot.aifuelassistant.domain.personal.CalculatePersonalFuelStatisticsUseCase
+import com.navrot.aifuelassistant.domain.personal.Period
+import com.navrot.aifuelassistant.domain.personal.toPersonalFuelEvent
 import com.navrot.aifuelassistant.ui.components.VehicleCard
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
+import com.navrot.aifuelassistant.util.Format
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -50,8 +41,13 @@ fun VehicleDetailScreen(
 ) {
     val vehicles by viewModel.vehiclesWithStats.collectAsStateWithLifecycle()
     val activeVehicleId by viewModel.activeVehicleId.collectAsStateWithLifecycle()
-    
+    val vehicleRecords by viewModel.getVehicleRecords(vehicleId).collectAsStateWithLifecycle(initialValue = emptyList())
+
     val vehicle = vehicles.find { it.id == vehicleId }
+    val personalEvents = remember(vehicleRecords) { vehicleRecords.map { it.toPersonalFuelEvent() } }
+    val stats = remember(personalEvents) {
+        CalculatePersonalFuelStatisticsUseCase().execute(vehicleId, personalEvents, Period.THIRTY_DAYS)
+    }
 
     Scaffold(
         topBar = {
@@ -119,22 +115,67 @@ fun VehicleDetailScreen(
             }
         },
     ) { padding ->
-        if (vehicle != null) {
-            val isActive = activeVehicleId == vehicle.id
-            VehicleCard(
-                state = vehicle,
-                isActive = isActive,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(padding)
-                    .padding(start = 16.dp, end = 16.dp, top = 16.dp),
-            )
-        } else {
-            Box(
-                modifier = modifier.padding(padding).fillMaxSize().background(FueldeckColors.Bg1),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("Автомобиль не найден", color = FueldeckColors.InkDim)
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            if (vehicle != null) {
+                val isActive = activeVehicleId == vehicle.id
+                VehicleCard(
+                    state = vehicle,
+                    isActive = isActive,
+                    modifier = Modifier.fillMaxWidth()
+                )
+
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = FueldeckColors.Surface),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("ЗА 30 ДНЕЙ", style = MaterialTheme.typography.titleMedium, color = FueldeckColors.Mint)
+                        if (stats.refuelCount == 0) {
+                            Text("Пока недостаточно данных", color = FueldeckColors.InkDim)
+                        } else {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Расход:", color = FueldeckColors.Ink)
+                                Text(
+                                    text = if (stats.averageConsumption != null) "${Format.number(stats.averageConsumption, 1)} л/100 км" else "Недостаточно данных",
+                                    fontWeight = FontWeight.Bold,
+                                    color = FueldeckColors.Ink
+                                )
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Топливо:", color = FueldeckColors.Ink)
+                                Text(
+                                    text = if (stats.totalLiters != null) "${Format.number(stats.totalLiters, 1)} л" else "—",
+                                    color = FueldeckColors.Ink
+                                )
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Потрачено:", color = FueldeckColors.Ink)
+                                Text(
+                                    text = if (stats.totalFuelCost != null) Format.price(stats.totalFuelCost) else "—",
+                                    color = FueldeckColors.Ink
+                                )
+                            }
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                Text("Заправок:", color = FueldeckColors.Ink)
+                                Text(text = "${stats.refuelCount}", color = FueldeckColors.Ink)
+                            }
+                        }
+                    }
+                }
+            } else {
+                Box(
+                    modifier = modifier.fillMaxSize().background(FueldeckColors.Bg1),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text("Автомобиль не найден", color = FueldeckColors.InkDim)
+                }
             }
         }
     }

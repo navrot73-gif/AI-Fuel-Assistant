@@ -9,6 +9,7 @@ import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.ui.components.VehicleCardUiState
 import com.navrot.aifuelassistant.util.Format
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -32,6 +33,10 @@ open class VehicleViewModel @Inject constructor(
 
     fun setActiveVehicle(vehicleId: Long?) {
         _activeVehicleId.value = vehicleId
+    }
+
+    fun getVehicleRecords(vehicleId: Long): Flow<List<FuelRecordEntity>> {
+        return fuelRecordRepository.getByVehicleId(vehicleId)
     }
 
     val vehiclesWithStats: StateFlow<List<VehicleCardUiState>> = combine(
