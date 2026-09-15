@@ -67,6 +67,7 @@ class DashboardViewModel @Inject constructor(
     val selectedFuelType: StateFlow<String> = recommendationDelegate.selectedFuelType
     val stations: StateFlow<List<GasStation>> = recommendationDelegate.stations
     val bestStation: StateFlow<GasStation?> = recommendationDelegate.bestStation
+    val bestStationUiState: StateFlow<BestStationUiState> = recommendationDelegate.bestStationUiState
     val vehicles: StateFlow<List<VehicleEntity>> = recommendationDelegate.vehicles
     val selectedVehicleId: StateFlow<Long?> = recommendationDelegate.selectedVehicleId
 
@@ -90,6 +91,7 @@ class DashboardViewModel @Inject constructor(
 
     fun updateUserLocation(lat: Double, lon: Double) {
         aiChatDelegate.updateUserLocation(lat, lon)
+        recommendationDelegate.updateUserLocation(lat, lon)
     }
 
     fun addChatMessage(message: ChatMessage) {
