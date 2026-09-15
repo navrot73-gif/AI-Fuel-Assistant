@@ -176,6 +176,7 @@ dependencies {
 
     // Maps
     implementation(libs.osmdroid)
+    implementation(libs.maplibre)
 
     // Desugaring
     coreLibraryDesugaring(libs.desugar)

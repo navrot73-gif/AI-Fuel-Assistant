@@ -6,6 +6,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.geo.GeoPoint
+import com.navrot.aifuelassistant.ui.map.renderer.MapLibreRenderer
 import com.navrot.aifuelassistant.ui.map.renderer.MapRenderer
 import com.navrot.aifuelassistant.ui.map.renderer.OsmMapRenderer
 import com.navrot.aifuelassistant.ui.map.renderer.StationMapMapper
@@ -23,9 +24,13 @@ fun OsmMapView(
     zoomOutRequest: Int = 0,
     focusPoint: OsmGeoPoint? = null,
     onStationClick: (GasStation) -> Unit,
+    mapEngine: String = "osmdroid",
     stationMapMapper: StationMapMapper = remember { StationMapMapper() },
-    renderer: MapRenderer = remember { OsmMapRenderer() }
+    renderer: MapRenderer? = null
 ) {
+    val activeRenderer = remember(renderer, mapEngine) {
+        renderer ?: if (mapEngine == "maplibre") MapLibreRenderer() else OsmMapRenderer()
+    }
     val stationItems = remember(stations, selectedFuelTypes) {
         stationMapMapper.mapToMapItems(stations, selectedFuelTypes)
     }
@@ -34,7 +39,7 @@ fun OsmMapView(
         focusPoint?.let { GeoPoint(it.latitude, it.longitude) }
     }
 
-    renderer.Render(
+    activeRenderer.Render(
         modifier = Modifier.fillMaxSize(),
         stationItems = stationItems,
         userLocation = userLocation,
