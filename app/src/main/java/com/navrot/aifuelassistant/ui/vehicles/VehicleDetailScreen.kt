@@ -21,9 +21,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.navrot.aifuelassistant.data.database.entity.toPersonalFuelEvent
 import com.navrot.aifuelassistant.domain.personal.CalculatePersonalFuelStatisticsUseCase
 import com.navrot.aifuelassistant.domain.personal.Period
-import com.navrot.aifuelassistant.domain.personal.toPersonalFuelEvent
 import com.navrot.aifuelassistant.ui.components.VehicleCard
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.util.Format
