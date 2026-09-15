@@ -100,12 +100,7 @@ fun MapScreen(
     val avgPrice by viewModel.avgPrice.collectAsStateWithLifecycle()
     val isOnline by viewModel.isOnline.collectAsStateWithLifecycle()
     val lastCacheUpdateMs by viewModel.lastCacheUpdateTime.collectAsStateWithLifecycle()
-    val vectorOfflineState by viewModel.vectorOfflineState.collectAsStateWithLifecycle()
     val showStraightLineBanner by viewModel.showStraightLineBanner.collectAsStateWithLifecycle()
-
-    LaunchedEffect(Unit) {
-        viewModel.checkOfflineRegions()
-    }
 
     val fuelTypes = listOf("АИ-92", "АИ-95", "АИ-98", "АИ-100", "ДТ", "Газ")
     val recommendationTriple = aiRecommendation?.let { Triple(it.station, it.fuel, it.distanceKm) }
@@ -334,30 +329,15 @@ fun MapScreen(
             )
 
             Box(modifier = Modifier.fillMaxSize()) {
-                if (mapEngine == UserPreferencesRepository.ENGINE_MAPLIBRE) {
-                    MapLibreView(
-                        userLocation = userLocation, stations = stations,
-                        selectedFuelTypes = selectedFuelTypes, route = route,
-                        isDarkMode = isDarkMode,
-                        recenterRequest = recenterTick,
-                        zoomInRequest = zoomInTick, zoomOutRequest = zoomOutTick,
-                        focusPoint = geocodedLocation?.let { Pair(it.latitude, it.longitude) },
-                        isOnline = isOnline,
-                        useClustering = true,  // Бэклог №10: кластеризация в стиле ГдеБЕНЗ
-                        mapStyleCache = viewModel.mapStyleCache,  // PR #185: локальный кеш Style JSON
-                        onStationClick = { selectedStation = it }
-                    )
-                } else {
-                    OsmMapView(
-                        userLocation = userLocation, stations = stations,
-                        selectedFuelTypes = selectedFuelTypes, route = route,
-                        isDarkMode = isDarkMode,
-                        recenterRequest = recenterTick,
-                        zoomInRequest = zoomInTick, zoomOutRequest = zoomOutTick,
-                        focusPoint = geocodedLocation?.let { OsmGeoPoint(it.latitude, it.longitude) },
-                        onStationClick = { selectedStation = it }
-                    )
-                }
+                OsmMapView(
+                    userLocation = userLocation, stations = stations,
+                    selectedFuelTypes = selectedFuelTypes, route = route,
+                    isDarkMode = isDarkMode,
+                    recenterRequest = recenterTick,
+                    zoomInRequest = zoomInTick, zoomOutRequest = zoomOutTick,
+                    focusPoint = geocodedLocation?.let { OsmGeoPoint(it.latitude, it.longitude) },
+                    onStationClick = { selectedStation = it }
+                )
 
                 LocationStatusIndicator(status = locationStatus, visible = userLocation == null)
 
@@ -561,98 +541,10 @@ fun MapScreen(
             text = {
                 Column {
                     Text(
-                        "Движок карты",
+                        "Движок карты: osmdroid",
                         style = MaterialTheme.typography.titleSmall,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { viewModel.setMapEngine(UserPreferencesRepository.ENGINE_OSMDROID) }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = (mapEngine == UserPreferencesRepository.ENGINE_OSMDROID),
-                            onClick = { viewModel.setMapEngine(UserPreferencesRepository.ENGINE_OSMDROID) }
-                        )
-                        Text("Классика (osmdroid)", modifier = Modifier.padding(start = 8.dp))
-                    }
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { viewModel.setMapEngine(UserPreferencesRepository.ENGINE_MAPLIBRE) }
-                            .padding(vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        RadioButton(
-                            selected = (mapEngine == UserPreferencesRepository.ENGINE_MAPLIBRE),
-                            onClick = { viewModel.setMapEngine(UserPreferencesRepository.ENGINE_MAPLIBRE) }
-                        )
-                        Text("Вектор (beta)", modifier = Modifier.padding(start = 8.dp))
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        "Офлайн-карта региона (Вектор)",
-                        style = MaterialTheme.typography.titleSmall,
-                        modifier = Modifier.padding(bottom = 8.dp)
-                    )
-
-                    when (val state = vectorOfflineState) {
-                        is VectorOfflineState.Idle -> {
-                            TextButton(
-                                onClick = { viewModel.downloadOfflineRegion() },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text("Скачать карту региона для офлайна (~20км)")
-                            }
-                        }
-                        is VectorOfflineState.Downloading -> {
-                            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                                Text(
-                                    "Загрузка: ${"%.1f".format(state.progressPercent)}% (${state.downloadedBytes / 1024 / 1024} МБ)",
-                                    style = MaterialTheme.typography.bodyMedium
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                androidx.compose.material3.LinearProgressIndicator(
-                                    progress = { state.progressPercent / 100f },
-                                    modifier = Modifier.fillMaxWidth()
-                                )
-                            }
-                        }
-                        is VectorOfflineState.Downloaded -> {
-                            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                                Text(
-                                    "✅ Регион доступен офлайн (${state.regionName}, ${"%.1f".format(state.sizeBytes / 1024.0 / 1024.0)} МБ)",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                TextButton(
-                                    onClick = { viewModel.deleteOfflineRegion(state.regionId) },
-                                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(
-                                        contentColor = MaterialTheme.colorScheme.error
-                                    )
-                                ) {
-                                    Text("Удалить офлайн-регион")
-                                }
-                            }
-                        }
-                        is VectorOfflineState.Error -> {
-                            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-                                Text(
-                                    "Ошибка: ${state.message}",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.error
-                                )
-                                Spacer(modifier = Modifier.height(4.dp))
-                                TextButton(onClick = { viewModel.downloadOfflineRegion() }) {
-                                    Text("Повторить загрузку")
-                                }
-                            }
-                        }
-                    }
 
                     Spacer(modifier = Modifier.height(16.dp))
                     TextButton(

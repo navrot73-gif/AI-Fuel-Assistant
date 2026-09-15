@@ -50,9 +50,9 @@ class UserPreferencesRepositoryTest {
     }
 
     @Test
-    fun `default mapEngine is maplibre`() = runTest {
+    fun `default mapEngine is osmdroid`() = runTest {
         val engine = repository.mapEngine.first()
-        assertEquals(UserPreferencesRepository.ENGINE_MAPLIBRE, engine)
+        assertEquals(UserPreferencesRepository.ENGINE_OSMDROID, engine)
     }
 
     @Test
