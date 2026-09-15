@@ -36,6 +36,7 @@ import com.navrot.aifuelassistant.data.providers.BenzonavtProvider
 import com.navrot.aifuelassistant.data.database.AppDatabase
 import com.navrot.aifuelassistant.data.database.DatabaseMigrations
 import com.navrot.aifuelassistant.data.database.dao.FuelRecordDao
+import com.navrot.aifuelassistant.data.database.dao.PredictionDao
 import com.navrot.aifuelassistant.data.database.dao.VehicleDao
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.geo.GeocodingProvider
@@ -58,16 +59,6 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Qualifier
 import javax.inject.Singleton
 
-/**
- * Квалификатор для [CoroutineScope], привязанного к жизненному циклу приложения.
- *
- * Используется в репозиториях и других @Singleton-компонентах, которым нужно
- * запускать фоновые корутины, не привязанные к конкретной ViewModel/Activity.
- *
- * Важно: такой scope должен быть создан с [SupervisorJob] (чтобы одна упавшая
- * корутина не отменяла сестер) и [CoroutineExceptionHandler] (чтобы неупавшая
- * ошибка не роняла процесс).
- */
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class ApplicationScope
@@ -94,7 +85,6 @@ object AppModule {
             AppDatabase::class.java,
             "ai_fuel_assistant_db"
         )
-            // Все явные миграции между версиями схемы.
             .addMigrations(*DatabaseMigrations.ALL)
             .addCallback(object : RoomDatabase.Callback() {
                 override fun onDestructiveMigration(db: SupportSQLiteDatabase) {
@@ -111,6 +101,10 @@ object AppModule {
     @Provides
     fun provideFuelRecordDao(database: AppDatabase): FuelRecordDao =
         database.fuelRecordDao()
+
+    @Provides
+    fun providePredictionDao(database: AppDatabase): PredictionDao =
+        database.predictionDao()
 
     @Provides
     @Singleton
@@ -139,8 +133,6 @@ object AppModule {
     fun provideDataStore(@ApplicationContext context: Context): DataStore<Preferences> {
         return context.userPreferencesDataStore
     }
-
-    // UserPreferencesRepository и UserPriceRepository имеют @Inject constructors
 
     @Provides
     @Singleton

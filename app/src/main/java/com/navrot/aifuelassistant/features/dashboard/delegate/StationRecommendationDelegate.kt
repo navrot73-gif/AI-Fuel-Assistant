@@ -1,19 +1,28 @@
 package com.navrot.aifuelassistant.features.dashboard.delegate
 
+import com.navrot.aifuelassistant.data.FuelRecordRepository
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.VehicleRepository
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
+import com.navrot.aifuelassistant.data.database.entity.toPersonalFuelEvent
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.stationListSignature
+import com.navrot.aifuelassistant.data.repository.PredictiveRepository
+import com.navrot.aifuelassistant.domain.predictive.TripCostPrediction
+import com.navrot.aifuelassistant.domain.predictive.usecase.PersonalStationPreferenceUseCase
+import com.navrot.aifuelassistant.domain.predictive.usecase.PredictConsumptionUseCase
+import com.navrot.aifuelassistant.domain.predictive.usecase.PredictTripFuelCostUseCase
 import com.navrot.aifuelassistant.domain.recommendation.BestStationUseCase
 import com.navrot.aifuelassistant.domain.recommendation.BestStationResult
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.features.dashboard.BestStationUiState
+import com.navrot.aifuelassistant.geo.GeoUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -23,6 +32,11 @@ class StationRecommendationDelegate @Inject constructor(
     private val gasStationRepository: GasStationRepositoryInterface,
     private val getBestStationsUseCase: GetBestStationsUseCase,
     private val bestStationUseCase: BestStationUseCase = BestStationUseCase(),
+    private val predictConsumptionUseCase: PredictConsumptionUseCase = PredictConsumptionUseCase(),
+    private val predictTripFuelCostUseCase: PredictTripFuelCostUseCase = PredictTripFuelCostUseCase(),
+    private val personalStationPreferenceUseCase: PersonalStationPreferenceUseCase = PersonalStationPreferenceUseCase(),
+    private val fuelRecordRepository: FuelRecordRepository? = null,
+    private val predictiveRepository: PredictiveRepository? = null
 ) {
     private val _vehicles = MutableStateFlow<List<VehicleEntity>>(emptyList())
     val vehicles: StateFlow<List<VehicleEntity>> = _vehicles.asStateFlow()
@@ -66,43 +80,44 @@ class StationRecommendationDelegate @Inject constructor(
         }
     }
 
-    fun selectVehicle(vehicleId: Long) {
+    fun selectVehicle(vehicleId: Long, scope: CoroutineScope? = null) {
         _selectedVehicleId.value = vehicleId
+        updateBestStation(scope)
     }
 
-    fun selectFuelType(fuelType: String) {
+    fun selectFuelType(fuelType: String, scope: CoroutineScope? = null) {
         _selectedFuelType.value = fuelType
-        updateBestStation()
+        updateBestStation(scope)
     }
 
-    fun updateUserLocation(lat: Double?, lon: Double?) {
+    fun updateUserLocation(lat: Double?, lon: Double?, scope: CoroutineScope? = null) {
         this.userLat = lat
         this.userLon = lon
-        updateBestStation()
+        updateBestStation(scope)
     }
 
     fun loadStations(scope: CoroutineScope) {
         scope.launch {
             try {
                 _stations.value = gasStationRepository.getAllStations()
-                updateBestStation()
+                updateBestStation(scope)
             } catch (e: Exception) {
                 Timber.tag(TAG).e(e, "Failed to load stations: %s", e.message)
             }
         }
     }
 
-    fun setStations(stations: List<GasStation>) {
+    fun setStations(stations: List<GasStation>, scope: CoroutineScope? = null) {
         val newSig = stations.stationListSignature()
         if (newSig == lastStationsSignature && _stations.value.isNotEmpty()) {
             return
         }
         lastStationsSignature = newSig
         _stations.value = stations
-        updateBestStation()
+        updateBestStation(scope)
     }
 
-    fun updateBestStation() {
+    fun updateBestStation(scope: CoroutineScope? = null) {
         val fuelType = _selectedFuelType.value
         val currentStations = _stations.value
 
@@ -139,5 +154,51 @@ class StationRecommendationDelegate @Inject constructor(
             alternatives = result.alternatives.take(2),
             error = null
         )
+
+        if (bestStationModel != null && scope != null && fuelRecordRepository != null) {
+            val vehicleId = _selectedVehicleId.value
+            if (vehicleId != null) {
+                scope.launch {
+                    try {
+                        val records = fuelRecordRepository.getByVehicleId(vehicleId).firstOrNull() ?: emptyList()
+                        val events = records.map { it.toPersonalFuelEvent() }
+                        val feedbacks = predictiveRepository?.getAllFeedbacks() ?: emptyList()
+
+                        val learning = personalStationPreferenceUseCase.getStationLearning(
+                            stationId = bestStationModel.id,
+                            events = events,
+                            feedbacks = feedbacks
+                        )
+
+                        val personalVisitCount = if (learning.refuelsCount > 0) learning.refuelsCount else null
+
+                        val consumptionPred = predictConsumptionUseCase(
+                            vehicleId = vehicleId,
+                            fuelType = fuelType,
+                            events = events
+                        )
+
+                        val distKm = if (userLat != null && userLon != null && userLat != 0.0 && userLon != 0.0) {
+                            GeoUtils.calculateDistance(userLat!!, userLon!!, bestStationModel.latitude, bestStationModel.longitude)
+                        } else null
+
+                        val expectedPrice = bestStationModel.fuelTypes.find { it.type == fuelType }?.price
+
+                        val tripCost = predictTripFuelCostUseCase(
+                            distanceKm = distKm,
+                            consumptionPrediction = consumptionPred,
+                            expectedPricePerLiter = expectedPrice
+                        )
+
+                        _bestStationUiState.value = _bestStationUiState.value.copy(
+                            tripCostPrediction = tripCost,
+                            personalVisitCount = personalVisitCount
+                        )
+                    } catch (e: Exception) {
+                        Timber.tag(TAG).w(e, "Error evaluating predictive stats for best station")
+                    }
+                }
+            }
+        }
     }
 }

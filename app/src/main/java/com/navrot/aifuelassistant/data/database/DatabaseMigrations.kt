@@ -100,6 +100,53 @@ object DatabaseMigrations {
         }
     }
 
+    val MIGRATION_5_6 = object : Migration(5, 6) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `prediction_outcomes` (
+                    `predictionId` TEXT NOT NULL,
+                    `vehicleId` INTEGER NOT NULL,
+                    `predictedValue` REAL NOT NULL,
+                    `actualValue` REAL NOT NULL,
+                    `absoluteError` REAL NOT NULL,
+                    `relativeError` REAL NOT NULL,
+                    `timestamp` INTEGER NOT NULL,
+                    PRIMARY KEY(`predictionId`)
+                )
+                """.trimIndent()
+            )
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `recommendation_feedbacks` (
+                    `id` TEXT NOT NULL,
+                    `recommendationId` TEXT NOT NULL,
+                    `recommendedStationId` INTEGER NOT NULL,
+                    `chosenStationId` INTEGER NOT NULL,
+                    `timestamp` INTEGER NOT NULL,
+                    `routeStarted` INTEGER NOT NULL,
+                    `routeCompleted` INTEGER NOT NULL,
+                    `refuelCompleted` INTEGER NOT NULL,
+                    `signal` TEXT NOT NULL,
+                    PRIMARY KEY(`id`)
+                )
+                """.trimIndent()
+            )
+            database.execSQL(
+                """
+                CREATE TABLE IF NOT EXISTS `personal_model_metadata` (
+                    `vehicleId` INTEGER NOT NULL,
+                    `modelVersion` INTEGER NOT NULL,
+                    `trainedSamples` INTEGER NOT NULL,
+                    `biasAdjustment` REAL NOT NULL,
+                    `lastUpdatedAt` INTEGER NOT NULL,
+                    PRIMARY KEY(`vehicleId`)
+                )
+                """.trimIndent()
+            )
+        }
+    }
+
     /** Полный список зарегистрированных миграций. Используется в [com.navrot.aifuelassistant.di.AppModule.provideDatabase]. */
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
 }

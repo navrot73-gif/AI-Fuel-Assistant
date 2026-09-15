@@ -8,9 +8,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -21,9 +23,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.data.database.entity.toPersonalFuelEvent
 import com.navrot.aifuelassistant.domain.personal.CalculatePersonalFuelStatisticsUseCase
 import com.navrot.aifuelassistant.domain.personal.Period
+import com.navrot.aifuelassistant.domain.predictive.ConsumptionPrediction
+import com.navrot.aifuelassistant.domain.predictive.NextRefuelPrediction
 import com.navrot.aifuelassistant.ui.components.VehicleCard
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.util.Format
@@ -47,6 +52,20 @@ fun VehicleDetailScreen(
     val personalEvents = remember(vehicleRecords) { vehicleRecords.map { it.toPersonalFuelEvent() } }
     val stats = remember(personalEvents) {
         CalculatePersonalFuelStatisticsUseCase().execute(vehicleId, personalEvents, Period.THIRTY_DAYS)
+    }
+
+    val consumptionPrediction by produceState<ConsumptionPrediction?>(initialValue = null, vehicle, vehicleRecords) {
+        val entity = viewModel.getVehicleEntity(vehicleId)
+        if (entity != null) {
+            value = viewModel.getConsumptionPrediction(entity, vehicleRecords)
+        }
+    }
+
+    val nextRefuelPrediction by produceState<NextRefuelPrediction?>(initialValue = null, vehicle, vehicleRecords) {
+        val entity = viewModel.getVehicleEntity(vehicleId)
+        if (entity != null) {
+            value = viewModel.getNextRefuelPrediction(entity, vehicleRecords)
+        }
     }
 
     Scaffold(
@@ -130,6 +149,69 @@ fun VehicleDetailScreen(
                     isActive = isActive,
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                // Phase G Prediction & Learning Card
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = FueldeckColors.Surface),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Column(
+                        modifier = Modifier.padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = "ПЕРСОНАЛЬНЫЙ ПРОГНОЗ",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = FueldeckColors.Mint
+                        )
+
+                        val pred = consumptionPrediction
+                        if (pred?.predictedConsumption != null) {
+                            Text(
+                                text = "Ваш прогноз: ${Format.number(pred.predictedConsumption, 1)} л/100 км",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = FueldeckColors.Ink
+                            )
+                            Text(
+                                text = "Точность прогноза: ${pred.confidence.toUserLabel()}",
+                                fontSize = 13.sp,
+                                color = FueldeckColors.Mint
+                            )
+                            Text(
+                                text = pred.basedOn,
+                                fontSize = 12.sp,
+                                color = Color(0xFF8A949E)
+                            )
+                            nextRefuelPrediction?.explanation?.let { refuelText ->
+                                Text(
+                                    text = refuelText,
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = FueldeckColors.Amber
+                                )
+                            }
+                        } else {
+                            Text(
+                                text = "Прогноз пока недоступен. Добавьте ещё несколько заправок.",
+                                fontSize = 13.sp,
+                                color = FueldeckColors.InkDim
+                            )
+                        }
+
+                        Spacer(Modifier.height(4.dp))
+                        OutlinedButton(
+                            onClick = { viewModel.resetPersonalLearning(vehicleId) },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF6F61)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x3DFF6F61)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Сбросить персональное обучение", fontSize = 12.sp)
+                        }
+                    }
+                }
 
                 Card(
                     colors = CardDefaults.cardColors(containerColor = FueldeckColors.Surface),

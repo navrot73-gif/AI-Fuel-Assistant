@@ -93,6 +93,7 @@ fun BestStationCard(
                     val rec = uiState.recommendation
                     BestStationContent(
                         recommendation = rec,
+                        uiState = uiState,
                         selectedFuelType = selectedFuelType,
                         userLat = userLat,
                         userLon = userLon,
@@ -126,6 +127,7 @@ fun BestStationCard(
 @Composable
 private fun BestStationContent(
     recommendation: StationRecommendation,
+    uiState: BestStationUiState,
     selectedFuelType: String,
     userLat: Double?,
     userLon: Double?,
@@ -261,6 +263,16 @@ private fun BestStationContent(
             color = availColor
         )
 
+        // Phase G Personal Preference Tag
+        if (uiState.personalVisitCount != null && uiState.personalVisitCount > 0) {
+            Text(
+                text = "✓ Вам обычно подходит (вы заправлялись здесь ${uiState.personalVisitCount} раз)",
+                fontSize = 12.sp,
+                color = Color(0xFF3ECDB0),
+                fontWeight = FontWeight.Medium
+            )
+        }
+
         // Reasons
         val displayReasons = recommendation.reasons.take(4)
         displayReasons.forEach { reason ->
@@ -296,8 +308,18 @@ private fun BestStationContent(
             )
         }
 
-        // Estimated total cost if present
-        recommendation.estimatedTotalCost?.let { cost ->
+        // Phase G Trip Fuel Cost Prediction
+        uiState.tripCostPrediction?.let { trip ->
+            if (trip.predictedCost != null) {
+                Text(
+                    text = "Прогноз поездки: ${trip.explanation}",
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Color(0xFFF5A94E),
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            }
+        } ?: recommendation.estimatedTotalCost?.let { cost ->
             if (cost > 0.0) {
                 Text(
                     text = "Ориентировочная стоимость поездки: ${formatPrice(cost)}",
