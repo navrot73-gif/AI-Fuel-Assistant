@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -115,17 +117,25 @@ fun DashboardScreen(
 
     val context = LocalContext.current
     var isListening by remember { mutableStateOf(false) }
+    var voiceErrorText by remember { mutableStateOf<String?>(null) }
 
     val speechIntent = remember { createSpeechRecognizerIntent() }
     val recognizer = remember(context) {
         createSpeechRecognizer(
             context = context,
             onResult = { text ->
+                voiceErrorText = null
                 viewModel.askUserQuestion(text)
                 viewModel.setUserQuestion("")
             },
             onListening = { listening ->
                 isListening = listening
+                if (listening) {
+                    voiceErrorText = null
+                }
+            },
+            onError = { err ->
+                voiceErrorText = err
             }
         )
     }
@@ -194,8 +204,9 @@ fun DashboardScreen(
     LaunchedEffect(chatMessages.size) {
         if (chatMessages.isNotEmpty()) {
             delay(100)
-            if (chatListState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
-                chatListState.animateScrollToItem(chatMessages.size - 1)
+            val count = chatListState.layoutInfo.totalItemsCount
+            if (count > 0) {
+                chatListState.animateScrollToItem(count - 1)
             }
         }
     }
@@ -204,302 +215,328 @@ fun DashboardScreen(
         modifier = modifier
             .fillMaxSize()
             .statusBarsPadding()
-            .padding(vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+            .navigationBarsPadding()
+            .imePadding()
     ) {
-        // ===== 1. ШАПКА =====
-        Row(
+        LazyColumn(
+            state = chatListState,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+                .weight(1f),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Column {
-                Text(
-                    "AI‑помощник",
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = FueldeckColors.Ink,
+            // ===== 1. ШАПКА =====
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column {
+                        Text(
+                            "AI‑помощник",
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = FueldeckColors.Ink,
+                        )
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "анализ стиля вождения и топлива",
+                            fontSize = 12.sp,
+                            color = FueldeckColors.InkDim,
+                            letterSpacing = 0.4.sp,
+                        )
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = {
+                            if (vehicles.size == 1) {
+                                navController.navigate(NavRoute.AddFuelRecord(vehicles[0].id, vehicles[0].name))
+                            } else {
+                                navController.navigate(NavRoute.Garage)
+                            }
+                        }) {
+                            Icon(
+                                Icons.Default.Add,
+                                contentDescription = "Добавить заправку",
+                                tint = Color(0xFFE8A750)
+                            )
+                        }
+                        if (chatMessages.isNotEmpty()) {
+                            IconButton(onClick = { viewModel.clearChatHistory() }) {
+                                Icon(
+                                    Icons.Default.Delete,
+                                    contentDescription = "Очистить историю",
+                                    tint = FueldeckColors.Coral,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ===== 2. ЧИПЫ АВТО =====
+            item {
+                VehicleChipsRow(
+                    vehicles = vehicles,
+                    selectedId = selectedVehicleId,
+                    onSelect = { viewModel.selectVehicle(it) }
                 )
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    "анализ стиля вождения и топлива",
-                    fontSize = 12.sp,
-                    color = FueldeckColors.InkDim,
-                    letterSpacing = 0.4.sp,
-                )
             }
-            IconButton(onClick = {
-                if (vehicles.size == 1) {
-                    navController.navigate(NavRoute.AddFuelRecord(vehicles[0].id, vehicles[0].name))
-                } else {
-                    navController.navigate(NavRoute.Garage)
-                }
-            }) {
-                Icon(Icons.Default.Add, contentDescription = "Добавить заправку",
-                     tint = Color(0xFFE8A750))
-            }
-            if (chatMessages.isNotEmpty()) {
-                IconButton(onClick = { viewModel.clearChatHistory() }) {
-                    Icon(
-                        Icons.Default.Delete,
-                        contentDescription = "Очистить историю",
-                        tint = FueldeckColors.Coral,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-            }
-        }
 
-        // ===== 2. ЧИПЫ АВТО =====
-        VehicleChipsRow(
-            vehicles = vehicles,
-            selectedId = selectedVehicleId,
-            onSelect = { viewModel.selectVehicle(it) }
-        )
-
-        // ===== 3. МЕТРИКИ =====
-        MetricsSection(
-            fillCount = metrics.fillCount,
-            consumption = consumption,
-            rubPerKm = rubPerKm,
-            efficiency = efficiency,
-            onAddFuelRecord = {
-                if (vehicles.size == 1) {
-                    navController.navigate(NavRoute.AddFuelRecord(vehicles[0].id, vehicles[0].name))
-                } else {
-                    navController.navigate(NavRoute.Garage)
-                }
-            },
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-
-        // ===== 3.1. ЛУЧШАЯ АЗС СЕЙЧАС =====
-        BestStationCard(
-            uiState = bestStationUiState,
-            selectedFuelType = selectedFuelType,
-            userLat = userLocation?.first,
-            userLon = userLocation?.second,
-            onRouteClick = { stationId ->
-                viewModel.recordRouteStartedFeedback(stationId)
-                navController.navigate(MapBuildRouteRoute(stationId))
-            },
-            onRefreshClick = {
-                viewModel.askUserQuestion("Обнови лучшие АЗС")
-            },
-            onRefuelPromptAnswer = { confirmed ->
-                viewModel.onRefuelPromptAnswer(confirmed)
-            },
-            onSubmitRefuelDetails = { fuelAvail, priceMatch, actPrice, hasQueue, queueMins ->
-                viewModel.submitRefuelDetails(fuelAvail, priceMatch, actPrice, hasQueue, queueMins)
-            },
-            onDismissFeedback = {
-                viewModel.dismissFeedback()
-            },
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
-
-        // ===== 3.5. НОВЫЕ КНОПКИ =====
-        if (vehicles.isNotEmpty()) {
-            val v = vehicles.firstOrNull { it.id == selectedVehicleId }
-                ?: vehicles.firstOrNull()
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                androidx.compose.material3.TextButton(
-                    onClick = {
-                        v?.let { vehicle ->
-                            navController.navigate(AddFuelRecordRoute(vehicle.id, vehicle.name))
+            // ===== 3. МЕТРИКИ =====
+            item {
+                MetricsSection(
+                    fillCount = metrics.fillCount,
+                    consumption = consumption,
+                    rubPerKm = rubPerKm,
+                    efficiency = efficiency,
+                    onAddFuelRecord = {
+                        if (vehicles.size == 1) {
+                            navController.navigate(NavRoute.AddFuelRecord(vehicles[0].id, vehicles[0].name))
+                        } else {
+                            navController.navigate(NavRoute.Garage)
                         }
                     },
-                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = FueldeckColors.Amber)
-                ) {
-                    Text("＋ Добавить заправку", fontSize = 13.sp)
-                }
-                androidx.compose.material3.TextButton(
-                    onClick = {
-                        v?.let { vehicle ->
-                            navController.navigate(FuelRecordListRoute(vehicle.id, vehicle.name))
-                        }
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+
+            // ===== 3.1. ЛУЧШАЯ АЗС СЕЙЧАС =====
+            item {
+                BestStationCard(
+                    uiState = bestStationUiState,
+                    selectedFuelType = selectedFuelType,
+                    userLat = userLocation?.first,
+                    userLon = userLocation?.second,
+                    onRouteClick = { stationId ->
+                        viewModel.recordRouteStartedFeedback(stationId)
+                        navController.navigate(MapBuildRouteRoute(stationId))
                     },
-                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = FueldeckColors.Amber)
-                ) {
-                    Text("📋 История заправок", fontSize = 13.sp)
+                    onRefreshClick = {
+                        viewModel.askUserQuestion("Обнови лучшие АЗС")
+                    },
+                    onRefuelPromptAnswer = { confirmed ->
+                        viewModel.onRefuelPromptAnswer(confirmed)
+                    },
+                    onSubmitRefuelDetails = { fuelAvail, priceMatch, actPrice, hasQueue, queueMins ->
+                        viewModel.submitRefuelDetails(fuelAvail, priceMatch, actPrice, hasQueue, queueMins)
+                    },
+                    onDismissFeedback = {
+                        viewModel.dismissFeedback()
+                    },
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
+
+            // ===== 3.5. НОВЫЕ КНОПКИ =====
+            if (vehicles.isNotEmpty()) {
+                item {
+                    val v = vehicles.firstOrNull { it.id == selectedVehicleId }
+                        ?: vehicles.firstOrNull()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        androidx.compose.material3.TextButton(
+                            onClick = {
+                                v?.let { vehicle ->
+                                    navController.navigate(AddFuelRecordRoute(vehicle.id, vehicle.name))
+                                }
+                            },
+                            colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = FueldeckColors.Amber)
+                        ) {
+                            Text("＋ Добавить заправку", fontSize = 13.sp)
+                        }
+                        androidx.compose.material3.TextButton(
+                            onClick = {
+                                v?.let { vehicle ->
+                                    navController.navigate(FuelRecordListRoute(vehicle.id, vehicle.name))
+                                }
+                            },
+                            colors = androidx.compose.material3.ButtonDefaults.textButtonColors(contentColor = FueldeckColors.Amber)
+                        ) {
+                            Text("📋 История заправок", fontSize = 13.sp)
+                        }
+                    }
                 }
             }
-        }
 
-        // Show route button if there's a pending route station
-        pendingRouteStationId?.let { stationId ->
-            Button(
-                onClick = {
-                    viewModel.recordRouteStartedFeedback(stationId)
-                    navController.navigate(MapBuildRouteRoute(stationId))
-                    viewModel.onRouteHandoffConsumed()
-                },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFE8A750),
-                    contentColor = Color(0xFF1A1205),
-                ),
-                shape = FueldeckShapes.Lg,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-            ) {
-                Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("🗺️ Показать маршрут на карте", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+            // Show route button if there's a pending route station
+            pendingRouteStationId?.let { stationId ->
+                item {
+                    Button(
+                        onClick = {
+                            viewModel.recordRouteStartedFeedback(stationId)
+                            navController.navigate(MapBuildRouteRoute(stationId))
+                            viewModel.onRouteHandoffConsumed()
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFFE8A750),
+                            contentColor = Color(0xFF1A1205),
+                        ),
+                        shape = FueldeckShapes.Lg,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp),
+                    ) {
+                        Icon(Icons.Default.LocationOn, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(8.dp))
+                        Text("🗺️ Показать маршрут на карте", fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                    }
+                }
             }
-        }
 
-        error?.let {
-            Text(
-                it,
-                color = FueldeckColors.Coral,
-                fontSize = 13.sp,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-        }
-
-        // ===== 4. ЧАТ =====
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(horizontal = 16.dp)
-        ) {
-            if (chatMessages.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+            val displayError = error ?: voiceErrorText
+            displayError?.let { errMsg ->
+                item {
                     Text(
-                        text = "Спросите про топливо или ваш автомобиль",
-                        color = FueldeckColors.InkDim,
-                        fontSize = 14.sp,
-                        textAlign = TextAlign.Center,
-                        lineHeight = 20.sp,
-                        modifier = Modifier.padding(horizontal = 24.dp)
+                        errMsg,
+                        color = FueldeckColors.Coral,
+                        fontSize = 13.sp,
+                        modifier = Modifier.padding(horizontal = 16.dp)
                     )
+                }
+            }
+
+            // ===== 4. ЧАТ / МЕССЕДЖИ =====
+            if (chatMessages.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Спросите про топливо или ваш автомобиль",
+                            color = FueldeckColors.InkDim,
+                            fontSize = 14.sp,
+                            textAlign = TextAlign.Center,
+                            lineHeight = 20.sp,
+                            modifier = Modifier.padding(horizontal = 24.dp)
+                        )
+                    }
                 }
             } else {
-                LazyColumn(
-                    state = chatListState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(vertical = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
-                ) {
-                    items(chatMessages) { message ->
+                items(chatMessages) { message ->
+                    Box(modifier = Modifier.padding(horizontal = 16.dp)) {
                         ChatBubble(message = message)
                     }
                 }
             }
         }
 
-        // ===== 5. ВВОД СНИЗУ =====
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        // ===== 5. ВВОД СНИЗУ (AI CTA Bar) =====
+        Surface(
+            color = FueldeckColors.Bg0,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            OutlinedTextField(
-                value = userQuestion,
-                onValueChange = { viewModel.setUserQuestion(it) },
-                placeholder = {
-                    Text(
-                        if (isListening) "Слушаю…" else "Ваш вопрос…",
-                        color = FueldeckColors.InkDim,
-                        fontSize = 14.sp
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = userQuestion,
+                    onValueChange = { viewModel.setUserQuestion(it) },
+                    placeholder = {
+                        Text(
+                            if (isListening) "Слушаю…" else "Задать AI любой вопрос",
+                            color = FueldeckColors.InkDim,
+                            fontSize = 14.sp
+                        )
+                    },
+                    enabled = !isAnalyzing,
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    keyboardActions = KeyboardActions(onSend = {
+                        if (!isAnalyzing && userQuestion.isNotBlank()) {
+                            keyboardController?.hide()
+                            viewModel.askUserQuestion()
+                            viewModel.setUserQuestion("")
+                        }
+                    }),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color(0xFFE8A750),
+                        unfocusedBorderColor = Color(0xFF3A4650),
+                        focusedContainerColor = FueldeckColors.Surface,
+                        unfocusedContainerColor = FueldeckColors.Surface,
+                        focusedTextColor = FueldeckColors.Ink,
+                        unfocusedTextColor = FueldeckColors.Ink,
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.weight(1f)
+                )
+
+                IconButton(
+                    onClick = {
+                        audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Mic,
+                        contentDescription = "Голосовой ввод",
+                        tint = if (isListening) FueldeckColors.Coral else FueldeckColors.InkDim,
+                        modifier = Modifier.graphicsLayer {
+                            alpha = if (isListening) pulseAlpha else 1f
+                        }
                     )
-                },
-                enabled = !isAnalyzing,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                keyboardActions = KeyboardActions(onSend = {
-                    if (!isAnalyzing && userQuestion.isNotBlank()) {
+                }
+
+                Button(
+                    onClick = {
+                        if (userQuestion.isBlank() || isAnalyzing) return@Button
                         keyboardController?.hide()
                         viewModel.askUserQuestion()
                         viewModel.setUserQuestion("")
+                    },
+                    enabled = true,
+                    elevation = ButtonDefaults.buttonElevation(
+                        defaultElevation = 4.dp,
+                        pressedElevation = 2.dp,
+                        hoveredElevation = 6.dp,
+                        focusedElevation = 4.dp
+                    ),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFE8A750),
+                        contentColor = Color(0xFF1A1205),
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.height(56.dp)
+                ) {
+                    if (isAnalyzing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = Color(0xFF1A1205),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "Думаю…",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp
+                        )
+                    } else {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Спросить",
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            "Спросить",
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 14.sp
+                        )
                     }
-                }),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFFE8A750),
-                    unfocusedBorderColor = Color(0xFF3A4650),
-                    focusedContainerColor = FueldeckColors.Surface,
-                    unfocusedContainerColor = FueldeckColors.Surface,
-                    focusedTextColor = FueldeckColors.Ink,
-                    unfocusedTextColor = FueldeckColors.Ink,
-                ),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.weight(1f)
-            )
-
-            IconButton(
-                onClick = {
-                    audioPermissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                }
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Mic,
-                    contentDescription = "Голосовой ввод",
-                    tint = if (isListening) FueldeckColors.Coral else FueldeckColors.InkDim,
-                    modifier = Modifier.graphicsLayer {
-                        alpha = if (isListening) pulseAlpha else 1f
-                    }
-                )
-            }
-
-            Button(
-                onClick = {
-                    if (userQuestion.isBlank() || isAnalyzing) return@Button
-                    keyboardController?.hide()
-                    viewModel.askUserQuestion()
-                    viewModel.setUserQuestion("")
-                },
-                enabled = true,
-                elevation = ButtonDefaults.buttonElevation(
-                    defaultElevation = 4.dp,
-                    pressedElevation = 2.dp,
-                    hoveredElevation = 6.dp,
-                    focusedElevation = 4.dp
-                ),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFE8A750),
-                    contentColor = Color(0xFF1A1205),
-                ),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.height(56.dp)
-            ) {
-                if (isAnalyzing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(18.dp),
-                        strokeWidth = 2.dp,
-                        color = Color(0xFF1A1205),
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        "Думаю…",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
-                    )
-                } else {
-                    Icon(
-                        Icons.AutoMirrored.Filled.Send,
-                        contentDescription = "Спросить",
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text(
-                        "Спросить",
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 14.sp
-                    )
                 }
             }
         }

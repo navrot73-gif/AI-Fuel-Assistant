@@ -17,12 +17,17 @@ fun createSpeechRecognizerIntent(): Intent {
 fun createSpeechRecognizer(
     context: Context,
     onResult: (String) -> Unit,
-    onListening: (Boolean) -> Unit
+    onListening: (Boolean) -> Unit,
+    onError: ((String) -> Unit)? = null
 ): SpeechRecognizer {
     val recognizer = SpeechRecognizer.createSpeechRecognizer(context)
     recognizer.setRecognitionListener(object : RecognitionListener {
-        override fun onReadyForSpeech(params: Bundle?) {}
-        override fun onBeginningOfSpeech() {}
+        override fun onReadyForSpeech(params: Bundle?) {
+            onListening(true)
+        }
+        override fun onBeginningOfSpeech() {
+            onListening(true)
+        }
         override fun onRmsChanged(rmsdB: Float) {}
         override fun onBufferReceived(buffer: ByteArray?) {}
         override fun onEndOfSpeech() {
@@ -31,6 +36,18 @@ fun createSpeechRecognizer(
 
         override fun onError(error: Int) {
             onListening(false)
+            val errorMsg = when (error) {
+                SpeechRecognizer.ERROR_AUDIO -> "Ошибка записи аудио"
+                SpeechRecognizer.ERROR_CLIENT -> "Ошибка клиента распознавания"
+                SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> "Нет разрешения на запись аудио"
+                SpeechRecognizer.ERROR_NETWORK -> "Ошибка сети"
+                SpeechRecognizer.ERROR_NETWORK_TIMEOUT -> "Превышено время ожидания сети"
+                SpeechRecognizer.ERROR_NO_MATCH -> "Не удалось распознать речь"
+                SpeechRecognizer.ERROR_SERVER -> "Ошибка сервера распознавания"
+                SpeechRecognizer.ERROR_SPEECH_TIMEOUT -> "Речь не обнаружена"
+                else -> "Не удалось распознать голос"
+            }
+            onError?.invoke(errorMsg)
         }
 
         override fun onResults(results: Bundle?) {
@@ -39,6 +56,8 @@ fun createSpeechRecognizer(
             val text = matches?.firstOrNull()?.trim()
             if (!text.isNullOrEmpty()) {
                 onResult(text)
+            } else {
+                onError?.invoke("Не удалось распознать голос")
             }
         }
 

@@ -140,6 +140,10 @@ class MapLibreRenderer : MapRenderer {
             }
         }
 
+        var lastRenderedStationIds by remember { mutableStateOf<List<Int>>(emptyList()) }
+        var lastRenderedUserLoc by remember { mutableStateOf<Pair<Double, Double>?>(null) }
+        var lastRenderedRoutePoints by remember { mutableStateOf<List<GeoPoint>?>(null) }
+
         AndroidView(
             factory = { ctx ->
                 MapLibre.getInstance(ctx)
@@ -186,6 +190,22 @@ class MapLibreRenderer : MapRenderer {
             modifier = modifier,
             update = { _ ->
                 val map = mapLibreMapInstance ?: return@AndroidView
+
+                val currentStationIds = stationItems.map { it.stationId }
+                val currentLocPair = userLocation?.let { Pair(it.latitude, it.longitude) }
+                val currentRoutePoints = route?.points
+
+                val isStationChange = currentStationIds != lastRenderedStationIds
+                val isLocChange = currentLocPair != lastRenderedUserLoc
+                val isRouteChange = currentRoutePoints != lastRenderedRoutePoints
+
+                if (!isStationChange && !isLocChange && !isRouteChange && markerToStationIdMap.isNotEmpty()) {
+                    return@AndroidView
+                }
+
+                lastRenderedStationIds = currentStationIds
+                lastRenderedUserLoc = currentLocPair
+                lastRenderedRoutePoints = currentRoutePoints
 
                 // Clear previously drawn markers & polylines
                 map.clear()

@@ -4,7 +4,10 @@ import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
@@ -127,6 +130,11 @@ class OsmMapRenderer : MapRenderer {
             }
         }
 
+        var lastRenderedStationIds by remember { mutableStateOf<List<Int>>(emptyList()) }
+        var lastRenderedUserLoc by remember { mutableStateOf<Pair<Double, Double>?>(null) }
+        var lastRenderedRoutePoints by remember { mutableStateOf<List<GeoPoint>?>(null) }
+        var lastDarkMode by remember { mutableStateOf<Boolean?>(null) }
+
         AndroidView(
             factory = { ctx ->
                 val config = Configuration.getInstance()
@@ -159,17 +167,36 @@ class OsmMapRenderer : MapRenderer {
             },
             modifier = modifier,
             update = { mapView ->
-                if (isDarkMode) {
-                    mapView.setBackgroundColor(android.graphics.Color.parseColor(MAP_BACKGROUND))
-                    mapView.setTileSource(TileSourceFactory.MAPNIK)
-                    mapView.overlayManager.tilesOverlay.setColorFilter(
-                        ColorMatrixColorFilter(OSM_DARK_COLOR_MATRIX)
-                    )
-                } else {
-                    mapView.setBackgroundColor(android.graphics.Color.WHITE)
-                    mapView.setTileSource(TileSourceFactory.MAPNIK)
-                    mapView.overlayManager.tilesOverlay.setColorFilter(null)
+                if (lastDarkMode != isDarkMode) {
+                    lastDarkMode = isDarkMode
+                    if (isDarkMode) {
+                        mapView.setBackgroundColor(android.graphics.Color.parseColor(MAP_BACKGROUND))
+                        mapView.setTileSource(TileSourceFactory.MAPNIK)
+                        mapView.overlayManager.tilesOverlay.setColorFilter(
+                            ColorMatrixColorFilter(OSM_DARK_COLOR_MATRIX)
+                        )
+                    } else {
+                        mapView.setBackgroundColor(android.graphics.Color.WHITE)
+                        mapView.setTileSource(TileSourceFactory.MAPNIK)
+                        mapView.overlayManager.tilesOverlay.setColorFilter(null)
+                    }
                 }
+
+                val currentStationIds = stationItems.map { it.stationId }
+                val currentLocPair = userLocation?.let { Pair(it.latitude, it.longitude) }
+                val currentRoutePoints = route?.points
+
+                val isStationChange = currentStationIds != lastRenderedStationIds
+                val isLocChange = currentLocPair != lastRenderedUserLoc
+                val isRouteChange = currentRoutePoints != lastRenderedRoutePoints
+
+                if (!isStationChange && !isLocChange && !isRouteChange && mapView.overlays.size > 0) {
+                    return@AndroidView
+                }
+
+                lastRenderedStationIds = currentStationIds
+                lastRenderedUserLoc = currentLocPair
+                lastRenderedRoutePoints = currentRoutePoints
 
                 mapView.overlays.removeAll { it is Marker || it is Polyline }
 
