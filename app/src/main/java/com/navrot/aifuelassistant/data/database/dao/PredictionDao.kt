@@ -33,6 +33,9 @@ interface PredictionDao {
     @Query("SELECT * FROM recommendation_feedbacks ORDER BY timestamp DESC")
     suspend fun getAllFeedbacks(): List<RecommendationFeedbackEntity>
 
+    @Query("SELECT * FROM recommendation_feedbacks WHERE recommendationId = :recommendationId ORDER BY timestamp DESC")
+    suspend fun getFeedbacksForRecommendation(recommendationId: String): List<RecommendationFeedbackEntity>
+
     @Query("DELETE FROM personal_model_metadata WHERE vehicleId = :vehicleId")
     suspend fun deleteModelMetadata(vehicleId: Long)
 

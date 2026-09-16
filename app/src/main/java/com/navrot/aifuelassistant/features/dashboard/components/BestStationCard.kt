@@ -40,6 +40,8 @@ import com.navrot.aifuelassistant.domain.realtime.FuelDataQualityLevel
 import com.navrot.aifuelassistant.domain.smart.SmartRecommendationReason
 import com.navrot.aifuelassistant.domain.smart.SmartStationRecommendation
 import com.navrot.aifuelassistant.features.dashboard.BestStationUiState
+import com.navrot.aifuelassistant.features.dashboard.FeedbackUiState
+import com.navrot.aifuelassistant.features.dashboard.FeedbackUiStatus
 import com.navrot.aifuelassistant.geo.GeoUtils
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
 import com.navrot.aifuelassistant.ui.theme.FueldeckShapes
@@ -54,6 +56,9 @@ fun BestStationCard(
     onRouteClick: (Int) -> Unit,
     onDetailClick: ((Int) -> Unit)? = null,
     onRefreshClick: (() -> Unit)? = null,
+    onRefuelPromptAnswer: ((Boolean?) -> Unit)? = null,
+    onSubmitRefuelDetails: ((Boolean, Boolean, Double?, Boolean, Int?) -> Unit)? = null,
+    onDismissFeedback: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     currentTimeMs: Long = System.currentTimeMillis()
 ) {
@@ -99,6 +104,9 @@ fun BestStationCard(
                             userLon = userLon,
                             onRouteClick = onRouteClick,
                             onDetailClick = onDetailClick,
+                            onRefuelPromptAnswer = onRefuelPromptAnswer,
+                            onSubmitRefuelDetails = onSubmitRefuelDetails,
+                            onDismissFeedback = onDismissFeedback,
                             currentTimeMs = currentTimeMs
                         )
 
@@ -128,6 +136,9 @@ fun BestStationCard(
                             userLon = userLon,
                             onRouteClick = onRouteClick,
                             onDetailClick = onDetailClick,
+                            onRefuelPromptAnswer = onRefuelPromptAnswer,
+                            onSubmitRefuelDetails = onSubmitRefuelDetails,
+                            onDismissFeedback = onDismissFeedback,
                             currentTimeMs = currentTimeMs
                         )
 
@@ -163,6 +174,9 @@ private fun SmartStationContent(
     userLon: Double?,
     onRouteClick: (Int) -> Unit,
     onDetailClick: ((Int) -> Unit)?,
+    onRefuelPromptAnswer: ((Boolean?) -> Unit)?,
+    onSubmitRefuelDetails: ((Boolean, Boolean, Double?, Boolean, Int?) -> Unit)?,
+    onDismissFeedback: (() -> Unit)?,
     currentTimeMs: Long
 ) {
     val station = smartRec.station
@@ -402,6 +416,20 @@ private fun SmartStationContent(
         }
     }
 
+    // Phase J Refuel Feedback Prompt
+    if (uiState.feedbackUiState.status != FeedbackUiStatus.NOT_AVAILABLE &&
+        uiState.feedbackUiState.status != FeedbackUiStatus.CANCELLED
+    ) {
+        RefuelFeedbackBlock(
+            feedbackState = uiState.feedbackUiState,
+            onPromptAnswer = { onRefuelPromptAnswer?.invoke(it) },
+            onSubmitDetails = { fuelAvail, priceMatch, actPrice, queue, queueMins ->
+                onSubmitRefuelDetails?.invoke(fuelAvail, priceMatch, actPrice, queue, queueMins)
+            },
+            onDismiss = { onDismissFeedback?.invoke() }
+        )
+    }
+
     // 8. CTAs
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -458,6 +486,9 @@ private fun BestStationContent(
     userLon: Double?,
     onRouteClick: (Int) -> Unit,
     onDetailClick: ((Int) -> Unit)?,
+    onRefuelPromptAnswer: ((Boolean?) -> Unit)?,
+    onSubmitRefuelDetails: ((Boolean, Boolean, Double?, Boolean, Int?) -> Unit)?,
+    onDismissFeedback: (() -> Unit)?,
     currentTimeMs: Long
 ) {
     val station = recommendation.station
@@ -657,6 +688,20 @@ private fun BestStationContent(
         }
     }
 
+    // Phase J Refuel Feedback Prompt
+    if (uiState.feedbackUiState.status != FeedbackUiStatus.NOT_AVAILABLE &&
+        uiState.feedbackUiState.status != FeedbackUiStatus.CANCELLED
+    ) {
+        RefuelFeedbackBlock(
+            feedbackState = uiState.feedbackUiState,
+            onPromptAnswer = { onRefuelPromptAnswer?.invoke(it) },
+            onSubmitDetails = { fuelAvail, priceMatch, actPrice, queue, queueMins ->
+                onSubmitRefuelDetails?.invoke(fuelAvail, priceMatch, actPrice, queue, queueMins)
+            },
+            onDismiss = { onDismissFeedback?.invoke() }
+        )
+    }
+
     // 6. CTAs
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -699,6 +744,125 @@ private fun BestStationContent(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun RefuelFeedbackBlock(
+    feedbackState: FeedbackUiState,
+    onPromptAnswer: (Boolean?) -> Unit,
+    onSubmitDetails: (Boolean, Boolean, Double?, Boolean, Int?) -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Surface(
+        color = Color(0xFF141D26),
+        shape = RoundedCornerShape(12.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x3D8A97A5)),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            when (feedbackState.status) {
+                FeedbackUiStatus.PROMPT -> {
+                    Text(
+                        text = "Заправились здесь?",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFF5F7FA)
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Button(
+                            onClick = { onPromptAnswer(true) },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF3ECDB0),
+                                contentColor = Color(0xFF102A24)
+                            ),
+                            shape = FueldeckShapes.Md,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Да", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        OutlinedButton(
+                            onClick = { onPromptAnswer(false) },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFFFF6F61)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFF6F61)),
+                            shape = FueldeckShapes.Md,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Нет", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        TextButton(
+                            onClick = { onPromptAnswer(null) },
+                            colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF8A97A5)),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Text("Не знаю", fontSize = 12.sp)
+                        }
+                    }
+                }
+
+                FeedbackUiStatus.DETAILS -> {
+                    Text(
+                        text = "Как всё прошло?",
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = Color(0xFFF5F7FA)
+                    )
+                    Text(
+                        text = "✓ Топливо было  •  ✓ Цена совпала  •  ✓ Без очереди",
+                        fontSize = 12.sp,
+                        color = Color(0xFF8A97A5)
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.End,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Button(
+                            onClick = {
+                                onSubmitDetails(true, true, null, false, null)
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFF5A94E),
+                                contentColor = Color(0xFF1A1205)
+                            ),
+                            shape = FueldeckShapes.Md
+                        ) {
+                            Text("Подтвердить", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                FeedbackUiStatus.SUBMITTED -> {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "✓ Спасибо! Ваш отзыв учтён в обучении.",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF3ECDB0)
+                        )
+                        TextButton(onClick = onDismiss) {
+                            Text("ОК", fontSize = 12.sp, color = Color(0xFF8A97A5))
+                        }
+                    }
+                }
+
+                else -> {}
             }
         }
     }

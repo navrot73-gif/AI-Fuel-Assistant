@@ -14,7 +14,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Интеграционные тесты миграций БД Room (версии 1 → 2 → 3 → 4 → 5).
+ * Интеграционные тесты миграций БД Room (версии 1 → 2 → 3 → 4 → 5 → 6 → 7).
  */
 @RunWith(AndroidJUnit4::class)
 class DatabaseMigrationTest {
@@ -222,6 +222,46 @@ class DatabaseMigrationTest {
     }
 
     @Test
+    fun testMigrationFrom6To7() {
+        val feedbackId = "f-123"
+
+        helper.createDatabase(testDbName, 6).apply {
+            val feedback = ContentValues().apply {
+                put("id", feedbackId)
+                put("recommendationId", "rec-1")
+                put("recommendedStationId", 101L)
+                put("chosenStationId", 101L)
+                put("timestamp", 1_700_000_000_000L)
+                put("routeStarted", 1)
+                put("routeCompleted", 0)
+                put("refuelCompleted", 1)
+                put("signal", "ACCEPTED")
+            }
+            insert("recommendation_feedbacks", 0, feedback)
+            close()
+        }
+
+        helper.runMigrationsAndValidate(
+            testDbName,
+            7,
+            true,
+            DatabaseMigrations.MIGRATION_6_7
+        ).use { db ->
+            db.query(
+                "SELECT id, action, outcome, userConfirmed, source FROM recommendation_feedbacks WHERE id = ?",
+                arrayOf(feedbackId)
+            ).use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(feedbackId, cursor.getString(0))
+                assertEquals("VIEWED", cursor.getString(1))
+                assertEquals("UNKNOWN", cursor.getString(2))
+                assertEquals(0, cursor.getInt(3))
+                assertEquals("USER_CONFIRMED", cursor.getString(4))
+            }
+        }
+    }
+
+    @Test
     fun testAllMigrations() {
         val vehicleId: Long
         val fuelRecordId: Long
@@ -257,7 +297,7 @@ class DatabaseMigrationTest {
 
         helper.runMigrationsAndValidate(
             testDbName,
-            5,
+            7,
             true,
             *DatabaseMigrations.ALL
         ).use { db ->

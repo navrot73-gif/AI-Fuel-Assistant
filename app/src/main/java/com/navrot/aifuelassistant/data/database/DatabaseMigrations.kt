@@ -147,6 +147,31 @@ object DatabaseMigrations {
         }
     }
 
+    val MIGRATION_6_7 = object : Migration(6, 7) {
+        override fun migrate(database: SupportSQLiteDatabase) {
+            database.execSQL("ALTER TABLE `recommendation_feedbacks` ADD COLUMN `fuelType` TEXT DEFAULT NULL")
+            database.execSQL("ALTER TABLE `recommendation_feedbacks` ADD COLUMN `action` TEXT NOT NULL DEFAULT 'VIEWED'")
+            database.execSQL("ALTER TABLE `recommendation_feedbacks` ADD COLUMN `outcome` TEXT NOT NULL DEFAULT 'UNKNOWN'")
+            database.execSQL("ALTER TABLE `recommendation_feedbacks` ADD COLUMN `predictedAvailability` TEXT DEFAULT NULL")
+            database.execSQL("ALTER TABLE `recommendation_feedbacks` ADD COLUMN `actualAvailability` TEXT DEFAULT NULL")
+            database.execSQL("ALTER TABLE `recommendation_feedbacks` ADD COLUMN `predictedPrice` REAL DEFAULT NULL")
+            database.execSQL("ALTER TABLE `recommendation_feedbacks` ADD COLUMN `actualPrice` REAL DEFAULT NULL")
+            database.execSQL("ALTER TABLE `recommendation_feedbacks` ADD COLUMN `predictedQueue` INTEGER DEFAULT NULL")
+            database.execSQL("ALTER TABLE `recommendation_feedbacks` ADD COLUMN `actualQueue` INTEGER DEFAULT NULL")
+            database.execSQL("ALTER TABLE `recommendation_feedbacks` ADD COLUMN `dataConfidence` TEXT DEFAULT NULL")
+            database.execSQL("ALTER TABLE `recommendation_feedbacks` ADD COLUMN `userConfirmed` INTEGER NOT NULL DEFAULT 0")
+            database.execSQL("ALTER TABLE `recommendation_feedbacks` ADD COLUMN `source` TEXT NOT NULL DEFAULT 'USER_CONFIRMED'")
+            database.execSQL("ALTER TABLE `recommendation_feedbacks` ADD COLUMN `notes` TEXT DEFAULT NULL")
+        }
+    }
+
     /** Полный список зарегистрированных миграций. Используется в [com.navrot.aifuelassistant.di.AppModule.provideDatabase]. */
-    val ALL: Array<Migration> = arrayOf(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+    val ALL: Array<Migration> = arrayOf(
+        MIGRATION_1_2,
+        MIGRATION_2_3,
+        MIGRATION_3_4,
+        MIGRATION_4_5,
+        MIGRATION_5_6,
+        MIGRATION_6_7
+    )
 }

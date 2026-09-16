@@ -4,10 +4,14 @@ import com.navrot.aifuelassistant.data.database.dao.PredictionDao
 import com.navrot.aifuelassistant.data.database.entity.PersonalModelMetadataEntity
 import com.navrot.aifuelassistant.data.database.entity.PredictionOutcomeEntity
 import com.navrot.aifuelassistant.data.database.entity.RecommendationFeedbackEntity
+import com.navrot.aifuelassistant.domain.predictive.EventSource
+import com.navrot.aifuelassistant.domain.predictive.FeedbackSignal
 import com.navrot.aifuelassistant.domain.predictive.PersonalModelMetadata
 import com.navrot.aifuelassistant.domain.predictive.PredictionOutcome
 import com.navrot.aifuelassistant.domain.predictive.RecommendationFeedback
-import com.navrot.aifuelassistant.domain.predictive.FeedbackSignal
+import com.navrot.aifuelassistant.domain.predictive.UserAction
+import com.navrot.aifuelassistant.domain.predictive.UserOutcome
+import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import javax.inject.Inject
@@ -91,34 +95,90 @@ class PredictiveRepository @Inject constructor(
             routeStarted = feedback.routeStarted,
             routeCompleted = feedback.routeCompleted,
             refuelCompleted = feedback.refuelCompleted,
-            signal = feedback.signal.name
+            signal = feedback.signal.name,
+            fuelType = feedback.fuelType,
+            action = feedback.action.name,
+            outcome = feedback.outcome.name,
+            predictedAvailability = feedback.predictedAvailability?.name,
+            actualAvailability = feedback.actualAvailability?.name,
+            predictedPrice = feedback.predictedPrice,
+            actualPrice = feedback.actualPrice,
+            predictedQueue = feedback.predictedQueue,
+            actualQueue = feedback.actualQueue,
+            dataConfidence = feedback.dataConfidence,
+            userConfirmed = feedback.userConfirmed,
+            source = feedback.source.name,
+            notes = feedback.notes
         )
         dao.insertFeedback(entity)
     }
 
     suspend fun getAllFeedbacks(): List<RecommendationFeedback> {
-        return dao.getAllFeedbacks().map { entity ->
-            val signal = try {
-                FeedbackSignal.valueOf(entity.signal)
-            } catch (e: Exception) {
-                FeedbackSignal.UNKNOWN
-            }
-            RecommendationFeedback(
-                id = entity.id,
-                recommendationId = entity.recommendationId,
-                recommendedStationId = entity.recommendedStationId,
-                chosenStationId = entity.chosenStationId,
-                timestamp = entity.timestamp,
-                routeStarted = entity.routeStarted,
-                routeCompleted = entity.routeCompleted,
-                refuelCompleted = entity.refuelCompleted,
-                signal = signal
-            )
-        }
+        return dao.getAllFeedbacks().map { entityToFeedback(it) }
+    }
+
+    suspend fun getFeedbacksForRecommendation(recommendationId: String): List<RecommendationFeedback> {
+        return dao.getFeedbacksForRecommendation(recommendationId).map { entityToFeedback(it) }
     }
 
     suspend fun resetModel(vehicleId: Long) {
         dao.deleteModelMetadata(vehicleId)
         dao.deleteOutcomes(vehicleId)
+    }
+
+    private fun entityToFeedback(entity: RecommendationFeedbackEntity): RecommendationFeedback {
+        val signal = try {
+            FeedbackSignal.valueOf(entity.signal)
+        } catch (e: Exception) {
+            FeedbackSignal.UNKNOWN
+        }
+        val action = try {
+            UserAction.valueOf(entity.action)
+        } catch (e: Exception) {
+            if (entity.refuelCompleted) UserAction.REFUELLED
+            else if (entity.routeStarted) UserAction.ROUTE_STARTED
+            else UserAction.VIEWED
+        }
+        val outcome = try {
+            UserOutcome.valueOf(entity.outcome)
+        } catch (e: Exception) {
+            if (entity.refuelCompleted) UserOutcome.SUCCESS else UserOutcome.UNKNOWN
+        }
+        val predAvail = entity.predictedAvailability?.let {
+            try { FuelAvailabilityStatus.valueOf(it) } catch (e: Exception) { null }
+        }
+        val actAvail = entity.actualAvailability?.let {
+            try { FuelAvailabilityStatus.valueOf(it) } catch (e: Exception) { null }
+        }
+        val source = try {
+            EventSource.valueOf(entity.source)
+        } catch (e: Exception) {
+            EventSource.USER_CONFIRMED
+        }
+
+        return RecommendationFeedback(
+            id = entity.id,
+            recommendationId = entity.recommendationId,
+            recommendedStationId = entity.recommendedStationId,
+            chosenStationId = entity.chosenStationId,
+            timestamp = entity.timestamp,
+            routeStarted = entity.routeStarted,
+            routeCompleted = entity.routeCompleted,
+            refuelCompleted = entity.refuelCompleted,
+            signal = signal,
+            fuelType = entity.fuelType,
+            action = action,
+            outcome = outcome,
+            predictedAvailability = predAvail,
+            actualAvailability = actAvail,
+            predictedPrice = entity.predictedPrice,
+            actualPrice = entity.actualPrice,
+            predictedQueue = entity.predictedQueue,
+            actualQueue = entity.actualQueue,
+            dataConfidence = entity.dataConfidence,
+            userConfirmed = entity.userConfirmed,
+            source = source,
+            notes = entity.notes
+        )
     }
 }
