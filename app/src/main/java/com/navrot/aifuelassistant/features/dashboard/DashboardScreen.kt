@@ -177,6 +177,7 @@ fun DashboardScreen(
         when (pendingRouteMode) {
             DashboardViewModel.PendingRouteMode.ROUTE -> {
                 pendingRouteStationId?.let { id ->
+                    viewModel.recordRouteStartedFeedback(id)
                     navController.navigate(MapBuildRouteRoute(id))
                 }
                 viewModel.onRouteHandoffConsumed()
@@ -281,10 +282,20 @@ fun DashboardScreen(
             userLat = userLocation?.first,
             userLon = userLocation?.second,
             onRouteClick = { stationId ->
+                viewModel.recordRouteStartedFeedback(stationId)
                 navController.navigate(MapBuildRouteRoute(stationId))
             },
             onRefreshClick = {
                 viewModel.askUserQuestion("Обнови лучшие АЗС")
+            },
+            onRefuelPromptAnswer = { confirmed ->
+                viewModel.onRefuelPromptAnswer(confirmed)
+            },
+            onSubmitRefuelDetails = { fuelAvail, priceMatch, actPrice, hasQueue, queueMins ->
+                viewModel.submitRefuelDetails(fuelAvail, priceMatch, actPrice, hasQueue, queueMins)
+            },
+            onDismissFeedback = {
+                viewModel.dismissFeedback()
             },
             modifier = Modifier.padding(horizontal = 16.dp)
         )
@@ -326,6 +337,7 @@ fun DashboardScreen(
         pendingRouteStationId?.let { stationId ->
             Button(
                 onClick = {
+                    viewModel.recordRouteStartedFeedback(stationId)
                     navController.navigate(MapBuildRouteRoute(stationId))
                     viewModel.onRouteHandoffConsumed()
                 },

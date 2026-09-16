@@ -19,7 +19,7 @@ import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
         RecommendationFeedbackEntity::class,
         PersonalModelMetadataEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {

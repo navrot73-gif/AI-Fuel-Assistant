@@ -3,21 +3,28 @@ package com.navrot.aifuelassistant.features.dashboard.delegate
 import com.navrot.aifuelassistant.data.FuelRecordRepository
 import com.navrot.aifuelassistant.data.GasStationRepositoryInterface
 import com.navrot.aifuelassistant.data.VehicleRepository
+import com.navrot.aifuelassistant.data.database.entity.FuelRecordEntity
 import com.navrot.aifuelassistant.data.database.entity.VehicleEntity
 import com.navrot.aifuelassistant.data.database.entity.toPersonalFuelEvent
 import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.data.model.stationListSignature
 import com.navrot.aifuelassistant.data.repository.PredictiveRepository
-import com.navrot.aifuelassistant.domain.predictive.TripCostPrediction
+import com.navrot.aifuelassistant.domain.predictive.EventSource
+import com.navrot.aifuelassistant.domain.predictive.UserAction
+import com.navrot.aifuelassistant.domain.predictive.UserOutcome
+import com.navrot.aifuelassistant.domain.predictive.usecase.EvaluateRecommendationOutcomeUseCase
 import com.navrot.aifuelassistant.domain.predictive.usecase.PersonalStationPreferenceUseCase
 import com.navrot.aifuelassistant.domain.predictive.usecase.PredictConsumptionUseCase
 import com.navrot.aifuelassistant.domain.predictive.usecase.PredictTripFuelCostUseCase
 import com.navrot.aifuelassistant.domain.predictive.usecase.RecordRecommendationFeedbackUseCase
-import com.navrot.aifuelassistant.domain.recommendation.BestStationUseCase
 import com.navrot.aifuelassistant.domain.recommendation.BestStationResult
+import com.navrot.aifuelassistant.domain.recommendation.BestStationUseCase
+import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
 import com.navrot.aifuelassistant.domain.smart.GetSmartFuelRecommendationUseCase
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.features.dashboard.BestStationUiState
+import com.navrot.aifuelassistant.features.dashboard.FeedbackUiState
+import com.navrot.aifuelassistant.features.dashboard.FeedbackUiStatus
 import com.navrot.aifuelassistant.geo.GeoUtils
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +34,7 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import timber.log.Timber
+import java.util.UUID
 import javax.inject.Inject
 
 class StationRecommendationDelegate @Inject constructor(
@@ -39,6 +47,7 @@ class StationRecommendationDelegate @Inject constructor(
     private val predictTripFuelCostUseCase: PredictTripFuelCostUseCase = PredictTripFuelCostUseCase(),
     private val personalStationPreferenceUseCase: PersonalStationPreferenceUseCase = PersonalStationPreferenceUseCase(),
     private val recordRecommendationFeedbackUseCase: RecordRecommendationFeedbackUseCase = RecordRecommendationFeedbackUseCase(),
+    private val evaluateRecommendationOutcomeUseCase: EvaluateRecommendationOutcomeUseCase = EvaluateRecommendationOutcomeUseCase(),
     private val fuelRecordRepository: FuelRecordRepository? = null,
     private val predictiveRepository: PredictiveRepository? = null
 ) {
@@ -124,13 +133,18 @@ class StationRecommendationDelegate @Inject constructor(
     fun recordRouteStartedFeedback(chosenStationId: Int, scope: CoroutineScope? = null) {
         val currentBestId = _bestStationUiState.value.smartRecommendation?.stationId?.toLong()
             ?: _bestStationUiState.value.recommendation?.station?.id?.toLong()
-            ?: return
+            ?: chosenStationId.toLong()
+
+        val recId = UUID.randomUUID().toString()
 
         if (predictiveRepository != null) {
             val feedback = recordRecommendationFeedbackUseCase.createFeedback(
-                recommendationId = java.util.UUID.randomUUID().toString(),
+                recommendationId = recId,
                 recommendedStationId = currentBestId,
                 chosenStationId = chosenStationId.toLong(),
+                fuelType = _selectedFuelType.value,
+                action = UserAction.ROUTE_STARTED,
+                outcome = UserOutcome.UNKNOWN,
                 routeStarted = true
             )
             val launchScope = scope ?: CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
@@ -142,6 +156,168 @@ class StationRecommendationDelegate @Inject constructor(
                 }
             }
         }
+
+        _bestStationUiState.value = _bestStationUiState.value.copy(
+            feedbackUiState = FeedbackUiState(
+                status = FeedbackUiStatus.PROMPT,
+                submittedFeedbackId = recId
+            )
+        )
+    }
+
+    fun onRefuelPromptAnswer(confirmed: Boolean?, scope: CoroutineScope? = null) {
+        val currentRec = _bestStationUiState.value.smartRecommendation
+        val currentStationId = currentRec?.stationId?.toLong()
+            ?: _bestStationUiState.value.recommendation?.station?.id?.toLong()
+            ?: return
+
+        when (confirmed) {
+            true -> {
+                _bestStationUiState.value = _bestStationUiState.value.copy(
+                    feedbackUiState = _bestStationUiState.value.feedbackUiState.copy(
+                        status = FeedbackUiStatus.DETAILS,
+                        isRefuelConfirmed = true
+                    )
+                )
+            }
+            false -> {
+                // Negative / Arrived without refuel
+                val feedback = recordRecommendationFeedbackUseCase.createFeedback(
+                    recommendationId = _bestStationUiState.value.feedbackUiState.submittedFeedbackId ?: UUID.randomUUID().toString(),
+                    recommendedStationId = currentStationId,
+                    chosenStationId = currentStationId,
+                    fuelType = _selectedFuelType.value,
+                    action = UserAction.ARRIVED,
+                    outcome = UserOutcome.FAILED,
+                    predictedAvailability = currentRec?.availability,
+                    actualAvailability = FuelAvailabilityStatus.UNAVAILABLE,
+                    userConfirmed = true,
+                    source = EventSource.USER_CONFIRMED
+                )
+
+                val launchScope = scope ?: CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
+                launchScope.launch {
+                    try {
+                        predictiveRepository?.recordFeedback(feedback)
+                        updateBestStation(this)
+                    } catch (e: Exception) {
+                        Timber.tag(TAG).w(e, "Error saving negative feedback")
+                    }
+                }
+
+                _bestStationUiState.value = _bestStationUiState.value.copy(
+                    feedbackUiState = FeedbackUiState(
+                        status = FeedbackUiStatus.SUBMITTED,
+                        isRefuelConfirmed = false
+                    )
+                )
+            }
+            null -> {
+                // Skipped / Unknown
+                val feedback = recordRecommendationFeedbackUseCase.createFeedback(
+                    recommendationId = _bestStationUiState.value.feedbackUiState.submittedFeedbackId ?: UUID.randomUUID().toString(),
+                    recommendedStationId = currentStationId,
+                    chosenStationId = currentStationId,
+                    fuelType = _selectedFuelType.value,
+                    action = UserAction.SKIPPED,
+                    outcome = UserOutcome.UNKNOWN,
+                    userConfirmed = false,
+                    source = EventSource.USER_CONFIRMED
+                )
+
+                val launchScope = scope ?: CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
+                launchScope.launch {
+                    try {
+                        predictiveRepository?.recordFeedback(feedback)
+                    } catch (e: Exception) {
+                        Timber.tag(TAG).w(e, "Error saving skipped feedback")
+                    }
+                }
+
+                _bestStationUiState.value = _bestStationUiState.value.copy(
+                    feedbackUiState = FeedbackUiState(status = FeedbackUiStatus.CANCELLED)
+                )
+            }
+        }
+    }
+
+    fun submitRefuelDetails(
+        fuelAvailable: Boolean,
+        priceMatched: Boolean,
+        actualPrice: Double?,
+        hasQueue: Boolean,
+        queueMinutes: Int?,
+        scope: CoroutineScope? = null
+    ) {
+        val currentRec = _bestStationUiState.value.smartRecommendation
+        val currentStation = currentRec?.station ?: _bestStationUiState.value.recommendation?.station ?: return
+        val currentStationId = currentStation.id.toLong()
+        val fuelType = _selectedFuelType.value
+
+        val predPrice = currentRec?.price ?: currentStation.fuelTypes.find { it.type == fuelType }?.price
+        val finalActualPrice = if (priceMatched) predPrice else actualPrice ?: predPrice
+
+        val predQueue = currentRec?.queueTimeMinutes ?: currentStation.queueTime
+        val finalActualQueue = if (!hasQueue) 0 else queueMinutes ?: predQueue
+
+        val feedback = recordRecommendationFeedbackUseCase.createFeedback(
+            recommendationId = _bestStationUiState.value.feedbackUiState.submittedFeedbackId ?: UUID.randomUUID().toString(),
+            recommendedStationId = currentStationId,
+            chosenStationId = currentStationId,
+            fuelType = fuelType,
+            action = UserAction.REFUELLED,
+            outcome = if (fuelAvailable) UserOutcome.SUCCESS else UserOutcome.FAILED,
+            predictedAvailability = currentRec?.availability,
+            actualAvailability = if (fuelAvailable) FuelAvailabilityStatus.AVAILABLE else FuelAvailabilityStatus.UNAVAILABLE,
+            predictedPrice = predPrice,
+            actualPrice = finalActualPrice,
+            predictedQueue = predQueue,
+            actualQueue = finalActualQueue,
+            userConfirmed = true,
+            source = EventSource.USER_CONFIRMED
+        )
+
+        val launchScope = scope ?: CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
+        launchScope.launch {
+            try {
+                predictiveRepository?.recordFeedback(feedback)
+
+                if (fuelAvailable && fuelRecordRepository != null && _selectedVehicleId.value != null) {
+                    val record = FuelRecordEntity(
+                        vehicleId = _selectedVehicleId.value!!,
+                        date = System.currentTimeMillis(),
+                        mileage = 0.0,
+                        fuelAmount = 0.0,
+                        pricePerLiter = finalActualPrice ?: 0.0,
+                        totalCost = 0.0,
+                        fuelType = fuelType,
+                        stationName = currentStation.name,
+                        notes = "Confirmed refuel feedback",
+                        stationId = currentStation.id,
+                        latitude = currentStation.latitude,
+                        longitude = currentStation.longitude
+                    )
+                    fuelRecordRepository.insert(record)
+                }
+
+                updateBestStation(this)
+            } catch (e: Exception) {
+                Timber.tag(TAG).w(e, "Error recording refuel feedback details")
+            }
+        }
+
+        _bestStationUiState.value = _bestStationUiState.value.copy(
+            feedbackUiState = FeedbackUiState(
+                status = FeedbackUiStatus.SUBMITTED,
+                isRefuelConfirmed = fuelAvailable
+            )
+        )
+    }
+
+    fun dismissFeedback() {
+        _bestStationUiState.value = _bestStationUiState.value.copy(
+            feedbackUiState = FeedbackUiState(status = FeedbackUiStatus.CANCELLED)
+        )
     }
 
     fun updateBestStation(scope: CoroutineScope? = null) {
@@ -183,13 +359,16 @@ class StationRecommendationDelegate @Inject constructor(
             }
         }
 
+        val prevFeedbackUiState = _bestStationUiState.value.feedbackUiState
+
         _bestStationUiState.value = BestStationUiState(
             isLoading = false,
             recommendation = result.best,
             alternatives = result.alternatives.take(2),
             smartRecommendation = smartResult.topRecommendation,
             smartAlternatives = smartResult.alternatives,
-            error = null
+            error = null,
+            feedbackUiState = prevFeedbackUiState
         )
 
         if (bestStationModel != null && scope != null && fuelRecordRepository != null) {
@@ -217,7 +396,9 @@ class StationRecommendationDelegate @Inject constructor(
                             feedbacks = feedbacks
                         )
 
-                        val personalVisitCount = if (learning.refuelsCount > 0) learning.refuelsCount else null
+                        val personalVisitCount = if (learning.refuelsCount > 0 || learning.successfulRefuelCount > 0) {
+                            maxOf(learning.refuelsCount, learning.successfulRefuelCount)
+                        } else null
                         val topSmartRec = updatedSmartResult.topRecommendation
 
                         val consumptionPred = predictConsumptionUseCase(
@@ -242,7 +423,8 @@ class StationRecommendationDelegate @Inject constructor(
                             smartRecommendation = topSmartRec,
                             smartAlternatives = updatedSmartResult.alternatives,
                             tripCostPrediction = tripCost,
-                            personalVisitCount = personalVisitCount
+                            personalVisitCount = personalVisitCount,
+                            feedbackUiState = prevFeedbackUiState
                         )
                     } catch (e: Exception) {
                         Timber.tag(TAG).w(e, "Error evaluating predictive stats for best station")

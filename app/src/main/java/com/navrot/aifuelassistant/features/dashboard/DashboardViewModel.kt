@@ -115,6 +115,31 @@ class DashboardViewModel @Inject constructor(
         recommendationDelegate.recordRouteStartedFeedback(stationId, viewModelScope)
     }
 
+    fun onRefuelPromptAnswer(confirmed: Boolean?) {
+        recommendationDelegate.onRefuelPromptAnswer(confirmed, viewModelScope)
+    }
+
+    fun submitRefuelDetails(
+        fuelAvailable: Boolean,
+        priceMatched: Boolean,
+        actualPrice: Double?,
+        hasQueue: Boolean,
+        queueMinutes: Int?
+    ) {
+        recommendationDelegate.submitRefuelDetails(
+            fuelAvailable = fuelAvailable,
+            priceMatched = priceMatched,
+            actualPrice = actualPrice,
+            hasQueue = hasQueue,
+            queueMinutes = queueMinutes,
+            scope = viewModelScope
+        )
+    }
+
+    fun dismissFeedback() {
+        recommendationDelegate.dismissFeedback()
+    }
+
     fun setUserQuestion(text: String) {
         aiChatDelegate.setUserQuestion(text)
     }
