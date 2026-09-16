@@ -56,4 +56,39 @@ class VoiceInputTest {
         assertEquals("Где ближайшая заправка", resultText)
         assertEquals(false, isListening)
     }
+
+    @Test
+    fun `onError translates error code to human readable russian message`() {
+        var errorMsg: String? = null
+        var isListening = true
+
+        val listener = object : RecognitionListener {
+            override fun onReadyForSpeech(params: Bundle?) {}
+            override fun onBeginningOfSpeech() {}
+            override fun onRmsChanged(rmsdB: Float) {}
+            override fun onBufferReceived(buffer: ByteArray?) {}
+            override fun onEndOfSpeech() {
+                isListening = false
+            }
+
+            override fun onError(error: Int) {
+                isListening = false
+                val msg = when (error) {
+                    SpeechRecognizer.ERROR_NO_MATCH -> "Не удалось распознать речь"
+                    SpeechRecognizer.ERROR_NETWORK -> "Ошибка сети"
+                    else -> "Не удалось распознать голос"
+                }
+                errorMsg = msg
+            }
+
+            override fun onResults(results: Bundle?) {}
+            override fun onPartialResults(partialResults: Bundle?) {}
+            override fun onEvent(eventType: Int, params: Bundle?) {}
+        }
+
+        listener.onError(SpeechRecognizer.ERROR_NO_MATCH)
+
+        assertEquals("Не удалось распознать речь", errorMsg)
+        assertEquals(false, isListening)
+    }
 }
