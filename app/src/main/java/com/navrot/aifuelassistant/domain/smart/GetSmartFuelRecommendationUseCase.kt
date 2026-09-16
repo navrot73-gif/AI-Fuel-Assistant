@@ -76,10 +76,14 @@ class GetSmartFuelRecommendationUseCase @Inject constructor(
         val candidates = matchingFuelStations.mapNotNull { station ->
             val snapshot = FuelIntelligenceResolver.resolveSnapshot(station, fuelType, currentTimeMs)
 
-            // Apply hard filter: exclude explicitly UNAVAILABLE / NO_FUEL
-            if (SmartRecommendationPolicy.isHardFilteredOut(snapshot)) {
+            val dataQuality = com.navrot.aifuelassistant.domain.realtime.FuelDataQualityAnalyzer.analyze(snapshot, now = currentTimeMs)
+
+            // Apply safety filter: exclude explicitly UNAVAILABLE / NO_FUEL stations
+            if (com.navrot.aifuelassistant.domain.realtime.SmartRecommendationSafetyPolicy.isExcludedFromRecommendation(dataQuality)) {
                 return@mapNotNull null
             }
+
+            val safetyWarnings = com.navrot.aifuelassistant.domain.realtime.SmartRecommendationSafetyPolicy.generateSafetyWarnings(dataQuality)
 
             val distanceKm = if (hasUserLocation) {
                 GeoUtils.calculateDistance(userLat!!, userLon!!, station.latitude, station.longitude)
@@ -120,9 +124,13 @@ class GetSmartFuelRecommendationUseCase @Inject constructor(
                 consumptionLPer100km = consumptionPrediction?.predictedConsumption ?: RecommendationPolicy.DEFAULT_CONSUMPTION_L_PER_100KM
             )
 
-            val confidence = SmartRecommendationPolicy.evaluateConfidence(
+            val baseConfidence = SmartRecommendationPolicy.evaluateConfidence(
                 snapshot = snapshot,
                 consumptionPrediction = consumptionPrediction
+            )
+            val confidence = com.navrot.aifuelassistant.domain.realtime.SmartRecommendationSafetyPolicy.adjustConfidenceForSafety(
+                baseConfidence = baseConfidence,
+                dataQuality = dataQuality
             )
 
             val reasons = SmartRecommendationPolicy.evaluateReasons(
@@ -160,7 +168,9 @@ class GetSmartFuelRecommendationUseCase @Inject constructor(
                 confidence = confidence,
                 reasons = reasons,
                 personalVisitCount = personalVisitCount,
-                recommended = false
+                recommended = false,
+                dataQuality = dataQuality,
+                safetyWarnings = safetyWarnings
             )
         }
 

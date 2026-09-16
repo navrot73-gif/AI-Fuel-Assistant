@@ -350,9 +350,44 @@ private fun SmartStationContent(
             }
         }
 
+        // Phase I Data Quality Indicator & Warnings
+        smartRec.dataQuality?.let { dq ->
+            val qualityBadgeText = when (dq.qualityLevel) {
+                com.navrot.aifuelassistant.domain.realtime.FuelDataQualityLevel.HIGH -> "● Данные актуальны"
+                com.navrot.aifuelassistant.domain.realtime.FuelDataQualityLevel.MEDIUM -> "● Данные частично устарели"
+                com.navrot.aifuelassistant.domain.realtime.FuelDataQualityLevel.LOW -> "⚠ Данные требуют проверки"
+                com.navrot.aifuelassistant.domain.realtime.FuelDataQualityLevel.UNKNOWN -> "Данные не подтверждены"
+            }
+            val qualityBadgeColor = when (dq.qualityLevel) {
+                com.navrot.aifuelassistant.domain.realtime.FuelDataQualityLevel.HIGH -> Color(0xFF3ECDB0)
+                com.navrot.aifuelassistant.domain.realtime.FuelDataQualityLevel.MEDIUM -> Color(0xFFF5A94E)
+                com.navrot.aifuelassistant.domain.realtime.FuelDataQualityLevel.LOW -> Color(0xFFFF6F61)
+                com.navrot.aifuelassistant.domain.realtime.FuelDataQualityLevel.UNKNOWN -> Color(0xFF8A97A5)
+            }
+
+            Text(
+                text = qualityBadgeText,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = qualityBadgeColor,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+
+        if (smartRec.safetyWarnings.isNotEmpty()) {
+            smartRec.safetyWarnings.forEach { warn ->
+                Text(
+                    text = "⚠ $warn",
+                    fontSize = 11.sp,
+                    color = Color(0xFFFF6F61),
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
         // Confidence
         val confidenceText = formatConfidence(smartRec.confidence)
-        val timestamp = station.fuelTypes.find { it.type == selectedFuelType }?.updatedAt ?: station.updatedAt
+        val timestamp = smartRec.dataQuality?.lastUpdated ?: station.fuelTypes.find { it.type == selectedFuelType }?.updatedAt ?: station.updatedAt
         val freshnessText = formatFreshness(timestamp, currentTimeMs)
 
         Row(
