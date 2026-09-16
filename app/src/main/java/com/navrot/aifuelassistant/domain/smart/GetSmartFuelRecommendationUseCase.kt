@@ -7,6 +7,8 @@ import com.navrot.aifuelassistant.domain.predictive.ConsumptionPrediction
 import com.navrot.aifuelassistant.domain.predictive.RecommendationFeedback
 import com.navrot.aifuelassistant.domain.predictive.usecase.PersonalStationPreferenceUseCase
 import com.navrot.aifuelassistant.domain.predictive.usecase.PredictConsumptionUseCase
+import com.navrot.aifuelassistant.domain.realtime.FuelDataQualityAnalyzer
+import com.navrot.aifuelassistant.domain.realtime.SmartRecommendationSafetyPolicy
 import com.navrot.aifuelassistant.domain.recommendation.RecommendationPolicy
 import com.navrot.aifuelassistant.geo.GeoUtils
 import javax.inject.Inject
@@ -76,10 +78,14 @@ class GetSmartFuelRecommendationUseCase @Inject constructor(
         val candidates = matchingFuelStations.mapNotNull { station ->
             val snapshot = FuelIntelligenceResolver.resolveSnapshot(station, fuelType, currentTimeMs)
 
-            // Apply hard filter: exclude explicitly UNAVAILABLE / NO_FUEL
-            if (SmartRecommendationPolicy.isHardFilteredOut(snapshot)) {
+            val dataQuality = FuelDataQualityAnalyzer.analyze(snapshot, now = currentTimeMs)
+
+            // Apply safety filter: exclude explicitly UNAVAILABLE / NO_FUEL stations
+            if (SmartRecommendationSafetyPolicy.isExcludedFromRecommendation(dataQuality)) {
                 return@mapNotNull null
             }
+
+            val safetyWarnings = SmartRecommendationSafetyPolicy.generateSafetyWarnings(dataQuality)
 
             val distanceKm = if (hasUserLocation) {
                 GeoUtils.calculateDistance(userLat!!, userLon!!, station.latitude, station.longitude)
@@ -103,26 +109,34 @@ class GetSmartFuelRecommendationUseCase @Inject constructor(
 
             val price = snapshot.price ?: station.fuelTypes.find { it.type == fuelType }?.price
 
+            val consumptionLPer100km = consumptionPrediction?.predictedConsumption
+
             val estimatedTripCost = SmartRecommendationPolicy.calculateTripCost(
                 distanceKm = distanceKm,
                 price = price,
-                consumptionLPer100km = consumptionPrediction?.predictedConsumption ?: RecommendationPolicy.DEFAULT_CONSUMPTION_L_PER_100KM
+                consumptionLPer100km = consumptionLPer100km
             )
 
             val estimatedFuelCost = price?.let { it * refillLiters }
 
-            val estimatedTotalCost = SmartRecommendationPolicy.calculateTotalEstimatedCost(
-                station = station,
-                fuelType = fuelType,
-                distanceKm = distanceKm,
-                price = price,
-                refillLiters = refillLiters,
-                consumptionLPer100km = consumptionPrediction?.predictedConsumption ?: RecommendationPolicy.DEFAULT_CONSUMPTION_L_PER_100KM
-            )
+            val estimatedTotalCost = if (consumptionLPer100km != null) {
+                SmartRecommendationPolicy.calculateTotalEstimatedCost(
+                    station = station,
+                    fuelType = fuelType,
+                    distanceKm = distanceKm,
+                    price = price,
+                    refillLiters = refillLiters,
+                    consumptionLPer100km = consumptionLPer100km
+                )
+            } else null
 
-            val confidence = SmartRecommendationPolicy.evaluateConfidence(
+            val baseConfidence = SmartRecommendationPolicy.evaluateConfidence(
                 snapshot = snapshot,
                 consumptionPrediction = consumptionPrediction
+            )
+            val confidence = SmartRecommendationSafetyPolicy.adjustConfidenceForSafety(
+                baseConfidence = baseConfidence,
+                dataQuality = dataQuality
             )
 
             val reasons = SmartRecommendationPolicy.evaluateReasons(
@@ -160,7 +174,9 @@ class GetSmartFuelRecommendationUseCase @Inject constructor(
                 confidence = confidence,
                 reasons = reasons,
                 personalVisitCount = personalVisitCount,
-                recommended = false
+                recommended = false,
+                dataQuality = dataQuality,
+                safetyWarnings = safetyWarnings
             )
         }
 

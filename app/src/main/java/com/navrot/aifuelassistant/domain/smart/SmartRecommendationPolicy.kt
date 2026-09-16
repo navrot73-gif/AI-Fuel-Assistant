@@ -118,6 +118,18 @@ object SmartRecommendationPolicy {
 
         if (snapshot.availability == FuelAvailabilityStatus.AVAILABLE) {
             reasons.add(SmartRecommendationReason.FUEL_AVAILABLE)
+        } else if (snapshot.availability == FuelAvailabilityStatus.UNKNOWN) {
+            reasons.add(SmartRecommendationReason.UNKNOWN_AVAILABILITY)
+        }
+
+        if (snapshot.isConflict) {
+            reasons.add(SmartRecommendationReason.SOURCE_CONFLICT)
+        } else if (snapshot.sourceCount >= 2) {
+            reasons.add(SmartRecommendationReason.MULTI_SOURCE_CONFIRMATION)
+        }
+
+        if (snapshot.freshness == FuelFreshness.STALE) {
+            reasons.add(SmartRecommendationReason.STALE_DATA)
         }
 
         val price = snapshot.price ?: station.fuelTypes.find { it.type == fuelType }?.price

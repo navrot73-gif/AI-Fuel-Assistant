@@ -36,6 +36,7 @@ import com.navrot.aifuelassistant.domain.recommendation.StationRecommendation
 import com.navrot.aifuelassistant.domain.recommendation.StationRecommendationReason
 import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
 import com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator
+import com.navrot.aifuelassistant.domain.realtime.FuelDataQualityLevel
 import com.navrot.aifuelassistant.domain.smart.SmartRecommendationReason
 import com.navrot.aifuelassistant.domain.smart.SmartStationRecommendation
 import com.navrot.aifuelassistant.features.dashboard.BestStationUiState
@@ -279,24 +280,16 @@ private fun SmartStationContent(
             fontWeight = FontWeight.SemiBold,
             color = Color(0xFFF5A94E)
         )
+    } else if (uiState.tripCostPrediction?.predictedCost != null && uiState.tripCostPrediction.predictedCost!! > 0.0) {
+        Text(
+            text = "Поездка ≈ ${String.format(Locale.getDefault(), "%.0f ₽", uiState.tripCostPrediction.predictedCost)}",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFFF5A94E)
+        )
     } else {
-        uiState.tripCostPrediction?.let { trip ->
-            if (trip.predictedCost != null) {
-                Text(
-                    text = "Поездка ≈ ${String.format(Locale.getDefault(), "%.0f ₽", trip.predictedCost)}",
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = Color(0xFFF5A94E)
-                )
-            } else {
-                Text(
-                    text = "Стоимость поездки не рассчитана",
-                    fontSize = 12.sp,
-                    color = Color(0xFF8A97A5)
-                )
-            }
-        } ?: Text(
-            text = "Стоимость поездки не рассчитана",
+        Text(
+            text = "Стоимость поездки — недостаточно данных",
             fontSize = 12.sp,
             color = Color(0xFF8A97A5)
         )
@@ -350,9 +343,44 @@ private fun SmartStationContent(
             }
         }
 
+        // Phase I Data Quality Indicator & Warnings
+        smartRec.dataQuality?.let { dq ->
+            val qualityBadgeText = when (dq.qualityLevel) {
+                FuelDataQualityLevel.HIGH -> "● Данные актуальны"
+                FuelDataQualityLevel.MEDIUM -> "● Данные частично устарели"
+                FuelDataQualityLevel.LOW -> "⚠ Данные требуют проверки"
+                FuelDataQualityLevel.UNKNOWN -> "Данные не подтверждены"
+            }
+            val qualityBadgeColor = when (dq.qualityLevel) {
+                FuelDataQualityLevel.HIGH -> Color(0xFF3ECDB0)
+                FuelDataQualityLevel.MEDIUM -> Color(0xFFF5A94E)
+                FuelDataQualityLevel.LOW -> Color(0xFFFF6F61)
+                FuelDataQualityLevel.UNKNOWN -> Color(0xFF8A97A5)
+            }
+
+            Text(
+                text = qualityBadgeText,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = qualityBadgeColor,
+                modifier = Modifier.padding(top = 2.dp)
+            )
+        }
+
+        if (smartRec.safetyWarnings.isNotEmpty()) {
+            smartRec.safetyWarnings.forEach { warn ->
+                Text(
+                    text = "⚠ $warn",
+                    fontSize = 11.sp,
+                    color = Color(0xFFFF6F61),
+                    fontWeight = FontWeight.Medium
+                )
+            }
+        }
+
         // Confidence
         val confidenceText = formatConfidence(smartRec.confidence)
-        val timestamp = station.fuelTypes.find { it.type == selectedFuelType }?.updatedAt ?: station.updatedAt
+        val timestamp = smartRec.dataQuality?.lastUpdated ?: station.fuelTypes.find { it.type == selectedFuelType }?.updatedAt ?: station.updatedAt
         val freshnessText = formatFreshness(timestamp, currentTimeMs)
 
         Row(

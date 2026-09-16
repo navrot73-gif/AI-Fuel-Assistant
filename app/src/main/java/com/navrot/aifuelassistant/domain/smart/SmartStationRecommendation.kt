@@ -35,5 +35,8 @@ data class SmartStationRecommendation(
 
     val personalVisitCount: Int?,
 
-    val recommended: Boolean
+    val recommended: Boolean,
+
+    val dataQuality: com.navrot.aifuelassistant.domain.realtime.FuelDataQuality? = null,
+    val safetyWarnings: List<String> = emptyList()
 )
