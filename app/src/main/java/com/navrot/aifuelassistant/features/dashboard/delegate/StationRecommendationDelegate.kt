@@ -12,8 +12,10 @@ import com.navrot.aifuelassistant.domain.predictive.TripCostPrediction
 import com.navrot.aifuelassistant.domain.predictive.usecase.PersonalStationPreferenceUseCase
 import com.navrot.aifuelassistant.domain.predictive.usecase.PredictConsumptionUseCase
 import com.navrot.aifuelassistant.domain.predictive.usecase.PredictTripFuelCostUseCase
+import com.navrot.aifuelassistant.domain.predictive.usecase.RecordRecommendationFeedbackUseCase
 import com.navrot.aifuelassistant.domain.recommendation.BestStationUseCase
 import com.navrot.aifuelassistant.domain.recommendation.BestStationResult
+import com.navrot.aifuelassistant.domain.smart.GetSmartFuelRecommendationUseCase
 import com.navrot.aifuelassistant.domain.usecase.GetBestStationsUseCase
 import com.navrot.aifuelassistant.features.dashboard.BestStationUiState
 import com.navrot.aifuelassistant.geo.GeoUtils
@@ -32,9 +34,11 @@ class StationRecommendationDelegate @Inject constructor(
     private val gasStationRepository: GasStationRepositoryInterface,
     private val getBestStationsUseCase: GetBestStationsUseCase,
     private val bestStationUseCase: BestStationUseCase = BestStationUseCase(),
+    private val getSmartFuelRecommendationUseCase: GetSmartFuelRecommendationUseCase = GetSmartFuelRecommendationUseCase(),
     private val predictConsumptionUseCase: PredictConsumptionUseCase = PredictConsumptionUseCase(),
     private val predictTripFuelCostUseCase: PredictTripFuelCostUseCase = PredictTripFuelCostUseCase(),
     private val personalStationPreferenceUseCase: PersonalStationPreferenceUseCase = PersonalStationPreferenceUseCase(),
+    private val recordRecommendationFeedbackUseCase: RecordRecommendationFeedbackUseCase = RecordRecommendationFeedbackUseCase(),
     private val fuelRecordRepository: FuelRecordRepository? = null,
     private val predictiveRepository: PredictiveRepository? = null
 ) {
@@ -117,6 +121,29 @@ class StationRecommendationDelegate @Inject constructor(
         updateBestStation(scope)
     }
 
+    fun recordRouteStartedFeedback(chosenStationId: Int, scope: CoroutineScope? = null) {
+        val currentBestId = _bestStationUiState.value.smartRecommendation?.stationId?.toLong()
+            ?: _bestStationUiState.value.recommendation?.station?.id?.toLong()
+            ?: return
+
+        if (predictiveRepository != null) {
+            val feedback = recordRecommendationFeedbackUseCase.createFeedback(
+                recommendationId = java.util.UUID.randomUUID().toString(),
+                recommendedStationId = currentBestId,
+                chosenStationId = chosenStationId.toLong(),
+                routeStarted = true
+            )
+            val launchScope = scope ?: CoroutineScope(kotlinx.coroutines.Dispatchers.IO)
+            launchScope.launch {
+                try {
+                    predictiveRepository.recordFeedback(feedback)
+                } catch (e: Exception) {
+                    Timber.tag(TAG).w(e, "Error saving recommendation feedback")
+                }
+            }
+        }
+    }
+
     fun updateBestStation(scope: CoroutineScope? = null) {
         val fuelType = _selectedFuelType.value
         val currentStations = _stations.value
@@ -139,7 +166,15 @@ class StationRecommendationDelegate @Inject constructor(
             userLon = userLon
         )
 
-        val bestStationModel = result.best?.station
+        val smartResult = getSmartFuelRecommendationUseCase.execute(
+            stations = currentStations,
+            fuelType = fuelType,
+            userLat = userLat,
+            userLon = userLon,
+            vehicleId = _selectedVehicleId.value
+        )
+
+        val bestStationModel = smartResult.topRecommendation?.station ?: result.best?.station
         if (_bestStation.value != bestStationModel) {
             _bestStation.value = bestStationModel
             if (bestStationModel != null) {
@@ -152,6 +187,8 @@ class StationRecommendationDelegate @Inject constructor(
             isLoading = false,
             recommendation = result.best,
             alternatives = result.alternatives.take(2),
+            smartRecommendation = smartResult.topRecommendation,
+            smartAlternatives = smartResult.alternatives,
             error = null
         )
 
@@ -164,6 +201,16 @@ class StationRecommendationDelegate @Inject constructor(
                         val events = records.map { it.toPersonalFuelEvent() }
                         val feedbacks = predictiveRepository?.getAllFeedbacks() ?: emptyList()
 
+                        val updatedSmartResult = getSmartFuelRecommendationUseCase.execute(
+                            stations = currentStations,
+                            fuelType = fuelType,
+                            userLat = userLat,
+                            userLon = userLon,
+                            vehicleId = vehicleId,
+                            personalEvents = events,
+                            feedbacks = feedbacks
+                        )
+
                         val learning = personalStationPreferenceUseCase.getStationLearning(
                             stationId = bestStationModel.id,
                             events = events,
@@ -171,6 +218,7 @@ class StationRecommendationDelegate @Inject constructor(
                         )
 
                         val personalVisitCount = if (learning.refuelsCount > 0) learning.refuelsCount else null
+                        val topSmartRec = updatedSmartResult.topRecommendation
 
                         val consumptionPred = predictConsumptionUseCase(
                             vehicleId = vehicleId,
@@ -191,6 +239,8 @@ class StationRecommendationDelegate @Inject constructor(
                         )
 
                         _bestStationUiState.value = _bestStationUiState.value.copy(
+                            smartRecommendation = topSmartRec,
+                            smartAlternatives = updatedSmartResult.alternatives,
                             tripCostPrediction = tripCost,
                             personalVisitCount = personalVisitCount
                         )

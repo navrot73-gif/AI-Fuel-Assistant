@@ -111,6 +111,10 @@ class DashboardViewModel @Inject constructor(
         recommendationDelegate.selectFuelType(fuelType)
     }
 
+    fun recordRouteStartedFeedback(stationId: Int) {
+        recommendationDelegate.recordRouteStartedFeedback(stationId, viewModelScope)
+    }
+
     fun setUserQuestion(text: String) {
         aiChatDelegate.setUserQuestion(text)
     }

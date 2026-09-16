@@ -1,9 +1,6 @@
 package com.navrot.aifuelassistant.features.dashboard.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -39,6 +36,8 @@ import com.navrot.aifuelassistant.domain.recommendation.StationRecommendation
 import com.navrot.aifuelassistant.domain.recommendation.StationRecommendationReason
 import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
 import com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator
+import com.navrot.aifuelassistant.domain.smart.SmartRecommendationReason
+import com.navrot.aifuelassistant.domain.smart.SmartStationRecommendation
 import com.navrot.aifuelassistant.features.dashboard.BestStationUiState
 import com.navrot.aifuelassistant.geo.GeoUtils
 import com.navrot.aifuelassistant.ui.theme.FueldeckColors
@@ -83,42 +82,340 @@ fun BestStationCard(
                     )
                 }
 
-                uiState.recommendation == null -> {
+                uiState.smartRecommendation == null && uiState.recommendation == null -> {
                     BestStationEmptyCard(
                         onRefresh = onRefreshClick
                     )
                 }
 
                 else -> {
-                    val rec = uiState.recommendation
-                    BestStationContent(
-                        recommendation = rec,
-                        uiState = uiState,
-                        selectedFuelType = selectedFuelType,
-                        userLat = userLat,
-                        userLon = userLon,
-                        onRouteClick = onRouteClick,
-                        onDetailClick = onDetailClick,
-                        currentTimeMs = currentTimeMs
-                    )
-
-                    if (uiState.alternatives.isNotEmpty()) {
-                        Spacer(Modifier.height(4.dp))
-                        BestStationAlternativesList(
-                            alternatives = uiState.alternatives,
+                    if (uiState.smartRecommendation != null) {
+                        SmartStationContent(
+                            smartRec = uiState.smartRecommendation,
+                            uiState = uiState,
                             selectedFuelType = selectedFuelType,
                             userLat = userLat,
                             userLon = userLon,
-                            onStationClick = { stationId ->
-                                if (onDetailClick != null) {
-                                    onDetailClick(stationId)
-                                } else {
-                                    onRouteClick(stationId)
-                                }
-                            }
+                            onRouteClick = onRouteClick,
+                            onDetailClick = onDetailClick,
+                            currentTimeMs = currentTimeMs
                         )
+
+                        if (uiState.smartAlternatives.isNotEmpty()) {
+                            Spacer(Modifier.height(4.dp))
+                            SmartStationAlternativesList(
+                                alternatives = uiState.smartAlternatives,
+                                selectedFuelType = selectedFuelType,
+                                userLat = userLat,
+                                userLon = userLon,
+                                onStationClick = { stationId ->
+                                    if (onDetailClick != null) {
+                                        onDetailClick(stationId)
+                                    } else {
+                                        onRouteClick(stationId)
+                                    }
+                                }
+                            )
+                        }
+                    } else if (uiState.recommendation != null) {
+                        val rec = uiState.recommendation
+                        BestStationContent(
+                            recommendation = rec,
+                            uiState = uiState,
+                            selectedFuelType = selectedFuelType,
+                            userLat = userLat,
+                            userLon = userLon,
+                            onRouteClick = onRouteClick,
+                            onDetailClick = onDetailClick,
+                            currentTimeMs = currentTimeMs
+                        )
+
+                        if (uiState.alternatives.isNotEmpty()) {
+                            Spacer(Modifier.height(4.dp))
+                            BestStationAlternativesList(
+                                alternatives = uiState.alternatives,
+                                selectedFuelType = selectedFuelType,
+                                userLat = userLat,
+                                userLon = userLon,
+                                onStationClick = { stationId ->
+                                    if (onDetailClick != null) {
+                                        onDetailClick(stationId)
+                                    } else {
+                                        onRouteClick(stationId)
+                                    }
+                                }
+                            )
+                        }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SmartStationContent(
+    smartRec: SmartStationRecommendation,
+    uiState: BestStationUiState,
+    selectedFuelType: String,
+    userLat: Double?,
+    userLon: Double?,
+    onRouteClick: (Int) -> Unit,
+    onDetailClick: ((Int) -> Unit)?,
+    currentTimeMs: Long
+) {
+    val station = smartRec.station
+
+    // 1. HEADER
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = "ЛУЧШАЯ АЗС СЕЙЧАС",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFF3ECDB0),
+            letterSpacing = 1.2.sp
+        )
+        Icon(
+            imageVector = Icons.Default.Check,
+            contentDescription = "Verified recommendation",
+            tint = Color(0xFF3ECDB0),
+            modifier = Modifier.size(16.dp)
+        )
+    }
+
+    // 2. STATION NAME & ADDRESS
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = smartRec.stationName,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFFF5F7FA),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis
+        )
+        if (smartRec.address.isNotBlank()) {
+            Text(
+                text = smartRec.address,
+                fontSize = 13.sp,
+                color = Color(0xFF8A97A5),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+    }
+
+    // 3. FUEL & PRICE
+    val priceText = formatPrice(smartRec.price ?: 0.0)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Surface(
+            color = Color(0x29F5A94E),
+            shape = RoundedCornerShape(8.dp)
+        ) {
+            Text(
+                text = smartRec.fuelType,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFFF5A94E),
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+        }
+
+        Text(
+            text = priceText,
+            fontSize = 20.sp,
+            fontWeight = FontWeight.Bold,
+            color = Color(0xFFF5F7FA)
+        )
+    }
+
+    // 4. DISTANCE & QUEUE
+    val distanceKm = smartRec.distanceKm ?: if (userLat != null && userLon != null && userLat != 0.0 && userLon != 0.0) {
+        GeoUtils.calculateDistance(userLat, userLon, station.latitude, station.longitude)
+    } else null
+
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        distanceKm?.let { dist ->
+            val travelTime = smartRec.estimatedTravelMinutes?.let { " ~${it} мин" } ?: ""
+            Text(
+                text = "${formatDistance(dist)}$travelTime",
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFFF5F7FA)
+            )
+        }
+
+        if (smartRec.queueTimeMinutes != null && smartRec.queueTimeMinutes > 0) {
+            Text(
+                text = "Очередь: ~${smartRec.queueTimeMinutes} мин",
+                fontSize = 13.sp,
+                color = Color(0xFFF5A94E)
+            )
+        } else {
+            Text(
+                text = "Очередь: низкая",
+                fontSize = 13.sp,
+                color = Color(0xFF8A97A5)
+            )
+        }
+    }
+
+    // 5. TRIP COST ESTIMATE
+    if (smartRec.estimatedTripCost != null && smartRec.estimatedTripCost > 0.0) {
+        Text(
+            text = "Поездка ≈ ${String.format(Locale.getDefault(), "%.0f ₽", smartRec.estimatedTripCost)}",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFFF5A94E)
+        )
+    } else {
+        uiState.tripCostPrediction?.let { trip ->
+            if (trip.predictedCost != null) {
+                Text(
+                    text = "Поездка ≈ ${String.format(Locale.getDefault(), "%.0f ₽", trip.predictedCost)}",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = Color(0xFFF5A94E)
+                )
+            } else {
+                Text(
+                    text = "Стоимость поездки не рассчитана",
+                    fontSize = 12.sp,
+                    color = Color(0xFF8A97A5)
+                )
+            }
+        } ?: Text(
+            text = "Стоимость поездки не рассчитана",
+            fontSize = 12.sp,
+            color = Color(0xFF8A97A5)
+        )
+    }
+
+    // 6. AVAILABILITY & PERSONAL BADGE
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        val availText = when (smartRec.availability) {
+            FuelAvailabilityStatus.AVAILABLE -> "✓ Топливо есть"
+            FuelAvailabilityStatus.UNKNOWN -> "Наличие не подтверждено"
+            FuelAvailabilityStatus.UNAVAILABLE, FuelAvailabilityStatus.NO_FUEL -> "Нет топлива"
+        }
+        val availColor = when (smartRec.availability) {
+            FuelAvailabilityStatus.AVAILABLE -> Color(0xFF3ECDB0)
+            FuelAvailabilityStatus.UNKNOWN -> Color(0xFFF5A94E)
+            FuelAvailabilityStatus.UNAVAILABLE, FuelAvailabilityStatus.NO_FUEL -> Color(0xFFFF6F61)
+        }
+
+        Text(
+            text = availText,
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            color = availColor
+        )
+
+        val visitCount = smartRec.personalVisitCount ?: uiState.personalVisitCount
+        if (visitCount != null && visitCount > 0) {
+            Text(
+                text = "✓ Вы заправлялись здесь $visitCount раз",
+                fontSize = 12.sp,
+                color = Color(0xFF3ECDB0),
+                fontWeight = FontWeight.Medium
+            )
+        }
+
+        // 7. EXPLANATION: WHY THIS STATION?
+        if (smartRec.reasons.isNotEmpty()) {
+            Text(
+                text = "Почему:",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color(0xFFF5F7FA),
+                modifier = Modifier.padding(top = 2.dp)
+            )
+            smartRec.reasons.take(4).forEach { reason ->
+                Text(
+                    text = "• ${reason.description.lowercase()}",
+                    fontSize = 12.sp,
+                    color = Color(0xFF8A97A5)
+                )
+            }
+        }
+
+        // Confidence
+        val confidenceText = formatConfidence(smartRec.confidence)
+        val timestamp = station.fuelTypes.find { it.type == selectedFuelType }?.updatedAt ?: station.updatedAt
+        val freshnessText = formatFreshness(timestamp, currentTimeMs)
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 4.dp),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = confidenceText,
+                fontSize = 11.sp,
+                color = Color(0xFF8A97A5)
+            )
+            Text(
+                text = freshnessText,
+                fontSize = 11.sp,
+                color = Color(0xFF8A97A5)
+            )
+        }
+    }
+
+    // 8. CTAs
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier.padding(top = 4.dp)
+    ) {
+        Button(
+            onClick = { onRouteClick(smartRec.stationId) },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFFF5A94E),
+                contentColor = Color(0xFF1A1205)
+            ),
+            shape = FueldeckShapes.Lg,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Icon(
+                imageVector = Icons.Default.Navigation,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(
+                text = "ПОСТРОИТЬ МАРШРУТ",
+                fontWeight = FontWeight.Bold,
+                fontSize = 14.sp
+            )
+        }
+
+        if (onDetailClick != null) {
+            OutlinedButton(
+                onClick = { onDetailClick(smartRec.stationId) },
+                colors = ButtonDefaults.outlinedButtonColors(
+                    contentColor = Color(0xFFF5F7FA)
+                ),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x3D8A97A5)),
+                shape = FueldeckShapes.Lg,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Подробнее",
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium
+                )
             }
         }
     }
@@ -353,7 +650,7 @@ private fun BestStationContent(
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                text = "МАРШРУТ",
+                text = "ПОСТРОИТЬ МАРШРУТ",
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
             )
@@ -374,6 +671,98 @@ private fun BestStationContent(
                     fontSize = 13.sp,
                     fontWeight = FontWeight.Medium
                 )
+            }
+        }
+    }
+}
+
+@Composable
+fun SmartStationAlternativesList(
+    alternatives: List<SmartStationRecommendation>,
+    selectedFuelType: String,
+    userLat: Double?,
+    userLon: Double?,
+    onStationClick: (Int) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = "Другие хорошие варианты",
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = Color(0xFF8A97A5)
+        )
+
+        alternatives.take(2).forEach { altRec ->
+            val altStation = altRec.station
+            val altDistance = altRec.distanceKm ?: if (userLat != null && userLon != null && userLat != 0.0 && userLon != 0.0) {
+                GeoUtils.calculateDistance(userLat, userLon, altStation.latitude, altStation.longitude)
+            } else null
+
+            val primaryReasonTag = altRec.reasons.firstOrNull { it != SmartRecommendationReason.FUEL_AVAILABLE }?.description
+
+            Surface(
+                onClick = { onStationClick(altRec.stationId) },
+                color = Color(0xFF141D26),
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0x1AFFFFFF)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            text = altRec.stationName,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            color = Color(0xFFF5F7FA),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = selectedFuelType,
+                                fontSize = 11.sp,
+                                color = Color(0xFFF5A94E)
+                            )
+                            altDistance?.let { dist ->
+                                Text(
+                                    text = formatDistance(dist),
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF8A97A5)
+                                )
+                            }
+                            primaryReasonTag?.let { tag ->
+                                Text(
+                                    text = "• $tag",
+                                    fontSize = 11.sp,
+                                    color = Color(0xFF3ECDB0)
+                                )
+                            }
+                        }
+                    }
+
+                    Text(
+                        text = formatPrice(altRec.price ?: 0.0),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFFF5F7FA)
+                    )
+                }
             }
         }
     }
