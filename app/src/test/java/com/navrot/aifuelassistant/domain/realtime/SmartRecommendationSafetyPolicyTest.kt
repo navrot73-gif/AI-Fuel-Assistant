@@ -1,10 +1,8 @@
 package com.navrot.aifuelassistant.domain.realtime
 
-import com.navrot.aifuelassistant.data.model.FuelPrice
-import com.navrot.aifuelassistant.data.model.GasStation
+import com.navrot.aifuelassistant.domain.intelligence.FuelFreshness
 import com.navrot.aifuelassistant.domain.recommendation.RecommendationConfidence
 import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -20,7 +18,9 @@ class SmartRecommendationSafetyPolicyTest {
             price = 55.0,
             lastUpdated = System.currentTimeMillis(),
             ageMinutes = 5,
-            freshness = com.navrot.aifuelassistant.domain.intelligence.FuelFreshness.VERY_FRESH,
+            freshness = FuelFreshness.VERY_FRESH,
+            availabilityFreshness = FuelFreshness.VERY_FRESH,
+            priceFreshness = FuelFreshness.VERY_FRESH,
             sourceCount = 1,
             reliableSourceCount = 1,
             agreement = true,
@@ -45,7 +45,9 @@ class SmartRecommendationSafetyPolicyTest {
             price = 55.0,
             lastUpdated = System.currentTimeMillis(),
             ageMinutes = 5,
-            freshness = com.navrot.aifuelassistant.domain.intelligence.FuelFreshness.VERY_FRESH,
+            freshness = FuelFreshness.VERY_FRESH,
+            availabilityFreshness = FuelFreshness.UNKNOWN,
+            priceFreshness = FuelFreshness.VERY_FRESH,
             sourceCount = 1,
             reliableSourceCount = 1,
             agreement = true,
@@ -70,7 +72,9 @@ class SmartRecommendationSafetyPolicyTest {
             price = 55.0,
             lastUpdated = System.currentTimeMillis() - 7 * 60 * 60 * 1000L,
             ageMinutes = 420,
-            freshness = com.navrot.aifuelassistant.domain.intelligence.FuelFreshness.STALE,
+            freshness = FuelFreshness.STALE,
+            availabilityFreshness = FuelFreshness.STALE,
+            priceFreshness = FuelFreshness.STALE,
             sourceCount = 1,
             reliableSourceCount = 1,
             agreement = true,
@@ -81,7 +85,7 @@ class SmartRecommendationSafetyPolicyTest {
             confidence = RecommendationConfidence.LOW,
             primarySource = com.navrot.aifuelassistant.data.model.FuelDataSource.BENZONAVT,
             supportingSources = emptyList(),
-            warnings = listOf("Данные устарели (>6 ч)")
+            warnings = listOf("Данные по наличию устарели (>6 ч)")
         )
 
         val warnings = SmartRecommendationSafetyPolicy.generateSafetyWarnings(dq)

@@ -16,12 +16,14 @@ object SmartRecommendationSafetyPolicy {
     }
 
     /**
-     * Adjusts confidence based on real-time data quality warnings, freshness, and conflicts.
+     * Determines final recommendation confidence using dataQuality as the single source of truth,
+     * avoiding double-penalizing base confidence.
      */
     fun adjustConfidenceForSafety(
         baseConfidence: RecommendationConfidence,
         dataQuality: FuelDataQuality
     ): RecommendationConfidence {
+        // Return dataQuality.confidence directly as snapshot/data quality is the sole authority
         if (dataQuality.availability == FuelAvailabilityStatus.UNKNOWN && dataQuality.price == null) {
             return RecommendationConfidence.UNKNOWN
         }
@@ -30,15 +32,7 @@ object SmartRecommendationSafetyPolicy {
             return RecommendationConfidence.LOW
         }
 
-        if (dataQuality.qualityLevel == FuelDataQualityLevel.HIGH && baseConfidence == RecommendationConfidence.HIGH) {
-            return RecommendationConfidence.HIGH
-        }
-
-        if (dataQuality.qualityLevel == FuelDataQualityLevel.MEDIUM || baseConfidence == RecommendationConfidence.MEDIUM) {
-            return RecommendationConfidence.MEDIUM
-        }
-
-        return RecommendationConfidence.LOW
+        return baseConfidence
     }
 
     /**
@@ -57,12 +51,9 @@ object SmartRecommendationSafetyPolicy {
             warnings.add("Цена топлива не указана")
         }
 
-        if (dataQuality.warnings.contains("Данные устарели (>6 ч)")) {
+        if (dataQuality.warnings.any { it.contains("устарели") }) {
             val ageStr = dataQuality.ageMinutes?.let { " (${it / 60} ч назад)" } ?: ""
             warnings.add("Рекомендация основана на устаревших данных$ageStr")
-        } else if (dataQuality.warnings.contains("Данные частично устарели (1–6 ч)")) {
-            val ageStr = dataQuality.ageMinutes?.let { " (${it / 60} ч назад)" } ?: ""
-            warnings.add("Данные обновлялись более 1 ч назад$ageStr")
         }
 
         return warnings

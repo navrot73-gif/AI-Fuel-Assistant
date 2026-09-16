@@ -5,9 +5,7 @@ import com.navrot.aifuelassistant.domain.intelligence.FuelFreshness
 import com.navrot.aifuelassistant.domain.intelligence.FuelSourceObservation
 import com.navrot.aifuelassistant.domain.intelligence.SourceReliability
 import com.navrot.aifuelassistant.domain.intelligence.StationFuelSnapshot
-import com.navrot.aifuelassistant.domain.recommendation.RecommendationConfidence
 import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
-import kotlin.math.abs
 
 object FuelDataQualityAnalyzer {
 
@@ -25,7 +23,21 @@ object FuelDataQualityAnalyzer {
 
         val lastUpdated = snapshot.lastUpdatedAt ?: matchingObs.mapNotNull { it.observedAt }.filter { it > 0L }.maxOrNull()
         val ageMinutes = lastUpdated?.let { maxOf(0L, (now - it) / 60000L) }
-        val freshness = snapshot.freshness
+
+        // Independent Freshness Calculation
+        val latestAvailabilityObsAt = matchingObs.filter { it.availability != FuelAvailabilityStatus.UNKNOWN }
+            .mapNotNull { it.observedAt }
+            .filter { it > 0L }
+            .maxOrNull()
+
+        val latestPriceObsAt = matchingObs.filter { it.price != null && it.price > 0.0 }
+            .mapNotNull { it.observedAt }
+            .filter { it > 0L }
+            .maxOrNull()
+
+        val availabilityFreshness = FuelFreshness.calculateFreshness(latestAvailabilityObsAt, now)
+        val priceFreshness = FuelFreshness.calculateFreshness(latestPriceObsAt, now)
+        val freshness = snapshot.freshness // snapshot/general freshness
 
         val reliableSourceCount = matchingObs.count {
             SourceReliability.getReliability(it.source).reliability >= FuelDataQualityPolicy.RELIABLE_SOURCE_MIN_SCORE
@@ -98,10 +110,14 @@ object FuelDataQualityAnalyzer {
         if (snapshot.price == null) {
             warnings.add("Цена на топливо отсутствует")
         }
-        if (freshness == FuelFreshness.STALE) {
-            warnings.add("Данные устарели (>6 ч)")
-        } else if (freshness == FuelFreshness.AGING) {
-            warnings.add("Данные частично устарели (1–6 ч)")
+
+        if (availabilityFreshness == FuelFreshness.STALE) {
+            warnings.add("Данные по наличию устарели (>6 ч)")
+        }
+        if (priceFreshness == FuelFreshness.STALE) {
+            warnings.add("Данные по цене устарели (>6 ч)")
+        } else if (priceFreshness == FuelFreshness.AGING) {
+            warnings.add("Данные по цене частично устарели (1–6 ч)")
         }
 
         // Determine Quality Level
@@ -111,7 +127,8 @@ object FuelDataQualityAnalyzer {
             }
 
             !conflict &&
-            (freshness == FuelFreshness.VERY_FRESH || freshness == FuelFreshness.FRESH) &&
+            (availabilityFreshness == FuelFreshness.VERY_FRESH || availabilityFreshness == FuelFreshness.FRESH) &&
+            priceFreshness != FuelFreshness.STALE &&
             avgSourceReliability >= 0.70 &&
             snapshot.availability != FuelAvailabilityStatus.UNKNOWN &&
             snapshot.price != null -> {
@@ -119,7 +136,7 @@ object FuelDataQualityAnalyzer {
             }
 
             !conflict &&
-            freshness != FuelFreshness.STALE &&
+            availabilityFreshness != FuelFreshness.STALE &&
             completeness >= 0.60 -> {
                 FuelDataQualityLevel.MEDIUM
             }
@@ -139,6 +156,8 @@ object FuelDataQualityAnalyzer {
             lastUpdated = lastUpdated,
             ageMinutes = ageMinutes,
             freshness = freshness,
+            availabilityFreshness = availabilityFreshness,
+            priceFreshness = priceFreshness,
             sourceCount = sourceCount,
             reliableSourceCount = reliableSourceCount,
             agreement = agreement,

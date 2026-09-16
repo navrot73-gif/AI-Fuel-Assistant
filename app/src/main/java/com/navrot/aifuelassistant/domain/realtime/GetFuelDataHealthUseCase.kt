@@ -19,6 +19,10 @@ class GetFuelDataHealthUseCase @Inject constructor() {
                 evaluatedStationsCount = 0,
                 overallQuality = FuelDataQualityLevel.UNKNOWN,
                 availabilityCoverage = 0.0,
+                availabilityKnownCoverage = 0.0,
+                availabilityConfirmedCoverage = 0.0,
+                availabilityUnavailableCoverage = 0.0,
+                availabilityUnknownCoverage = 1.0,
                 priceCoverage = 0.0,
                 freshCount = 0,
                 agingCount = 0,
@@ -29,12 +33,14 @@ class GetFuelDataHealthUseCase @Inject constructor() {
             )
         }
 
-        var availableCount = 0
+        var confirmedCount = 0
+        var unavailableCount = 0
+        var unknownAvailCount = 0
         var priceCount = 0
         var freshCount = 0
         var agingCount = 0
         var staleCount = 0
-        var unknownCount = 0
+        var unknownFreshnessCount = 0
         var conflictCount = 0
         var reliableSourceCount = 0
 
@@ -42,9 +48,12 @@ class GetFuelDataHealthUseCase @Inject constructor() {
             val snapshot = FuelIntelligenceResolver.resolveSnapshot(station, fuelType, currentTimeMs)
             val quality = FuelDataQualityAnalyzer.analyze(snapshot, now = currentTimeMs)
 
-            if (quality.availability != FuelAvailabilityStatus.UNKNOWN) {
-                availableCount++
+            when (quality.availability) {
+                FuelAvailabilityStatus.AVAILABLE -> confirmedCount++
+                FuelAvailabilityStatus.UNAVAILABLE, FuelAvailabilityStatus.NO_FUEL -> unavailableCount++
+                FuelAvailabilityStatus.UNKNOWN -> unknownAvailCount++
             }
+
             if (quality.price != null && quality.price > 0.0) {
                 priceCount++
             }
@@ -52,7 +61,7 @@ class GetFuelDataHealthUseCase @Inject constructor() {
                 FuelFreshness.VERY_FRESH, FuelFreshness.FRESH -> freshCount++
                 FuelFreshness.AGING -> agingCount++
                 FuelFreshness.STALE -> staleCount++
-                FuelFreshness.UNKNOWN -> unknownCount++
+                FuelFreshness.UNKNOWN -> unknownFreshnessCount++
             }
             if (quality.conflict) {
                 conflictCount++
@@ -62,28 +71,36 @@ class GetFuelDataHealthUseCase @Inject constructor() {
             }
         }
 
-        val availabilityCoverage = availableCount.toDouble() / total
+        val knownAvailCount = confirmedCount + unavailableCount
+        val availabilityKnownCoverage = knownAvailCount.toDouble() / total
+        val availabilityConfirmedCoverage = confirmedCount.toDouble() / total
+        val availabilityUnavailableCoverage = unavailableCount.toDouble() / total
+        val availabilityUnknownCoverage = unknownAvailCount.toDouble() / total
         val priceCoverage = priceCount.toDouble() / total
 
         val freshRatio = freshCount.toDouble() / total
         val conflictRatio = conflictCount.toDouble() / total
 
         val overallQuality = when {
-            freshRatio >= 0.70 && conflictRatio <= 0.05 && availabilityCoverage >= 0.80 -> FuelDataQualityLevel.HIGH
-            freshRatio >= 0.40 && conflictRatio <= 0.15 && availabilityCoverage >= 0.50 -> FuelDataQualityLevel.MEDIUM
-            total > 0 && freshCount == 0 && unknownCount == total -> FuelDataQualityLevel.UNKNOWN
+            freshRatio >= 0.70 && conflictRatio <= 0.05 && availabilityKnownCoverage >= 0.80 -> FuelDataQualityLevel.HIGH
+            freshRatio >= 0.40 && conflictRatio <= 0.15 && availabilityKnownCoverage >= 0.50 -> FuelDataQualityLevel.MEDIUM
+            total > 0 && freshCount == 0 && unknownFreshnessCount == total -> FuelDataQualityLevel.UNKNOWN
             else -> FuelDataQualityLevel.LOW
         }
 
         return FuelDataHealth(
             evaluatedStationsCount = total,
             overallQuality = overallQuality,
-            availabilityCoverage = availabilityCoverage,
+            availabilityCoverage = availabilityKnownCoverage,
+            availabilityKnownCoverage = availabilityKnownCoverage,
+            availabilityConfirmedCoverage = availabilityConfirmedCoverage,
+            availabilityUnavailableCoverage = availabilityUnavailableCoverage,
+            availabilityUnknownCoverage = availabilityUnknownCoverage,
             priceCoverage = priceCoverage,
             freshCount = freshCount,
             agingCount = agingCount,
             staleCount = staleCount,
-            unknownCount = unknownCount,
+            unknownCount = unknownFreshnessCount,
             conflictCount = conflictCount,
             reliableSourceCount = reliableSourceCount
         )

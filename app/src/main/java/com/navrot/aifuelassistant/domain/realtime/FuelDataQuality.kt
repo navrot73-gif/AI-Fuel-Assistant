@@ -12,7 +12,9 @@ data class FuelDataQuality(
     val price: Double?,
     val lastUpdated: Long?,
     val ageMinutes: Long?,
-    val freshness: FuelFreshness,
+    val freshness: FuelFreshness, // General/overall freshness alias
+    val availabilityFreshness: FuelFreshness,
+    val priceFreshness: FuelFreshness,
     val sourceCount: Int,
     val reliableSourceCount: Int,
     val agreement: Boolean,

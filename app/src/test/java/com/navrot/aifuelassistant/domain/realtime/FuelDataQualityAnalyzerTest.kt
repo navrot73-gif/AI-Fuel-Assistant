@@ -17,6 +17,48 @@ class FuelDataQualityAnalyzerTest {
     private val now = System.currentTimeMillis()
 
     @Test
+    fun testIndependentAvailabilityAndPriceFreshness() {
+        val obs = listOf(
+            FuelSourceObservation(
+                stationId = 1,
+                fuelType = "АИ-95",
+                availability = FuelAvailabilityStatus.AVAILABLE,
+                price = null,
+                observedAt = now - 5 * 60 * 1000L, // 5 min ago (VERY_FRESH)
+                source = FuelDataSource.BENZONAVT
+            ),
+            FuelSourceObservation(
+                stationId = 1,
+                fuelType = "АИ-95",
+                availability = FuelAvailabilityStatus.UNKNOWN,
+                price = 55.0,
+                observedAt = now - 3 * 3600 * 1000L, // 3 hours ago (AGING)
+                source = FuelDataSource.RUSSIABASE
+            )
+        )
+        val snapshot = StationFuelSnapshot(
+            stationId = 1,
+            fuelType = "АИ-95",
+            availability = FuelAvailabilityStatus.AVAILABLE,
+            price = 55.0,
+            freshness = FuelFreshness.VERY_FRESH,
+            confidence = RecommendationConfidence.HIGH,
+            sourceCount = 2,
+            confirmingSourceCount = 1,
+            conflictingSourceCount = 0,
+            isConflict = false,
+            conflictReason = null,
+            lastUpdatedAt = now - 5 * 60 * 1000L,
+            sources = obs
+        )
+
+        val quality = FuelDataQualityAnalyzer.analyze(snapshot, obs, now)
+
+        assertEquals(FuelFreshness.VERY_FRESH, quality.availabilityFreshness)
+        assertEquals(FuelFreshness.AGING, quality.priceFreshness)
+    }
+
+    @Test
     fun testVeryFreshSingleReliableSourceHighQuality() {
         val obs = listOf(
             FuelSourceObservation(
@@ -47,7 +89,8 @@ class FuelDataQualityAnalyzerTest {
         val quality = FuelDataQualityAnalyzer.analyze(snapshot, obs, now)
 
         assertEquals(FuelDataQualityLevel.HIGH, quality.qualityLevel)
-        assertEquals(FuelFreshness.VERY_FRESH, quality.freshness)
+        assertEquals(FuelFreshness.VERY_FRESH, quality.availabilityFreshness)
+        assertEquals(FuelFreshness.VERY_FRESH, quality.priceFreshness)
         assertFalse(quality.conflict)
         assertEquals(55.0, quality.price!!, 0.01)
         assertEquals(1, quality.sourceCount)
