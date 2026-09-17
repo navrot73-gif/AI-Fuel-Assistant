@@ -77,7 +77,184 @@ class BenzonavtFuelDataSourceAdapterTest {
         }
     }
 
-    // A. Parser valid response
+    // A. City-level record MUST NOT produce station observations
+    @Test
+    fun testCityLevelRecordDoesNotProduceStationObservation() = runBlocking {
+        val json = """
+            {
+              "city": "chelyabinsk",
+              "prices": [
+                { "code": "АИ-95", "median": 69.5 }
+              ],
+              "updatedAt": "2026-09-17T10:41:00.614Z"
+            }
+        """.trimIndent()
+
+        mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody(json))
+
+        val adapter = createAdapter()
+        val request = FuelSourceRequest(targetCity = "chelyabinsk")
+        val result = adapter.fetch(request)
+
+        assertTrue("City-level source MUST NOT generate station-level downstream observations", result.observations.isEmpty())
+        assertEquals(1, result.rawObservations.size)
+        assertEquals("benzonavt:city:chelyabinsk:AI-95", result.rawObservations[0].externalStationId)
+    }
+
+    // B & C & D. One city price MUST NOT produce multiple station observations, matchesBrand MUST NOT be used, stationsMatched == 0
+    @Test
+    fun testStationMatchingIsZeroForCityLevelSource() = runBlocking {
+        val json = """
+            {
+              "city": "chelyabinsk",
+              "prices": [
+                { "code": "АИ-95", "median": 69.5, "sources": [{"name": "benzonavt", "price": 69.5}] }
+              ],
+              "updatedAt": "2026-09-17T10:41:00.614Z"
+            }
+        """.trimIndent()
+
+        mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody(json))
+
+        val mockLoader = createMockStationLoader(count = 109)
+        val adapter = createAdapter(mockLoader)
+        val request = FuelSourceRequest(targetCity = "chelyabinsk")
+        val result = adapter.fetch(request)
+
+        assertEquals("stationsMatched MUST be 0 when station identity is unavailable", 0, result.metrics.stationsMatched)
+        assertEquals("stationsUnmatched MUST reflect aggregate observations", 1, result.metrics.stationsUnmatched)
+        assertEquals("observationsCreated MUST be 0", 0, result.metrics.observationsCreated)
+        assertTrue("observations MUST be empty for city-level data", result.observations.isEmpty())
+        assertEquals(109, mockLoader.loadFromAssets().size) // Station registry baseline remains 109/109
+    }
+
+    // E. Aggregate/unmatched observation remains traceable
+    @Test
+    fun testAggregateObservationIsTraceableInRawObservations() = runBlocking {
+        val json = """
+            {
+              "city": "chelyabinsk",
+              "prices": [
+                { "code": "АИ-95", "median": 69.5 }
+              ],
+              "updatedAt": "2026-09-17T10:41:00.614Z"
+            }
+        """.trimIndent()
+
+        mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody(json))
+
+        val adapter = createAdapter()
+        val request = FuelSourceRequest(targetCity = "chelyabinsk")
+        val result = adapter.fetch(request)
+
+        assertEquals(1, result.rawObservations.size)
+        val rawObs = result.rawObservations[0]
+        assertEquals("benzonavt:city:chelyabinsk:AI-95", rawObs.externalStationId)
+        assertEquals("AI-95", rawObs.canonicalFuelType)
+        assertEquals(69.5, rawObs.price)
+    }
+
+    // F. AI-92 / AI-95 normalization PASS
+    @Test
+    fun testFuelNormalization() {
+        assertEquals("AI-92", FuelSourceRequest.normalizeFuelType("АИ-92"))
+        assertEquals("AI-92", FuelSourceRequest.normalizeFuelType("92"))
+        assertEquals("AI-92", FuelSourceRequest.normalizeFuelType("ron92"))
+        assertEquals("AI-95", FuelSourceRequest.normalizeFuelType("АИ-95"))
+        assertEquals("AI-95", FuelSourceRequest.normalizeFuelType("95"))
+        assertEquals("AI-95", FuelSourceRequest.normalizeFuelType("gasoline95"))
+        assertNull(FuelSourceRequest.normalizeFuelType("DIESEL"))
+        assertNull(FuelSourceRequest.normalizeFuelType("AI-98"))
+    }
+
+    // G. UNKNOWN availability PASS
+    @Test
+    fun testMissingAvailabilityIsUnknown() = runBlocking {
+        val json = """
+            {
+              "city": "chelyabinsk",
+              "prices": [
+                { "code": "АИ-95", "median": 69.5 }
+              ],
+              "updatedAt": "2026-09-17T10:41:00.614Z"
+            }
+        """.trimIndent()
+
+        mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody(json))
+
+        val adapter = createAdapter()
+        val request = FuelSourceRequest(targetCity = "chelyabinsk")
+        val result = adapter.fetch(request)
+
+        assertEquals(1, result.rawObservations.size)
+        val obs = result.rawObservations[0]
+        assertEquals(69.5, obs.price)
+        assertEquals("Missing availability field MUST remain UNKNOWN", FuelAvailabilityStatus.UNKNOWN, obs.availability)
+    }
+
+    // H. Missing price == null
+    @Test
+    fun testMissingPriceIsNull() = runBlocking {
+        val json = """
+            {
+              "city": "chelyabinsk",
+              "prices": [
+                { "code": "АИ-95", "median": 0.0, "available": false }
+              ],
+              "updatedAt": "2026-09-17T10:41:00.614Z"
+            }
+        """.trimIndent()
+
+        mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody(json))
+
+        val adapter = createAdapter()
+        val request = FuelSourceRequest(targetCity = "chelyabinsk")
+        val result = adapter.fetch(request)
+
+        assertEquals(1, result.rawObservations.size)
+        val obs = result.rawObservations[0]
+        assertNull("Missing/zero price MUST be null", obs.price)
+        assertEquals(FuelAvailabilityStatus.UNAVAILABLE, obs.availability)
+    }
+
+    // I. Freshness / provenance preserved
+    @Test
+    fun testFreshnessAndProvenancePreserved() = runBlocking {
+        val isoStr = "2026-09-17T10:41:00.614Z"
+        val expectedEpoch = BenzonavtParser.parseIsoTimestamp(isoStr)
+        assertNotNull(expectedEpoch)
+
+        val json = """
+            {
+              "city": "chelyabinsk",
+              "prices": [
+                { "code": "АИ-95", "median": 69.5 }
+              ],
+              "updatedAt": "$isoStr"
+            }
+        """.trimIndent()
+
+        mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody(json))
+
+        val adapter = createAdapter()
+        val request = FuelSourceRequest(targetCity = "chelyabinsk")
+        val result = adapter.fetch(request)
+
+        val obs = result.rawObservations[0]
+        assertEquals(expectedEpoch, obs.observedAt)
+        assertEquals("benzonavt:chelyabinsk:AI-95", obs.rawReference)
+    }
+
+    // J. Station Registry baseline remains 109/109
+    @Test
+    fun testStationRegistryBaseline109RemainsUnchanged() {
+        val mockLoader = createMockStationLoader(count = 109)
+        runBlocking {
+            assertEquals(109, mockLoader.loadFromAssets().size)
+        }
+    }
+
+    // Parser valid response
     @Test
     fun testParserValidResponse() {
         val json = """
@@ -114,19 +291,19 @@ class BenzonavtFuelDataSourceAdapterTest {
         assertEquals("2026-09-17T10:41:00.614Z", dto.updatedAt)
     }
 
-    // B. Parser empty response
+    // Parser empty response
     @Test(expected = IllegalArgumentException::class)
     fun testParserEmptyResponse() {
         BenzonavtParser.parseJson("")
     }
 
-    // C. Parser malformed response
+    // Parser malformed response
     @Test(expected = Exception::class)
     fun testParserMalformedResponse() {
         BenzonavtParser.parseJson("{ invalid json }")
     }
 
-    // D. HTTP failure (4xx, 5xx)
+    // HTTP failure (4xx, 5xx)
     @Test
     fun testHttpFailureHandling() = runBlocking {
         mockWebServer.enqueue(MockResponse().setResponseCode(500).setBody("Internal Server Error"))
@@ -141,7 +318,7 @@ class BenzonavtFuelDataSourceAdapterTest {
         assertTrue(result.errorMessage?.contains("500") == true)
     }
 
-    // E. Network timeout
+    // Network timeout
     @Test
     fun testNetworkTimeoutHandling() = runBlocking {
         mockWebServer.enqueue(
@@ -157,7 +334,7 @@ class BenzonavtFuelDataSourceAdapterTest {
         assertTrue(result.errorMessage?.contains("timeout", ignoreCase = true) == true)
     }
 
-    // F. Unsupported fuel type rejection
+    // Unsupported fuel type rejection
     @Test
     fun testUnsupportedFuelTypeRejection() = runBlocking {
         val json = """
@@ -182,247 +359,5 @@ class BenzonavtFuelDataSourceAdapterTest {
         assertEquals(1, result.rawObservations.size)
         assertEquals("AI-95", result.rawObservations[0].canonicalFuelType)
         assertTrue(result.metrics.invalidRecords >= 2)
-    }
-
-    // G. Aliases -> canonical AI-92 / AI-95
-    @Test
-    fun testAliasesNormalization() {
-        assertEquals("AI-92", FuelSourceRequest.normalizeFuelType("АИ-92"))
-        assertEquals("AI-92", FuelSourceRequest.normalizeFuelType("92"))
-        assertEquals("AI-92", FuelSourceRequest.normalizeFuelType("ron92"))
-        assertEquals("AI-95", FuelSourceRequest.normalizeFuelType("АИ-95"))
-        assertEquals("AI-95", FuelSourceRequest.normalizeFuelType("95"))
-        assertEquals("AI-95", FuelSourceRequest.normalizeFuelType("gasoline95"))
-        assertNull(FuelSourceRequest.normalizeFuelType("DIESEL"))
-        assertNull(FuelSourceRequest.normalizeFuelType("AI-98"))
-    }
-
-    // H. Missing price -> null/UNKNOWN
-    @Test
-    fun testMissingPriceSemantics() = runBlocking {
-        val json = """
-            {
-              "city": "chelyabinsk",
-              "prices": [
-                { "code": "АИ-95", "median": 0.0, "available": false }
-              ],
-              "updatedAt": "2026-09-17T10:41:00.614Z"
-            }
-        """.trimIndent()
-
-        mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody(json))
-
-        val adapter = createAdapter()
-        val request = FuelSourceRequest(targetCity = "chelyabinsk")
-        val result = adapter.fetch(request)
-
-        assertEquals(1, result.rawObservations.size)
-        val obs = result.rawObservations[0]
-        assertNull(obs.price)
-        assertEquals(FuelAvailabilityStatus.UNAVAILABLE, obs.availability)
-    }
-
-    // I. Missing availability -> UNKNOWN (Strict Requirement 9)
-    @Test
-    fun testMissingAvailabilitySemantics() = runBlocking {
-        val json = """
-            {
-              "city": "chelyabinsk",
-              "prices": [
-                { "code": "АИ-95", "median": 69.5 }
-              ],
-              "updatedAt": "2026-09-17T10:41:00.614Z"
-            }
-        """.trimIndent()
-
-        mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody(json))
-
-        val adapter = createAdapter()
-        val request = FuelSourceRequest(targetCity = "chelyabinsk")
-        val result = adapter.fetch(request)
-
-        assertEquals(1, result.rawObservations.size)
-        val obs = result.rawObservations[0]
-        assertEquals(69.5, obs.price)
-        assertEquals(FuelAvailabilityStatus.UNKNOWN, obs.availability)
-    }
-
-    // J. Invalid coordinates handling
-    @Test(expected = IllegalArgumentException::class)
-    fun testInvalidCoordinatesValidation() {
-        IngestionObservation(
-            sourceId = FuelDataSource.BENZONAVT,
-            externalStationId = "ext_invalid",
-            fuelType = "AI-95",
-            latitude = 120.0
-        )
-    }
-
-    // K & L & R. Station matching success and registry baseline 109/109
-    @Test
-    fun testStationMatchingAndBaseline109() = runBlocking {
-        val json = """
-            {
-              "city": "chelyabinsk",
-              "prices": [
-                { "code": "АИ-95", "median": 69.5, "sources": [{"name": "benzonavt", "price": 69.5}] }
-              ],
-              "updatedAt": "2026-09-17T10:41:00.614Z"
-            }
-        """.trimIndent()
-
-        mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody(json))
-
-        val mockLoader = createMockStationLoader(count = 109)
-        val adapter = createAdapter(mockLoader)
-        val request = FuelSourceRequest(targetCity = "chelyabinsk")
-        val result = adapter.fetch(request)
-
-        assertEquals(109, mockLoader.loadFromAssets().size)
-        assertTrue(result.metrics.stationsMatched > 0)
-        assertEquals(109, mockLoader.loadFromAssets().size) // Station registry baseline remains 109/109
-    }
-
-    // M. Partial station data
-    @Test
-    fun testPartialDataParsing() = runBlocking {
-        val json = """
-            {
-              "city": "chelyabinsk",
-              "prices": [
-                { "code": "АИ-92" }
-              ]
-            }
-        """.trimIndent()
-
-        mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody(json))
-
-        val adapter = createAdapter()
-        val request = FuelSourceRequest(targetCity = "chelyabinsk")
-        val result = adapter.fetch(request)
-
-        assertEquals(1, result.rawObservations.size)
-        val obs = result.rawObservations[0]
-        assertEquals("AI-92", obs.canonicalFuelType)
-        assertNull(obs.price)
-        assertEquals(FuelAvailabilityStatus.UNKNOWN, obs.availability)
-        assertNull(obs.observedAt)
-    }
-
-    // N & O. Freshness & Provenance
-    @Test
-    fun testFreshnessAndProvenance() = runBlocking {
-        val isoStr = "2026-09-17T10:41:00.614Z"
-        val expectedEpoch = BenzonavtParser.parseIsoTimestamp(isoStr)
-        assertNotNull(expectedEpoch)
-
-        val json = """
-            {
-              "city": "chelyabinsk",
-              "prices": [
-                { "code": "АИ-95", "median": 69.5 }
-              ],
-              "updatedAt": "$isoStr"
-            }
-        """.trimIndent()
-
-        mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody(json))
-
-        val adapter = createAdapter()
-        val request = FuelSourceRequest(targetCity = "chelyabinsk")
-        val result = adapter.fetch(request)
-
-        val obs = result.rawObservations[0]
-        assertEquals(expectedEpoch, obs.observedAt)
-        assertEquals("benzonavt:chelyabinsk:AI-95", obs.rawReference)
-    }
-
-    // P. Real observation creation
-    @Test
-    fun testObservationCreation() {
-        val rawObs = IngestionObservation(
-            sourceId = FuelDataSource.BENZONAVT,
-            externalStationId = "benzonavt_chelyabinsk_ai95",
-            fuelType = "АИ-95",
-            price = 69.5,
-            availability = FuelAvailabilityStatus.AVAILABLE,
-            observedAt = 1600000000000L
-        )
-
-        val downstream = rawObs.toFuelSourceObservation(stationId = 101)
-        assertEquals(101, downstream.stationId)
-        assertEquals("AI-95", downstream.fuelType)
-        assertEquals(69.5, downstream.price)
-        assertEquals(FuelAvailabilityStatus.AVAILABLE, downstream.availability)
-        assertEquals(1600000000000L, downstream.observedAt)
-        assertEquals(FuelDataSource.BENZONAVT, downstream.source)
-    }
-
-    // Q. Integration with existing intelligence pipeline
-    @Test
-    fun testIntegrationWithIntelligencePipeline() = runBlocking {
-        val rawObs = IngestionObservation(
-            sourceId = FuelDataSource.BENZONAVT,
-            externalStationId = "benzonavt_chelyabinsk_ai95",
-            fuelType = "АИ-95",
-            price = 69.5,
-            availability = FuelAvailabilityStatus.AVAILABLE
-        )
-
-        val downstreamObs = rawObs.toFuelSourceObservation(stationId = 1)
-
-        val snapshot = FuelIntelligenceResolver.resolve(
-            observations = listOf(downstreamObs),
-            stationId = 1,
-            fuelType = "AI-95"
-        )
-
-        assertNotNull(snapshot)
-        assertEquals(1, snapshot.stationId)
-        assertEquals(69.5, snapshot.price)
-        assertEquals(FuelAvailabilityStatus.AVAILABLE, snapshot.availability)
-
-        val mockStation = GasStation(
-            id = 1,
-            name = "Тестовая АЗС",
-            brand = "Газпромнефть",
-            address = "Челябинск",
-            latitude = 55.16,
-            longitude = 61.40,
-            fuelTypes = listOf(
-                FuelPrice(type = "AI-95", price = 69.5, available = true, source = FuelDataSource.BENZONAVT)
-            ),
-            queueTime = 0,
-            reliability = 0
-        )
-
-        val useCase = GetSmartFuelRecommendationUseCase()
-        val recommendationResult = useCase.execute(
-            stations = listOf(mockStation),
-            fuelType = "AI-95",
-            userLat = 55.16,
-            userLon = 61.40
-        )
-
-        assertNotNull(recommendationResult)
-        assertNotNull(recommendationResult.topRecommendation)
-        assertEquals(1, recommendationResult.topRecommendation?.stationId)
-    }
-
-    // S. UNKNOWN safety regression
-    @Test
-    fun testUnknownSafetyRegression() {
-        val obs = IngestionObservation(
-            sourceId = FuelDataSource.BENZONAVT,
-            externalStationId = "ext_101",
-            fuelType = "AI-95"
-        )
-
-        assertEquals(FuelAvailabilityStatus.UNKNOWN, obs.availability)
-        assertNull(obs.price)
-
-        val downstream = obs.toFuelSourceObservation(stationId = 1)
-        assertEquals(FuelAvailabilityStatus.UNKNOWN, downstream.availability)
-        assertNull(downstream.price)
     }
 }

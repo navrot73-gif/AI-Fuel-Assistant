@@ -2,7 +2,6 @@ package com.navrot.aifuelassistant.data.datasource
 
 import com.navrot.aifuelassistant.data.model.FuelDataSource
 import com.navrot.aifuelassistant.data.model.GasStation
-import com.navrot.aifuelassistant.data.model.matchesBrand
 import com.navrot.aifuelassistant.domain.ingestion.FuelDataSourceAdapter
 import com.navrot.aifuelassistant.domain.ingestion.FuelSourceRequest
 import com.navrot.aifuelassistant.domain.ingestion.FuelSourceResult
@@ -141,6 +140,9 @@ object BenzonavtParser {
 
 /**
  * Concrete [FuelDataSourceAdapter] implementation for Benzonavt fuel price aggregator.
+ *
+ * Source Granularity: CITY_LEVEL
+ * Does not map aggregate city prices to individual station IDs or pretend station-level identity.
  */
 @Singleton
 class BenzonavtFuelDataSourceAdapter @Inject constructor(
@@ -153,6 +155,7 @@ class BenzonavtFuelDataSourceAdapter @Inject constructor(
         private const val TAG = "BenzonavtAdapter"
         const val BASE_URL = "https://ai-fuel-proxy.navrot73.workers.dev/city-prices"
         private const val DEFAULT_CITY = "chelyabinsk"
+        const val SOURCE_GRANULARITY = "CITY_LEVEL"
     }
 
     override val sourceId: FuelDataSource = FuelDataSource.BENZONAVT
@@ -275,14 +278,14 @@ class BenzonavtFuelDataSourceAdapter @Inject constructor(
                 else -> FuelAvailabilityStatus.UNKNOWN
             }
 
-            val extId = "benzonavt_${targetCity}_${canonicalFuelType.lowercase().replace("-", "")}"
+            val extId = "benzonavt:city:${targetCity}:${canonicalFuelType}"
             val rawRef = "benzonavt:${targetCity}:${canonicalFuelType}"
 
             try {
                 val rawObs = IngestionObservation(
                     sourceId = FuelDataSource.BENZONAVT,
                     externalStationId = extId,
-                    stationName = item.sources?.firstOrNull()?.name ?: "Benzonavt $targetCity",
+                    stationName = "Benzonavt $targetCity Aggregate",
                     address = targetCity,
                     fuelType = rawCode,
                     availability = availability,
@@ -300,46 +303,15 @@ class BenzonavtFuelDataSourceAdapter @Inject constructor(
             }
         }
 
-        // Load station registry for matching
-        val registryStations: List<GasStation> = try {
-            stationLoader?.loadFromAssets() ?: emptyList()
-        } catch (e: Exception) {
-            Timber.tag(TAG).w(e, "Failed to load station registry for matching")
-            emptyList()
-        }
-
-        val downstreamObservations = ArrayList<FuelSourceObservation>()
-        var matchedCount = 0
-        var unmatchedCount = 0
-
-        if (registryStations.isNotEmpty() && rawObservations.isNotEmpty()) {
-            val matchedStationIds = mutableSetOf<Int>()
-            for (rawObs in rawObservations) {
-                // Match observation against registry stations by brand/name match or specific station match
-                val matchingStations = registryStations.filter { station ->
-                    rawObs.stationName != null && station.matchesBrand(rawObs.stationName!!)
-                }
-                if (matchingStations.isNotEmpty()) {
-                    for (station in matchingStations) {
-                        matchedStationIds.add(station.id)
-                        downstreamObservations.add(rawObs.toFuelSourceObservation(station.id))
-                    }
-                } else {
-                    unmatchedCount++
-                }
-            }
-            matchedCount = matchedStationIds.size
-        } else if (rawObservations.isNotEmpty()) {
-            unmatchedCount = rawObservations.size
-        }
-
+        // CITY_LEVEL source: station identity is absent -> stationsMatched MUST be 0.
+        // Aggregate observations remain traceable in rawObservations.
         val metrics = SourceIngestionMetrics(
             recordsReceived = recordsReceived,
             recordsParsed = recordsParsed,
-            stationsMatched = matchedCount,
-            stationsUnmatched = unmatchedCount,
+            stationsMatched = 0,
+            stationsUnmatched = rawObservations.size,
             invalidRecords = invalidRecords,
-            observationsCreated = downstreamObservations.size,
+            observationsCreated = 0,
             observationsRejected = observationsRejected
         )
 
@@ -353,7 +325,7 @@ class BenzonavtFuelDataSourceAdapter @Inject constructor(
         return@withContext FuelSourceResult(
             sourceId = FuelDataSource.BENZONAVT,
             status = status,
-            observations = downstreamObservations,
+            observations = emptyList(), // No fake station-level observations generated
             rawObservations = rawObservations,
             metrics = metrics,
             fetchedAt = receivedAt
