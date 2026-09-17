@@ -3,6 +3,7 @@ package com.navrot.aifuelassistant.domain.ingestion
 import com.navrot.aifuelassistant.data.model.FuelDataSource
 import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -27,6 +28,36 @@ class FuelSourceContractTest {
         assertNull(observation.observedAt)
         assertTrue(observation.receivedAt >= now)
         assertNull(observation.rawReference)
+    }
+
+    @Test
+    fun testDownstreamFuelSourceObservationMapping() {
+        val rawObservations = listOf(
+            IngestionObservation(sourceId = FuelDataSource.BENZONAVT, externalStationId = "ext_1", fuelType = "АИ-95"),
+            IngestionObservation(sourceId = FuelDataSource.BENZONAVT, externalStationId = "ext_2", fuelType = "ron95"),
+            IngestionObservation(sourceId = FuelDataSource.BENZONAVT, externalStationId = "ext_3", fuelType = "AI95"),
+            IngestionObservation(sourceId = FuelDataSource.BENZONAVT, externalStationId = "ext_4", fuelType = "92")
+        )
+
+        val downstream1 = rawObservations[0].toFuelSourceObservation(stationId = 101)
+        val downstream2 = rawObservations[1].toFuelSourceObservation(stationId = 102)
+        val downstream3 = rawObservations[2].toFuelSourceObservation(stationId = 103)
+        val downstream4 = rawObservations[3].toFuelSourceObservation(stationId = 104)
+
+        assertEquals("AI-95", downstream1.fuelType)
+        assertNotEquals("АИ-95", downstream1.fuelType)
+
+        assertEquals("AI-95", downstream2.fuelType)
+        assertNotEquals("ron95", downstream2.fuelType)
+
+        assertEquals("AI-95", downstream3.fuelType)
+        assertNotEquals("AI95", downstream3.fuelType)
+
+        assertEquals("AI-92", downstream4.fuelType)
+        assertNotEquals("92", downstream4.fuelType)
+
+        assertEquals(FuelAvailabilityStatus.UNKNOWN, downstream1.availability)
+        assertNull(downstream1.price)
     }
 
     @Test

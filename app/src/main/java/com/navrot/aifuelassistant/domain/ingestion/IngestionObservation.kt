@@ -1,6 +1,7 @@
 package com.navrot.aifuelassistant.domain.ingestion
 
 import com.navrot.aifuelassistant.data.model.FuelDataSource
+import com.navrot.aifuelassistant.domain.intelligence.FuelSourceObservation
 import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
 
 data class IngestionObservation(
@@ -45,6 +46,22 @@ data class IngestionObservation(
                 "rawReference length (${rawReference.length}) exceeds maximum allowed limit ($MAX_RAW_REFERENCE_LENGTH characters). Provenance reference must not contain raw HTML/payloads."
             }
         }
+    }
+
+    /**
+     * Converts this raw/ingested observation into a canonical domain [FuelSourceObservation]
+     * for a matched station ID. Guarantees that downstream domain logic receives only [canonicalFuelType].
+     */
+    fun toFuelSourceObservation(stationId: Int): FuelSourceObservation {
+        return FuelSourceObservation(
+            stationId = stationId,
+            fuelType = canonicalFuelType,
+            availability = availability,
+            price = price,
+            observedAt = observedAt ?: receivedAt,
+            source = sourceId,
+            referenceId = externalStationId
+        )
     }
 
     companion object {
