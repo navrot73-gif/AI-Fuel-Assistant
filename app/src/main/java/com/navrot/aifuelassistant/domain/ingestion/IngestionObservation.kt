@@ -16,4 +16,23 @@ data class IngestionObservation(
     val observedAt: Long? = null,
     val receivedAt: Long = System.currentTimeMillis(),
     val rawReference: String? = null
-)
+) {
+    init {
+        require(externalStationId.isNotBlank()) { "externalStationId must not be blank" }
+        require(fuelType.isNotBlank()) { "fuelType must not be blank" }
+        require(receivedAt >= 0) { "receivedAt timestamp must be non-negative" }
+
+        if (price != null) {
+            require(price >= 0.0) { "price must be non-negative if present" }
+        }
+        if (latitude != null) {
+            require(latitude in -90.0..90.0) { "latitude must be in [-90, 90]" }
+        }
+        if (longitude != null) {
+            require(longitude in -180.0..180.0) { "longitude must be in [-180, 180]" }
+        }
+        if (observedAt != null) {
+            require(observedAt >= 0) { "observedAt timestamp must be non-negative" }
+        }
+    }
+}

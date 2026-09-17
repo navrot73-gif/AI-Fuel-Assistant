@@ -29,22 +29,91 @@ class FuelSourceContractTest {
     }
 
     @Test
-    fun testFuelSourceRequestDefaults() {
+    fun testFuelSourceRequestDefaultsAndNormalization() {
         val req = FuelSourceRequest()
         assertEquals(listOf("AI-92", "AI-95"), req.fuelTypes)
         assertEquals(5000L, req.timeoutMs)
         assertNull(req.targetCity)
         assertNull(req.bbox)
+
+        assertEquals("AI-92", FuelSourceRequest.normalizeFuelType("АИ-92"))
+        assertEquals("AI-95", FuelSourceRequest.normalizeFuelType("ron95"))
+        assertNull(FuelSourceRequest.normalizeFuelType("DIESEL"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testFuelSourceRequestInvalidTimeout() {
+        FuelSourceRequest(timeoutMs = 0)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testFuelSourceRequestEmptyFuelTypes() {
+        FuelSourceRequest(fuelTypes = emptyList())
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testFuelSourceRequestInvalidBoundingBoxLat() {
+        FuelSourceRequest.BoundingBox(minLat = -95.0, maxLat = 55.0, minLon = 60.0, maxLon = 61.0)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testFuelSourceRequestInvalidBoundingBoxOrder() {
+        FuelSourceRequest.BoundingBox(minLat = 55.0, maxLat = 50.0, minLon = 60.0, maxLon = 61.0)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testIngestionObservationBlankExternalId() {
+        IngestionObservation(
+            sourceId = FuelDataSource.BENZONAVT,
+            externalStationId = "   ",
+            fuelType = "AI-95"
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testIngestionObservationNegativePrice() {
+        IngestionObservation(
+            sourceId = FuelDataSource.BENZONAVT,
+            externalStationId = "ext_101",
+            fuelType = "AI-95",
+            price = -10.0
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testIngestionObservationInvalidCoordinates() {
+        IngestionObservation(
+            sourceId = FuelDataSource.BENZONAVT,
+            externalStationId = "ext_101",
+            fuelType = "AI-95",
+            latitude = 100.0
+        )
     }
 
     @Test
-    fun testFuelSourceResultAndMetrics() {
+    fun testTimestampSemanticsIsolation() {
+        val observedAt = 1600000000000L
+        val receivedAt = System.currentTimeMillis()
+        val obs = IngestionObservation(
+            sourceId = FuelDataSource.BENZONAVT,
+            externalStationId = "ext_101",
+            fuelType = "AI-95",
+            observedAt = observedAt,
+            receivedAt = receivedAt
+        )
+        assertEquals(observedAt, obs.observedAt)
+        assertEquals(receivedAt, obs.receivedAt)
+        assertTrue(obs.observedAt != obs.receivedAt)
+    }
+
+    @Test
+    fun testFuelSourceResultAndMetricsInvariants() {
         val metrics = SourceIngestionMetrics(
             recordsReceived = 10,
-            recordsParsed = 10,
-            stationsMatched = 8,
-            stationsUnmatched = 2,
-            invalidRecords = 0
+            recordsParsed = 8,
+            stationsMatched = 7,
+            stationsUnmatched = 1,
+            invalidRecords = 2
         )
 
         val result = FuelSourceResult(
@@ -56,7 +125,34 @@ class FuelSourceContractTest {
         assertEquals(FuelDataSource.BENZONAVT, result.sourceId)
         assertEquals(FuelSourceStatus.HEALTHY, result.status)
         assertEquals(10, result.metrics.recordsReceived)
-        assertEquals(8, result.metrics.stationsMatched)
-        assertEquals(2, result.metrics.stationsUnmatched)
+        assertEquals(8, result.metrics.recordsParsed)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testSourceIngestionMetricsInvalidParsedCount() {
+        SourceIngestionMetrics(
+            recordsReceived = 5,
+            recordsParsed = 10
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testFuelSourceResultFailedWithoutErrorMessage() {
+        FuelSourceResult(
+            sourceId = FuelDataSource.BENZONAVT,
+            status = FuelSourceStatus.FAILED,
+            errorMessage = "   "
+        )
+    }
+
+    @Test
+    fun testUnknownSafetyAssertions() {
+        val obs = IngestionObservation(
+            sourceId = FuelDataSource.DEMO,
+            externalStationId = "ext_demo",
+            fuelType = "AI-95"
+        )
+        assertEquals(FuelAvailabilityStatus.UNKNOWN, obs.availability)
+        assertNull(obs.price)
     }
 }
