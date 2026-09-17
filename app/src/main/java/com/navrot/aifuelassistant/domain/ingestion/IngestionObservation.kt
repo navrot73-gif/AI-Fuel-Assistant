@@ -53,6 +53,9 @@ data class IngestionObservation(
      * for a matched station ID. Guarantees that downstream domain logic receives only [canonicalFuelType].
      */
     fun toFuelSourceObservation(stationId: Int): FuelSourceObservation {
+        require(com.navrot.aifuelassistant.domain.capability.SourceCapabilityRegistry.canFeedStationFuelSnapshot(sourceId)) {
+            "Source $sourceId with granularity ${com.navrot.aifuelassistant.domain.capability.SourceCapabilityRegistry.getCapability(sourceId).granularity} is not eligible for StationFuelSnapshot or station-level observations."
+        }
         return FuelSourceObservation(
             stationId = stationId,
             fuelType = canonicalFuelType,
