@@ -197,10 +197,9 @@ object AppModule {
     @Provides
     @Singleton
     fun provideBenzonavtFuelDataSourceAdapter(
-        okHttpClient: OkHttpClient,
-        stationLoader: StationLoader
+        okHttpClient: OkHttpClient
     ): com.navrot.aifuelassistant.data.datasource.BenzonavtFuelDataSourceAdapter {
-        return com.navrot.aifuelassistant.data.datasource.BenzonavtFuelDataSourceAdapter(okHttpClient, stationLoader)
+        return com.navrot.aifuelassistant.data.datasource.BenzonavtFuelDataSourceAdapter(okHttpClient)
     }
 
     @Provides

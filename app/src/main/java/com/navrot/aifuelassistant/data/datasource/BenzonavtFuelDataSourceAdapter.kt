@@ -1,14 +1,12 @@
 package com.navrot.aifuelassistant.data.datasource
 
 import com.navrot.aifuelassistant.data.model.FuelDataSource
-import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.domain.ingestion.FuelDataSourceAdapter
 import com.navrot.aifuelassistant.domain.ingestion.FuelSourceRequest
 import com.navrot.aifuelassistant.domain.ingestion.FuelSourceResult
 import com.navrot.aifuelassistant.domain.ingestion.FuelSourceStatus
 import com.navrot.aifuelassistant.domain.ingestion.IngestionObservation
 import com.navrot.aifuelassistant.domain.ingestion.SourceIngestionMetrics
-import com.navrot.aifuelassistant.domain.intelligence.FuelSourceObservation
 import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -147,7 +145,6 @@ object BenzonavtParser {
 @Singleton
 class BenzonavtFuelDataSourceAdapter @Inject constructor(
     private val httpClient: OkHttpClient,
-    private val stationLoader: StationLoader? = null,
     private val baseUrl: String = BASE_URL
 ) : FuelDataSourceAdapter {
 

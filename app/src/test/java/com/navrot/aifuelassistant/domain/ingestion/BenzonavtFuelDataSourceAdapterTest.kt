@@ -2,13 +2,9 @@ package com.navrot.aifuelassistant.domain.ingestion
 
 import com.navrot.aifuelassistant.data.datasource.BenzonavtFuelDataSourceAdapter
 import com.navrot.aifuelassistant.data.datasource.BenzonavtParser
-import com.navrot.aifuelassistant.data.datasource.StationLoader
 import com.navrot.aifuelassistant.data.model.FuelDataSource
-import com.navrot.aifuelassistant.data.model.FuelPrice
-import com.navrot.aifuelassistant.data.model.GasStation
 import com.navrot.aifuelassistant.domain.intelligence.FuelIntelligenceResolver
 import com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus
-import com.navrot.aifuelassistant.domain.smart.GetSmartFuelRecommendationUseCase
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
@@ -47,34 +43,45 @@ class BenzonavtFuelDataSourceAdapterTest {
         mockWebServer.shutdown()
     }
 
-    private fun createAdapter(loader: StationLoader = createMockStationLoader()): BenzonavtFuelDataSourceAdapter {
+    private fun createAdapter(): BenzonavtFuelDataSourceAdapter {
         return BenzonavtFuelDataSourceAdapter(
             httpClient = okHttpClient,
-            stationLoader = loader,
             baseUrl = mockWebServer.url("/city-prices").toString()
         )
     }
 
-    private fun createMockStationLoader(count: Int = 109): StationLoader {
-        val dummyStations = (1..count).map { id ->
-            GasStation(
-                id = id,
-                name = "АЗС №$id",
-                brand = if (id % 2 == 0) "Газпромнефть" else "benzonavt",
-                address = "Челябинск, ул. Свободы $id",
-                latitude = 55.16 + (id * 0.001),
-                longitude = 61.40 + (id * 0.001),
-                fuelTypes = emptyList(),
-                queueTime = 0,
-                reliability = 0
-            )
-        }
-        return object : StationLoader {
-            override suspend fun loadStations(): List<GasStation> = dummyStations
-            override suspend fun loadFromRemote(): List<GasStation>? = dummyStations
-            override suspend fun loadFromCache(): List<GasStation>? = dummyStations
-            override suspend fun loadFromAssets(): List<GasStation> = dummyStations
-        }
+    // Safety Regression Test: City-level record MUST NOT produce station-level snapshot
+    @Test
+    fun testCityLevelRecordCannotProduceStationFuelSnapshot() = runBlocking {
+        val json = """
+            {
+              "city": "chelyabinsk",
+              "prices": [
+                { "code": "АИ-95", "median": 69.5 }
+              ],
+              "updatedAt": "2026-09-17T10:41:00.614Z"
+            }
+        """.trimIndent()
+
+        mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody(json))
+
+        val adapter = createAdapter()
+        val request = FuelSourceRequest(targetCity = "chelyabinsk")
+        val result = adapter.fetch(request)
+
+        assertEquals(0, result.observations.size)
+        assertEquals(0, result.metrics.stationsMatched)
+        assertEquals(0, result.metrics.observationsCreated)
+
+        val snapshot = FuelIntelligenceResolver.resolve(
+            observations = result.observations,
+            stationId = 1,
+            fuelType = "AI-95"
+        )
+
+        assertEquals(FuelAvailabilityStatus.UNKNOWN, snapshot.availability)
+        assertNull(snapshot.price)
+        assertEquals(0, snapshot.sourceCount)
     }
 
     // A. City-level record MUST NOT produce station observations
@@ -116,8 +123,7 @@ class BenzonavtFuelDataSourceAdapterTest {
 
         mockWebServer.enqueue(MockResponse().setResponseCode(200).setBody(json))
 
-        val mockLoader = createMockStationLoader(count = 109)
-        val adapter = createAdapter(mockLoader)
+        val adapter = createAdapter()
         val request = FuelSourceRequest(targetCity = "chelyabinsk")
         val result = adapter.fetch(request)
 
@@ -125,7 +131,6 @@ class BenzonavtFuelDataSourceAdapterTest {
         assertEquals("stationsUnmatched MUST reflect aggregate observations", 1, result.metrics.stationsUnmatched)
         assertEquals("observationsCreated MUST be 0", 0, result.metrics.observationsCreated)
         assertTrue("observations MUST be empty for city-level data", result.observations.isEmpty())
-        assertEquals(109, mockLoader.loadFromAssets().size) // Station registry baseline remains 109/109
     }
 
     // E. Aggregate/unmatched observation remains traceable
@@ -243,15 +248,6 @@ class BenzonavtFuelDataSourceAdapterTest {
         val obs = result.rawObservations[0]
         assertEquals(expectedEpoch, obs.observedAt)
         assertEquals("benzonavt:chelyabinsk:AI-95", obs.rawReference)
-    }
-
-    // J. Station Registry baseline remains 109/109
-    @Test
-    fun testStationRegistryBaseline109RemainsUnchanged() {
-        val mockLoader = createMockStationLoader(count = 109)
-        runBlocking {
-            assertEquals(109, mockLoader.loadFromAssets().size)
-        }
     }
 
     // Parser valid response
