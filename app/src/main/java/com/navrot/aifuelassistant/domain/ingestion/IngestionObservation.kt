@@ -17,9 +17,15 @@ data class IngestionObservation(
     val receivedAt: Long = System.currentTimeMillis(),
     val rawReference: String? = null
 ) {
+    val canonicalFuelType: String
+
     init {
         require(externalStationId.isNotBlank()) { "externalStationId must not be blank" }
         require(fuelType.isNotBlank()) { "fuelType must not be blank" }
+
+        canonicalFuelType = FuelSourceRequest.normalizeFuelType(fuelType)
+            ?: throw IllegalArgumentException("Unsupported fuel type '$fuelType' for IngestionObservation. Only canonical AI-92 and AI-95 are supported.")
+
         require(receivedAt >= 0) { "receivedAt timestamp must be non-negative" }
 
         if (price != null) {
@@ -34,5 +40,14 @@ data class IngestionObservation(
         if (observedAt != null) {
             require(observedAt >= 0) { "observedAt timestamp must be non-negative" }
         }
+        if (rawReference != null) {
+            require(rawReference.length <= MAX_RAW_REFERENCE_LENGTH) {
+                "rawReference length (${rawReference.length}) exceeds maximum allowed limit ($MAX_RAW_REFERENCE_LENGTH characters). Provenance reference must not contain raw HTML/payloads."
+            }
+        }
+    }
+
+    companion object {
+        const val MAX_RAW_REFERENCE_LENGTH = 512
     }
 }

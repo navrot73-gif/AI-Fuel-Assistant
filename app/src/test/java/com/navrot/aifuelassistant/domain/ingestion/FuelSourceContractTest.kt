@@ -10,17 +10,18 @@ import org.junit.Test
 class FuelSourceContractTest {
 
     @Test
-    fun testIngestionObservationDefaultsAndInvariants() {
+    fun testIngestionObservationDefaultsAndCanonicalFuelType() {
         val now = System.currentTimeMillis()
         val observation = IngestionObservation(
             sourceId = FuelDataSource.BENZONAVT,
             externalStationId = "ext_101",
-            fuelType = "AI-95"
+            fuelType = "АИ-95"
         )
 
         assertEquals(FuelDataSource.BENZONAVT, observation.sourceId)
         assertEquals("ext_101", observation.externalStationId)
-        assertEquals("AI-95", observation.fuelType)
+        assertEquals("АИ-95", observation.fuelType)
+        assertEquals("AI-95", observation.canonicalFuelType)
         assertEquals(FuelAvailabilityStatus.UNKNOWN, observation.availability)
         assertNull(observation.price)
         assertNull(observation.observedAt)
@@ -32,13 +33,27 @@ class FuelSourceContractTest {
     fun testFuelSourceRequestDefaultsAndNormalization() {
         val req = FuelSourceRequest()
         assertEquals(listOf("AI-92", "AI-95"), req.fuelTypes)
+        assertEquals(listOf("AI-92", "AI-95"), req.normalizedFuelTypes)
         assertEquals(5000L, req.timeoutMs)
         assertNull(req.targetCity)
         assertNull(req.bbox)
 
+        val reqAliases = FuelSourceRequest(fuelTypes = listOf("АИ-92", "ron95"))
+        assertEquals(listOf("AI-92", "AI-95"), reqAliases.normalizedFuelTypes)
+
         assertEquals("AI-92", FuelSourceRequest.normalizeFuelType("АИ-92"))
         assertEquals("AI-95", FuelSourceRequest.normalizeFuelType("ron95"))
         assertNull(FuelSourceRequest.normalizeFuelType("DIESEL"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testFuelSourceRequestUnsupportedFuelTypeDiesel() {
+        FuelSourceRequest(fuelTypes = listOf("DIESEL"))
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testFuelSourceRequestUnsupportedFuelTypeAI98() {
+        FuelSourceRequest(fuelTypes = listOf("AI-98"))
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -49,6 +64,11 @@ class FuelSourceContractTest {
     @Test(expected = IllegalArgumentException::class)
     fun testFuelSourceRequestEmptyFuelTypes() {
         FuelSourceRequest(fuelTypes = emptyList())
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testFuelSourceRequestBlankFuelType() {
+        FuelSourceRequest(fuelTypes = listOf("  "))
     }
 
     @Test(expected = IllegalArgumentException::class)
@@ -71,6 +91,24 @@ class FuelSourceContractTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
+    fun testIngestionObservationUnsupportedFuelTypeDiesel() {
+        IngestionObservation(
+            sourceId = FuelDataSource.BENZONAVT,
+            externalStationId = "ext_101",
+            fuelType = "DIESEL"
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testIngestionObservationUnsupportedFuelTypeAI98() {
+        IngestionObservation(
+            sourceId = FuelDataSource.BENZONAVT,
+            externalStationId = "ext_101",
+            fuelType = "AI-98"
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
     fun testIngestionObservationNegativePrice() {
         IngestionObservation(
             sourceId = FuelDataSource.BENZONAVT,
@@ -87,6 +125,17 @@ class FuelSourceContractTest {
             externalStationId = "ext_101",
             fuelType = "AI-95",
             latitude = 100.0
+        )
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testIngestionObservationUnsafeRawReferenceLength() {
+        val hugeReference = "ref_".repeated(200) // 800 chars > 512 max limit
+        IngestionObservation(
+            sourceId = FuelDataSource.BENZONAVT,
+            externalStationId = "ext_101",
+            fuelType = "AI-95",
+            rawReference = hugeReference
         )
     }
 
@@ -154,5 +203,11 @@ class FuelSourceContractTest {
         )
         assertEquals(FuelAvailabilityStatus.UNKNOWN, obs.availability)
         assertNull(obs.price)
+    }
+
+    private companion object {
+        fun String.repeated(n: Int): String = buildString {
+            repeat(n) { append(this@repeated) }
+        }
     }
 }

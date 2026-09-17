@@ -6,13 +6,20 @@ data class FuelSourceRequest(
     val fuelTypes: List<String> = listOf(CANONICAL_AI92, CANONICAL_AI95),
     val timeoutMs: Long = DEFAULT_TIMEOUT_MS
 ) {
+    val normalizedFuelTypes: List<String>
+
     init {
         require(timeoutMs > 0) { "timeoutMs must be positive" }
         require(fuelTypes.isNotEmpty()) { "fuelTypes must not be empty" }
-        require(fuelTypes.all { it.isNotBlank() }) { "fuelTypes must not contain blank entries" }
         if (targetCity != null) {
             require(targetCity.isNotBlank()) { "targetCity must not be blank if specified" }
         }
+
+        normalizedFuelTypes = fuelTypes.map { raw ->
+            require(raw.isNotBlank()) { "fuelTypes must not contain blank entries" }
+            normalizeFuelType(raw)
+                ?: throw IllegalArgumentException("Unsupported or unmapped fuel type: '$raw'. Supported canonical gasoline types are AI-92 and AI-95.")
+        }.distinct()
     }
 
     data class BoundingBox(
@@ -38,7 +45,7 @@ data class FuelSourceRequest(
 
         /**
          * Normalizes raw fuel type strings to canonical domain representations ("AI-92", "AI-95").
-         * Returns null if unmapped or invalid.
+         * Returns null if unmapped or unsupported (e.g. DIESEL, AI-98, AI-100).
          */
         fun normalizeFuelType(raw: String): String? {
             val clean = raw.trim().uppercase()
