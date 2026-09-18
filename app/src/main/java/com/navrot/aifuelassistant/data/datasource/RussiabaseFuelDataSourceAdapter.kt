@@ -61,6 +61,9 @@ class RussiabaseFuelDataSourceAdapter @Inject constructor(
             }
         }
 
+        var isNetworkOrProviderError = false
+        var exceptionErrorMessage: String? = null
+
         val observations = try {
             russiabaseProvider.fetchObservations(
                 citySlug = targetCity,
@@ -68,10 +71,16 @@ class RussiabaseFuelDataSourceAdapter @Inject constructor(
             )
         } catch (e: Exception) {
             Timber.tag(TAG).w(e, "Error fetching observations from RussiabaseProvider for %s", targetCity)
+            isNetworkOrProviderError = true
+            exceptionErrorMessage = e.message ?: e.toString()
+            emptyList()
+        }
+
+        if (isNetworkOrProviderError) {
             return@withContext FuelSourceResult(
                 sourceId = FuelDataSource.RUSSIABASE,
                 status = FuelSourceStatus.FAILED,
-                errorMessage = "Network/Provider exception: ${e.message}",
+                errorMessage = "Network/Provider exception: $exceptionErrorMessage",
                 fetchedAt = receivedAt
             )
         }

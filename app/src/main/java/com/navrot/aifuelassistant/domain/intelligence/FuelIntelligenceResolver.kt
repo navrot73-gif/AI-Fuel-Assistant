@@ -269,25 +269,6 @@ object FuelIntelligenceResolver {
                 )
             )
 
-            // If station has additional dataSources like RUSSIABASE alongside BENZONAVT, record observations
-            if (station.dataSources.contains(FuelDataSource.RUSSIABASE) && fp.source != FuelDataSource.RUSSIABASE) {
-                val russiabaseAvail = when {
-                    isExpired -> FuelAvailabilityStatus.UNKNOWN
-                    isClosed || !fp.available -> FuelAvailabilityStatus.UNAVAILABLE
-                    else -> FuelAvailabilityStatus.AVAILABLE
-                }
-                observations.add(
-                    FuelSourceObservation(
-                        stationId = station.id,
-                        fuelType = fp.type,
-                        availability = russiabaseAvail,
-                        price = fp.price.takeIf { it > 0.0 },
-                        observedAt = timestamp,
-                        source = FuelDataSource.RUSSIABASE,
-                        referenceId = station.ref
-                    )
-                )
-            }
         }
 
         return observations

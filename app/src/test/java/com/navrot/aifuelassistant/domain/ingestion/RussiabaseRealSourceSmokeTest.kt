@@ -58,10 +58,12 @@ class RussiabaseRealSourceSmokeTest {
             }
         }
 
-        if (result.status != FuelSourceStatus.FAILED) {
+        if (result.status == FuelSourceStatus.HEALTHY && result.rawObservations.isNotEmpty()) {
             println("K4_LIVE_SMOKE = PASS")
+        } else if (result.status == FuelSourceStatus.HEALTHY) {
+            println("K4_LIVE_SMOKE = PASS (EMPTY)")
         } else {
-            println("K4_LIVE_SMOKE = BLOCKED (Endpoint returned status: ${result.status}, error: ${result.errorMessage})")
+            println("K4_LIVE_SMOKE = BLOCKED (Endpoint status: ${result.status}, error: ${result.errorMessage})")
         }
         println("=== REAL SOURCE SMOKE TEST END ===")
     }
