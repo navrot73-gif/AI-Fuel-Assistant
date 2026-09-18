@@ -31,10 +31,11 @@ class SourceCapabilityRegistryTest {
 
         assertEquals(FuelDataSource.RUSSIABASE, descriptor.sourceId)
         assertEquals(SourceGranularity.STATION_LEVEL, descriptor.granularity)
-        assertEquals(PhysicalStationIdentity.EXTERNAL_ID_AND_COORDINATES, descriptor.physicalStationIdentity)
+        assertEquals(PhysicalStationIdentity.EXTERNAL_ID, descriptor.physicalStationIdentity)
         assertTrue(descriptor.providesStationLevelPrice)
         assertTrue(descriptor.providesStationLevelAvailability)
         assertFalse(descriptor.providesStationLevelQueue)
+        assertFalse("Russiabase does not provide raw coordinates", descriptor.capabilities.contains(SourceCapability.COORDINATES))
         assertTrue(descriptor.isEligibleForStationFuelSnapshot)
         assertTrue(descriptor.isEligibleForBestStation)
 

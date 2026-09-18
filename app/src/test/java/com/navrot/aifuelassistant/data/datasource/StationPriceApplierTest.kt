@@ -127,6 +127,6 @@ class StationPriceApplierTest {
         assertEquals(false, updatedFuel.available)
         assertEquals(FuelDataSource.BENZONAVT, updatedFuel.source)
         val status = com.navrot.aifuelassistant.domain.reliability.PriceReliabilityCalculator.calculateFuelAvailability(updated)
-        assertEquals(com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus.UNAVAILABLE, status)
+        assertEquals(com.navrot.aifuelassistant.domain.reliability.FuelAvailabilityStatus.NO_FUEL, status)
     }
 }

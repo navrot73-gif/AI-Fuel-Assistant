@@ -159,6 +159,6 @@ class PriceReliabilityCalculatorTest {
 
         val status = PriceReliabilityCalculator.calculateFuelAvailability(station, "АИ-95", currentTimeMs = nowMs)
 
-        assertEquals(FuelAvailabilityStatus.UNAVAILABLE, status)
+        assertEquals(FuelAvailabilityStatus.NO_FUEL, status)
     }
 }

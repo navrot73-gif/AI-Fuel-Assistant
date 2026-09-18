@@ -25,7 +25,8 @@ import javax.inject.Singleton
  */
 @Singleton
 class RussiabaseFuelDataSourceAdapter @Inject constructor(
-    private val russiabaseProvider: RussiabaseProvider
+    private val russiabaseProvider: RussiabaseProvider,
+    private val stationCache: StationCache? = null
 ) : FuelDataSourceAdapter {
 
     companion object {
@@ -180,6 +181,7 @@ class RussiabaseFuelDataSourceAdapter @Inject constructor(
     }
 
     override suspend fun fetch(request: FuelSourceRequest): FuelSourceResult {
-        return fetchWithStationMapping(request, emptyList())
+        val registry = stationCache?.loadFromCache() ?: emptyList()
+        return fetchWithStationMapping(request, registry)
     }
 }

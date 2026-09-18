@@ -28,8 +28,11 @@ object FuelIntelligenceResolver {
         fuelType: String,
         now: Long = System.currentTimeMillis()
     ): StationFuelSnapshot {
-        // Filter observations matching stationId and fuelType
-        val matching = observations.filter { it.stationId == stationId && it.fuelType == fuelType }
+        // Filter observations matching stationId and fuelType, enforcing capability registry boundary
+        val eligibleObservations = observations.filter {
+            com.navrot.aifuelassistant.domain.capability.SourceCapabilityRegistry.canFeedStationFuelSnapshot(it.source)
+        }
+        val matching = eligibleObservations.filter { it.stationId == stationId && it.fuelType == fuelType }
 
         if (matching.isEmpty()) {
             return StationFuelSnapshot(

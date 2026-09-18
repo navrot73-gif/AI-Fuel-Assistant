@@ -33,7 +33,7 @@ class RussiabaseFuelDataSourceAdapterTest {
         }
     }
 
-    private val sampleStation = GasStation(
+    private val sampleStation1 = GasStation(
         id = 101,
         name = "Газпромнефть №201",
         brand = "Газпромнефть",
@@ -47,6 +47,22 @@ class RussiabaseFuelDataSourceAdapterTest {
         reliability = 100,
         dataSources = setOf(FuelDataSource.RUSSIABASE),
         ref = "201"
+    )
+
+    private val sampleStation2 = GasStation(
+        id = 102,
+        name = "Лукойл №5",
+        brand = "Лукойл",
+        address = "пр. Победы, 300",
+        latitude = 55.19,
+        longitude = 61.36,
+        fuelTypes = listOf(
+            FuelPrice(type = "AI-95", price = 56.90, available = true, source = FuelDataSource.RUSSIABASE)
+        ),
+        queueTime = 0,
+        reliability = 90,
+        dataSources = setOf(FuelDataSource.RUSSIABASE),
+        ref = "5"
     )
 
     @Test
@@ -66,7 +82,7 @@ class RussiabaseFuelDataSourceAdapterTest {
 
         val adapter = RussiabaseFuelDataSourceAdapter(fakeProvider)
         val request = FuelSourceRequest(targetCity = "chelyabinsk", fuelTypes = listOf("AI-95"))
-        val result = adapter.fetchWithStationMapping(request, listOf(sampleStation))
+        val result = adapter.fetchWithStationMapping(request, listOf(sampleStation1))
 
         assertEquals(FuelDataSource.RUSSIABASE, result.sourceId)
         assertEquals(FuelSourceStatus.HEALTHY, result.status)
@@ -84,6 +100,64 @@ class RussiabaseFuelDataSourceAdapterTest {
         assertEquals(1, result.metrics.recordsParsed)
         assertEquals(1, result.metrics.stationsMatched)
         assertEquals(0, result.metrics.stationsUnmatched)
+        assertEquals(1, result.metrics.observationsCreated)
+    }
+
+    @Test
+    fun testUnmatchedObservationDoesNotCreateSyntheticStation() = runBlocking {
+        val fakeProvider = FakeRussiabaseProvider(
+            observationsToReturn = listOf(
+                FuelObservation(
+                    brand = "Неизвестный Бренд",
+                    address = "Неизвестная ульца 999",
+                    fuelType = "АИ-95",
+                    price = 50.0,
+                    available = true
+                )
+            )
+        )
+
+        val adapter = RussiabaseFuelDataSourceAdapter(fakeProvider)
+        val request = FuelSourceRequest(targetCity = "chelyabinsk", fuelTypes = listOf("AI-95"))
+        val result = adapter.fetchWithStationMapping(request, listOf(sampleStation1, sampleStation2))
+
+        assertEquals(0, result.observations.size)
+        assertEquals(1, result.rawObservations.size)
+        assertEquals(0, result.metrics.stationsMatched)
+        assertEquals(1, result.metrics.stationsUnmatched)
+        assertEquals(0, result.metrics.observationsCreated)
+    }
+
+    @Test
+    fun testDuplicateObservationsForSameStation() = runBlocking {
+        val fakeProvider = FakeRussiabaseProvider(
+            observationsToReturn = listOf(
+                FuelObservation(
+                    brand = "Газпромнефть №201",
+                    address = "Свердловский тракт 12В",
+                    fuelType = "АИ-95",
+                    price = 56.5,
+                    available = true
+                ),
+                FuelObservation(
+                    brand = "Газпромнефть №201",
+                    address = "Свердловский тракт 12В",
+                    fuelType = "АИ-92",
+                    price = 51.5,
+                    available = true
+                )
+            )
+        )
+
+        val adapter = RussiabaseFuelDataSourceAdapter(fakeProvider)
+        val request = FuelSourceRequest(targetCity = "chelyabinsk", fuelTypes = listOf("AI-92", "AI-95"))
+        val result = adapter.fetchWithStationMapping(request, listOf(sampleStation1))
+
+        assertEquals(2, result.observations.size)
+        assertEquals(2, result.rawObservations.size)
+        assertEquals(1, result.metrics.stationsMatched)
+        assertEquals(0, result.metrics.stationsUnmatched)
+        assertEquals(2, result.metrics.observationsCreated)
     }
 
     @Test
@@ -103,7 +177,7 @@ class RussiabaseFuelDataSourceAdapterTest {
         val fakeProvider = FakeRussiabaseProvider(shouldThrow = true)
         val adapter = RussiabaseFuelDataSourceAdapter(fakeProvider)
         val request = FuelSourceRequest(targetCity = "chelyabinsk")
-        val result = adapter.fetchWithStationMapping(request, listOf(sampleStation))
+        val result = adapter.fetchWithStationMapping(request, listOf(sampleStation1))
 
         assertEquals(FuelSourceStatus.FAILED, result.status)
         assertNotNull(result.errorMessage)
@@ -129,7 +203,7 @@ class RussiabaseFuelDataSourceAdapterTest {
         )
 
         assertEquals(FuelAvailabilityStatus.AVAILABLE, snapshot.availability)
-        assertEquals(56.5, snapshot.price)
+        assertEquals(56.5, snapshot.price!!, 0.001)
         assertEquals(1, snapshot.sourceCount)
 
         // Benzonavt observation (CITY_LEVEL / ineligible)

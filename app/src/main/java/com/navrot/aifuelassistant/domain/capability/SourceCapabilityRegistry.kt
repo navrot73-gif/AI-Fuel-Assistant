@@ -19,11 +19,10 @@ object SourceCapabilityRegistry {
         FuelDataSource.RUSSIABASE to SourceCapabilityDescriptor(
             sourceId = FuelDataSource.RUSSIABASE,
             granularity = SourceGranularity.STATION_LEVEL,
-            physicalStationIdentity = PhysicalStationIdentity.EXTERNAL_ID_AND_COORDINATES,
+            physicalStationIdentity = PhysicalStationIdentity.EXTERNAL_ID,
             capabilities = setOf(
                 SourceCapability.PRICE,
                 SourceCapability.AVAILABILITY,
-                SourceCapability.COORDINATES,
                 SourceCapability.STATION_ID,
                 SourceCapability.TIMESTAMP,
                 SourceCapability.PROVENANCE
