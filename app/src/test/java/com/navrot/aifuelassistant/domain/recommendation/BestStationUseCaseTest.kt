@@ -40,12 +40,12 @@ class BestStationUseCaseTest {
                     price = price,
                     available = available,
                     updatedAt = updatedAt,
-                    source = FuelDataSource.BENZONAVT
+                    source = FuelDataSource.USER_REPORT
                 )
             ),
             queueTime = queueTime,
             reliability = reliability,
-            dataSources = setOf(FuelDataSource.BENZONAVT),
+            dataSources = setOf(FuelDataSource.USER_REPORT),
             updatedAt = updatedAt
         )
     }

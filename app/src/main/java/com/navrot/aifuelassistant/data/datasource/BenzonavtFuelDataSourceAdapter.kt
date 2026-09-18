@@ -152,10 +152,13 @@ class BenzonavtFuelDataSourceAdapter @Inject constructor(
         private const val TAG = "BenzonavtAdapter"
         const val BASE_URL = "https://ai-fuel-proxy.navrot73.workers.dev/city-prices"
         private const val DEFAULT_CITY = "chelyabinsk"
-        const val SOURCE_GRANULARITY = "CITY_LEVEL"
+        val SOURCE_GRANULARITY = com.navrot.aifuelassistant.domain.capability.SourceCapabilityRegistry.getCapability(FuelDataSource.BENZONAVT).granularity.name
     }
 
     override val sourceId: FuelDataSource = FuelDataSource.BENZONAVT
+
+    val capability: com.navrot.aifuelassistant.domain.capability.SourceCapabilityDescriptor
+        get() = com.navrot.aifuelassistant.domain.capability.SourceCapabilityRegistry.getCapability(sourceId)
 
     override suspend fun fetch(request: FuelSourceRequest): FuelSourceResult = withContext(Dispatchers.IO) {
         val targetCity = request.targetCity?.trim()?.lowercase() ?: DEFAULT_CITY

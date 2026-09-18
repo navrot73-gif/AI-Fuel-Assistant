@@ -204,15 +204,6 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideRussiabaseFuelDataSourceAdapter(
-        russiabaseProvider: RussiabaseProvider,
-        stationCache: StationCache
-    ): com.navrot.aifuelassistant.data.datasource.RussiabaseFuelDataSourceAdapter {
-        return com.navrot.aifuelassistant.data.datasource.RussiabaseFuelDataSourceAdapter(russiabaseProvider, stationCache)
-    }
-
-    @Provides
-    @Singleton
     fun provideGasStationRepository(
         stationLoader: StationLoader,
         stationCache: StationCache,

@@ -135,10 +135,10 @@ class PriceReliabilityCalculatorTest {
     }
 
     @Test
-    fun `calculateFuelAvailability returns NO_FUEL when benzonavt fuel price is available false`() {
+    fun `calculateFuelAvailability returns NO_FUEL when russiabase fuel price is available false`() {
         val station = GasStation(
             id = 5,
-            name = "Benzonavt Out Of Fuel Station",
+            name = "Russiabase Out Of Fuel Station",
             brand = "Газпромнефть",
             address = "ул. Ленина 10",
             latitude = 55.0,
@@ -147,7 +147,35 @@ class PriceReliabilityCalculatorTest {
                 FuelPrice(
                     type = "АИ-95",
                     price = 60.0,
-                    available = false, // Benzonavt reported unavailable / no fuel
+                    available = false, // Russiabase reported unavailable / no fuel
+                    source = FuelDataSource.RUSSIABASE,
+                    updatedAt = nowMs
+                )
+            ),
+            dataSources = setOf(FuelDataSource.RUSSIABASE),
+            queueTime = 0,
+            reliability = 90
+        )
+
+        val status = PriceReliabilityCalculator.calculateFuelAvailability(station, "АИ-95", currentTimeMs = nowMs)
+
+        assertEquals(FuelAvailabilityStatus.NO_FUEL, status)
+    }
+
+    @Test
+    fun `calculateFuelAvailability returns UNKNOWN when only city-level benzonavt source exists`() {
+        val station = GasStation(
+            id = 6,
+            name = "Benzonavt Station",
+            brand = "Газпромнефть",
+            address = "ул. Ленина 10",
+            latitude = 55.0,
+            longitude = 37.0,
+            fuelTypes = listOf(
+                FuelPrice(
+                    type = "АИ-95",
+                    price = 60.0,
+                    available = false,
                     source = FuelDataSource.BENZONAVT,
                     updatedAt = nowMs
                 )
@@ -159,6 +187,6 @@ class PriceReliabilityCalculatorTest {
 
         val status = PriceReliabilityCalculator.calculateFuelAvailability(station, "АИ-95", currentTimeMs = nowMs)
 
-        assertEquals(FuelAvailabilityStatus.NO_FUEL, status)
+        assertEquals(FuelAvailabilityStatus.UNKNOWN, status)
     }
 }

@@ -45,11 +45,11 @@ class NearestStationFinderTest {
             latitude = 55.19,
             longitude = 61.46,
             fuelTypes = listOf(
-                FuelPrice(type = "АИ-95", price = 56.50, available = true, source = FuelDataSource.BENZONAVT, updatedAt = now)
+                FuelPrice(type = "АИ-95", price = 56.50, available = true, source = FuelDataSource.RUSSIABASE, updatedAt = now)
             ),
             queueTime = 2,
             reliability = 95,
-            dataSources = setOf(FuelDataSource.BENZONAVT),
+            dataSources = setOf(FuelDataSource.RUSSIABASE),
             updatedAt = now
         )
 
@@ -84,11 +84,11 @@ class NearestStationFinderTest {
             latitude = 55.165,
             longitude = 61.437,
             fuelTypes = listOf(
-                FuelPrice(type = "АИ-95", price = 54.90, available = true, source = FuelDataSource.BENZONAVT, updatedAt = now)
+                FuelPrice(type = "АИ-95", price = 54.90, available = true, source = FuelDataSource.RUSSIABASE, updatedAt = now)
             ),
             queueTime = 1,
             reliability = 90,
-            dataSources = setOf(FuelDataSource.BENZONAVT),
+            dataSources = setOf(FuelDataSource.RUSSIABASE),
             updatedAt = now
         )
 

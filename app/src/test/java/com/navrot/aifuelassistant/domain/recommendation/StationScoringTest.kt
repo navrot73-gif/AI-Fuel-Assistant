@@ -20,7 +20,7 @@ class StationScoringTest {
         reliability: Int = 100,
         updatedAt: Long = now,
         available: Boolean = true,
-        dataSources: Set<FuelDataSource> = setOf(FuelDataSource.BENZONAVT)
+        dataSources: Set<FuelDataSource> = setOf(FuelDataSource.USER_REPORT)
     ): GasStation {
         return GasStation(
             id = id,
@@ -35,7 +35,7 @@ class StationScoringTest {
                     price = price,
                     available = available,
                     updatedAt = updatedAt,
-                    source = FuelDataSource.BENZONAVT
+                    source = FuelDataSource.USER_REPORT
                 )
             ),
             queueTime = queueTime,

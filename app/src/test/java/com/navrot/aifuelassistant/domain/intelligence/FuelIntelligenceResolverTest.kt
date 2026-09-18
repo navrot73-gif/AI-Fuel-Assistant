@@ -40,7 +40,7 @@ class FuelIntelligenceResolverTest {
             availability = FuelAvailabilityStatus.AVAILABLE,
             price = 55.0,
             observedAt = now - 5 * 60 * 1000L, // 5 mins ago
-            source = FuelDataSource.BENZONAVT
+            source = FuelDataSource.USER_REPORT
         )
 
         val snapshot = FuelIntelligenceResolver.resolve(listOf(obs), 1, "AI-95", now)
@@ -81,7 +81,7 @@ class FuelIntelligenceResolverTest {
             availability = FuelAvailabilityStatus.AVAILABLE,
             price = 52.0,
             observedAt = now - 7 * 60 * 60 * 1000L, // 7 hours ago (> 6h)
-            source = FuelDataSource.BENZONAVT
+            source = FuelDataSource.USER_REPORT
         )
 
         val snapshot = FuelIntelligenceResolver.resolve(listOf(obs), 1, "AI-95", now)
@@ -117,7 +117,7 @@ class FuelIntelligenceResolverTest {
     fun `test 6 - two fresh agreeing AVAILABLE sources yields HIGH confidence`() {
         val obs1 = FuelSourceObservation(
             stationId = 1, fuelType = "AI-95", availability = FuelAvailabilityStatus.AVAILABLE,
-            price = 55.0, observedAt = now - 5 * 60 * 1000L, source = FuelDataSource.BENZONAVT
+            price = 55.0, observedAt = now - 5 * 60 * 1000L, source = FuelDataSource.RUSSIABASE
         )
         val obs2 = FuelSourceObservation(
             stationId = 1, fuelType = "AI-95", availability = FuelAvailabilityStatus.AVAILABLE,
@@ -143,7 +143,7 @@ class FuelIntelligenceResolverTest {
         )
         val obs2 = FuelSourceObservation(
             stationId = 1, fuelType = "AI-95", availability = FuelAvailabilityStatus.UNAVAILABLE,
-            price = null, observedAt = now - 10 * 60 * 1000L, source = FuelDataSource.BENZONAVT
+            price = null, observedAt = now - 10 * 60 * 1000L, source = FuelDataSource.USER_REPORT
         )
 
         val snapshot = FuelIntelligenceResolver.resolve(listOf(obs1, obs2), 1, "AI-95", now)
@@ -159,7 +159,7 @@ class FuelIntelligenceResolverTest {
     fun `test 8 - fresh conflicting sources yields conflict true and reduced confidence`() {
         val obs1 = FuelSourceObservation(
             stationId = 1, fuelType = "AI-95", availability = FuelAvailabilityStatus.AVAILABLE,
-            price = 55.0, observedAt = now - 10 * 60 * 1000L, source = FuelDataSource.BENZONAVT
+            price = 55.0, observedAt = now - 10 * 60 * 1000L, source = FuelDataSource.USER_REPORT
         )
         val obs2 = FuelSourceObservation(
             stationId = 1, fuelType = "AI-95", availability = FuelAvailabilityStatus.UNAVAILABLE,
@@ -197,7 +197,7 @@ class FuelIntelligenceResolverTest {
     fun `test 10 - missing timestamp yields freshness UNKNOWN`() {
         val obs = FuelSourceObservation(
             stationId = 1, fuelType = "AI-95", availability = FuelAvailabilityStatus.AVAILABLE,
-            price = 55.0, observedAt = null, source = FuelDataSource.BENZONAVT
+            price = 55.0, observedAt = null, source = FuelDataSource.USER_REPORT
         )
 
         val snapshot = FuelIntelligenceResolver.resolve(listOf(obs), 1, "AI-95", now)
@@ -210,7 +210,7 @@ class FuelIntelligenceResolverTest {
     fun `test 11 - missing price yields price null`() {
         val obs = FuelSourceObservation(
             stationId = 1, fuelType = "AI-95", availability = FuelAvailabilityStatus.AVAILABLE,
-            price = null, observedAt = now - 5 * 60 * 1000L, source = FuelDataSource.BENZONAVT
+            price = null, observedAt = now - 5 * 60 * 1000L, source = FuelDataSource.USER_REPORT
         )
 
         val snapshot = FuelIntelligenceResolver.resolve(listOf(obs), 1, "AI-95", now)
@@ -223,7 +223,7 @@ class FuelIntelligenceResolverTest {
     fun `test 12 - AI-92 and AI-95 handled independently`() {
         val obs92 = FuelSourceObservation(
             stationId = 1, fuelType = "AI-92", availability = FuelAvailabilityStatus.AVAILABLE,
-            price = 50.0, observedAt = now - 5 * 60 * 1000L, source = FuelDataSource.BENZONAVT
+            price = 50.0, observedAt = now - 5 * 60 * 1000L, source = FuelDataSource.USER_REPORT
         )
         val obs95 = FuelSourceObservation(
             stationId = 1, fuelType = "AI-95", availability = FuelAvailabilityStatus.UNAVAILABLE,
@@ -260,7 +260,7 @@ class FuelIntelligenceResolverTest {
     fun `test 14 - deterministic output for same input`() {
         val obs1 = FuelSourceObservation(
             stationId = 42, fuelType = "AI-95", availability = FuelAvailabilityStatus.AVAILABLE,
-            price = 55.0, observedAt = now - 15 * 60 * 1000L, source = FuelDataSource.BENZONAVT
+            price = 55.0, observedAt = now - 15 * 60 * 1000L, source = FuelDataSource.USER_REPORT
         )
         val obs2 = FuelSourceObservation(
             stationId = 42, fuelType = "AI-95", availability = FuelAvailabilityStatus.UNAVAILABLE,
@@ -278,7 +278,7 @@ class FuelIntelligenceResolverTest {
     fun `test 15 - station ID remains unchanged`() {
         val obs = FuelSourceObservation(
             stationId = -201, fuelType = "AI-95", availability = FuelAvailabilityStatus.AVAILABLE,
-            price = 55.0, observedAt = now, source = FuelDataSource.BENZONAVT
+            price = 55.0, observedAt = now, source = FuelDataSource.USER_REPORT
         )
 
         val snapshot = FuelIntelligenceResolver.resolve(listOf(obs), -201, "AI-95", now)
