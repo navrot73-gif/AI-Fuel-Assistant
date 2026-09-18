@@ -16,11 +16,12 @@ object SourceCapabilityRegistry {
     }
 
     /**
-     * Resets the registry to default baseline registrations for known sources.
+     * Resets the registry to default baseline registrations for verified sources with code implementations.
      */
     fun resetToDefaults() {
         registry.clear()
 
+        // 1. BENZONAVT — Real Source Adapter (City-level aggregate)
         registerInternal(
             SourceCapabilityDescriptor(
                 sourceId = FuelDataSource.BENZONAVT,
@@ -40,59 +41,90 @@ object SourceCapabilityRegistry {
             )
         )
 
-        val stationLevelSources = listOf(
-            FuelDataSource.RUSSIABASE,
-            FuelDataSource.OVERPASS,
-            FuelDataSource.USER_REPORT,
-            FuelDataSource.DEMO,
-            FuelDataSource.OFFICIAL_STATION,
-            FuelDataSource.GDEBENZ,
-            FuelDataSource.TWO_GIS,
-            FuelDataSource.YANDEX,
-            FuelDataSource.T_BANK,
-            FuelDataSource.TELEGRAM,
-            FuelDataSource.VK,
-            FuelDataSource.PHOTO_EVIDENCE
+        // 2. RUSSIABASE — Real Source Provider/Matcher (Station-level)
+        registerInternal(
+            SourceCapabilityDescriptor(
+                sourceId = FuelDataSource.RUSSIABASE,
+                granularity = SourceGranularity.STATION_LEVEL,
+                physicalStationIdentity = PhysicalStationIdentity.EXTERNAL_ID,
+                capabilities = setOf(
+                    SourceCapability.PRICE,
+                    SourceCapability.AVAILABILITY,
+                    SourceCapability.STATION_ID,
+                    SourceCapability.TIMESTAMP,
+                    SourceCapability.PROVENANCE
+                ),
+                canProvideStationLevelPrice = true,
+                canProvideStationLevelAvailability = true,
+                canProvideStationLevelQueue = false,
+                eligibleForStationFuelSnapshot = true,
+                eligibleForBestStationRecommendation = true
+            )
         )
 
-        for (src in stationLevelSources) {
-            val identity = if (src == FuelDataSource.OVERPASS) {
-                PhysicalStationIdentity.EXTERNAL_ID_AND_COORDINATES
-            } else {
-                PhysicalStationIdentity.EXTERNAL_ID
-            }
-            val caps = if (src == FuelDataSource.OVERPASS) {
-                setOf(
+        // 3. OVERPASS — Real Source Provider (Station-level with coordinates)
+        registerInternal(
+            SourceCapabilityDescriptor(
+                sourceId = FuelDataSource.OVERPASS,
+                granularity = SourceGranularity.STATION_LEVEL,
+                physicalStationIdentity = PhysicalStationIdentity.EXTERNAL_ID_AND_COORDINATES,
+                capabilities = setOf(
                     SourceCapability.PRICE,
                     SourceCapability.AVAILABILITY,
                     SourceCapability.COORDINATES,
                     SourceCapability.STATION_ID,
                     SourceCapability.TIMESTAMP,
                     SourceCapability.PROVENANCE
-                )
-            } else {
-                setOf(
+                ),
+                canProvideStationLevelPrice = true,
+                canProvideStationLevelAvailability = true,
+                canProvideStationLevelQueue = false,
+                eligibleForStationFuelSnapshot = true,
+                eligibleForBestStationRecommendation = true
+            )
+        )
+
+        // 4. USER_REPORT — Real In-App Price Override Repository (Station-level)
+        registerInternal(
+            SourceCapabilityDescriptor(
+                sourceId = FuelDataSource.USER_REPORT,
+                granularity = SourceGranularity.STATION_LEVEL,
+                physicalStationIdentity = PhysicalStationIdentity.EXTERNAL_ID,
+                capabilities = setOf(
                     SourceCapability.PRICE,
                     SourceCapability.AVAILABILITY,
                     SourceCapability.STATION_ID,
                     SourceCapability.TIMESTAMP,
                     SourceCapability.PROVENANCE
-                )
-            }
-            registerInternal(
-                SourceCapabilityDescriptor(
-                    sourceId = src,
-                    granularity = SourceGranularity.STATION_LEVEL,
-                    physicalStationIdentity = identity,
-                    capabilities = caps,
-                    canProvideStationLevelPrice = true,
-                    canProvideStationLevelAvailability = true,
-                    canProvideStationLevelQueue = false,
-                    eligibleForStationFuelSnapshot = true,
-                    eligibleForBestStationRecommendation = true
-                )
+                ),
+                canProvideStationLevelPrice = true,
+                canProvideStationLevelAvailability = true,
+                canProvideStationLevelQueue = false,
+                eligibleForStationFuelSnapshot = true,
+                eligibleForBestStationRecommendation = true
             )
-        }
+        )
+
+        // 5. DEMO — Baseline static station dataset
+        registerInternal(
+            SourceCapabilityDescriptor(
+                sourceId = FuelDataSource.DEMO,
+                granularity = SourceGranularity.STATION_LEVEL,
+                physicalStationIdentity = PhysicalStationIdentity.EXTERNAL_ID,
+                capabilities = setOf(
+                    SourceCapability.PRICE,
+                    SourceCapability.AVAILABILITY,
+                    SourceCapability.STATION_ID,
+                    SourceCapability.TIMESTAMP,
+                    SourceCapability.PROVENANCE
+                ),
+                canProvideStationLevelPrice = true,
+                canProvideStationLevelAvailability = true,
+                canProvideStationLevelQueue = false,
+                eligibleForStationFuelSnapshot = true,
+                eligibleForBestStationRecommendation = true
+            )
+        )
     }
 
     /**
@@ -109,7 +141,7 @@ object SourceCapabilityRegistry {
 
     /**
      * Returns the authoritative capability descriptor for the given [FuelDataSource].
-     * Unregistered sources return a default descriptor with UNKNOWN granularity and NONE physical identity.
+     * Unregistered/unverified sources return a conservative default descriptor with UNKNOWN granularity and NONE physical identity.
      */
     fun getCapability(sourceId: FuelDataSource): SourceCapabilityDescriptor {
         return registry[sourceId] ?: createDefaultDescriptor(sourceId)
