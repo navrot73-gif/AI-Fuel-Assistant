@@ -65,6 +65,53 @@ class RussiabaseFuelDataSourceAdapterTest {
         ref = "5"
     )
 
+    private class FakeStationCache(private val stations: List<GasStation>) : com.navrot.aifuelassistant.data.datasource.StationCache {
+        override fun loadFromCache(): List<GasStation>? = stations
+        override fun saveToCache(rawJson: String) {}
+        override fun getLastCacheUpdateTime(): Long? = System.currentTimeMillis()
+    }
+
+    @Test
+    fun testProductionFetchPathUsesStationCache() = runBlocking {
+        val fakeProvider = FakeRussiabaseProvider(
+            observationsToReturn = listOf(
+                FuelObservation(
+                    brand = "Газпромнефть №201",
+                    address = "Свердловский тракт 12В",
+                    fuelType = "АИ-95",
+                    price = 56.5,
+                    available = true,
+                    statusText = "В наличии"
+                )
+            )
+        )
+        val fakeCache = FakeStationCache(listOf(sampleStation1, sampleStation2))
+
+        val adapter = RussiabaseFuelDataSourceAdapter(fakeProvider, fakeCache)
+        val request = FuelSourceRequest(targetCity = "chelyabinsk", fuelTypes = listOf("AI-95"))
+
+        // Call standard production fetch(request) entry point
+        val result = adapter.fetch(request)
+
+        assertEquals(FuelDataSource.RUSSIABASE, result.sourceId)
+        assertEquals(FuelSourceStatus.HEALTHY, result.status)
+        assertEquals(1, result.observations.size)
+        assertEquals(1, result.rawObservations.size)
+
+        val obs = result.observations[0]
+        assertEquals(101, obs.stationId)
+        assertEquals("AI-95", obs.fuelType)
+        assertEquals(56.5, obs.price!!, 0.001)
+        assertEquals(FuelAvailabilityStatus.AVAILABLE, obs.availability)
+        assertEquals(FuelDataSource.RUSSIABASE, obs.source)
+
+        assertEquals(1, result.metrics.recordsReceived)
+        assertEquals(1, result.metrics.recordsParsed)
+        assertEquals(1, result.metrics.stationsMatched)
+        assertEquals(0, result.metrics.stationsUnmatched)
+        assertEquals(1, result.metrics.observationsCreated)
+    }
+
     @Test
     fun testSuccessfulFetchAndMapping() = runBlocking {
         val fakeProvider = FakeRussiabaseProvider(
@@ -80,7 +127,8 @@ class RussiabaseFuelDataSourceAdapterTest {
             )
         )
 
-        val adapter = RussiabaseFuelDataSourceAdapter(fakeProvider)
+        val fakeCache = FakeStationCache(listOf(sampleStation1, sampleStation2))
+        val adapter = RussiabaseFuelDataSourceAdapter(fakeProvider, fakeCache)
         val request = FuelSourceRequest(targetCity = "chelyabinsk", fuelTypes = listOf("AI-95"))
         val result = adapter.fetchWithStationMapping(request, listOf(sampleStation1))
 
@@ -117,7 +165,8 @@ class RussiabaseFuelDataSourceAdapterTest {
             )
         )
 
-        val adapter = RussiabaseFuelDataSourceAdapter(fakeProvider)
+        val fakeCache = FakeStationCache(listOf(sampleStation1, sampleStation2))
+        val adapter = RussiabaseFuelDataSourceAdapter(fakeProvider, fakeCache)
         val request = FuelSourceRequest(targetCity = "chelyabinsk", fuelTypes = listOf("AI-95"))
         val result = adapter.fetchWithStationMapping(request, listOf(sampleStation1, sampleStation2))
 
@@ -149,7 +198,8 @@ class RussiabaseFuelDataSourceAdapterTest {
             )
         )
 
-        val adapter = RussiabaseFuelDataSourceAdapter(fakeProvider)
+        val fakeCache = FakeStationCache(listOf(sampleStation1, sampleStation2))
+        val adapter = RussiabaseFuelDataSourceAdapter(fakeProvider, fakeCache)
         val request = FuelSourceRequest(targetCity = "chelyabinsk", fuelTypes = listOf("AI-92", "AI-95"))
         val result = adapter.fetchWithStationMapping(request, listOf(sampleStation1))
 
@@ -175,7 +225,8 @@ class RussiabaseFuelDataSourceAdapterTest {
     @Test
     fun testProviderErrorHandling() = runBlocking {
         val fakeProvider = FakeRussiabaseProvider(shouldThrow = true)
-        val adapter = RussiabaseFuelDataSourceAdapter(fakeProvider)
+        val fakeCache = FakeStationCache(listOf(sampleStation1))
+        val adapter = RussiabaseFuelDataSourceAdapter(fakeProvider, fakeCache)
         val request = FuelSourceRequest(targetCity = "chelyabinsk")
         val result = adapter.fetchWithStationMapping(request, listOf(sampleStation1))
 

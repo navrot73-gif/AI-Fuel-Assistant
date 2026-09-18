@@ -26,7 +26,12 @@ class RussiabaseRealSourceSmokeTest {
             .build()
 
         val provider = RussiabaseProviderImpl(httpClient, null)
-        val adapter = RussiabaseFuelDataSourceAdapter(provider)
+        val fakeCache = object : com.navrot.aifuelassistant.data.datasource.StationCache {
+            override fun loadFromCache(): List<com.navrot.aifuelassistant.data.model.GasStation>? = emptyList()
+            override fun saveToCache(rawJson: String) {}
+            override fun getLastCacheUpdateTime(): Long? = System.currentTimeMillis()
+        }
+        val adapter = RussiabaseFuelDataSourceAdapter(provider, fakeCache)
         val request = FuelSourceRequest(
             targetCity = "chelyabinsk",
             fuelTypes = listOf("AI-92", "AI-95"),
