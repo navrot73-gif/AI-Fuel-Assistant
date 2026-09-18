@@ -28,8 +28,12 @@ object FuelIntelligenceResolver {
         fuelType: String,
         now: Long = System.currentTimeMillis()
     ): StationFuelSnapshot {
-        // Filter observations matching stationId and fuelType
-        val matching = observations.filter { it.stationId == stationId && it.fuelType == fuelType }
+        // Filter observations matching stationId, fuelType, and eligible sources
+        val matching = observations.filter {
+            it.stationId == stationId &&
+            it.fuelType == fuelType &&
+            com.navrot.aifuelassistant.domain.capability.SourceCapabilityRegistry.canFeedStationFuelSnapshot(it.source)
+        }
 
         if (matching.isEmpty()) {
             return StationFuelSnapshot(
@@ -254,17 +258,19 @@ object FuelIntelligenceResolver {
                 else -> FuelAvailabilityStatus.UNKNOWN
             }
 
-            observations.add(
-                FuelSourceObservation(
-                    stationId = station.id,
-                    fuelType = fp.type,
-                    availability = avail,
-                    price = fp.price.takeIf { it > 0.0 },
-                    observedAt = timestamp,
-                    source = fp.source,
-                    referenceId = station.ref
+            if (com.navrot.aifuelassistant.domain.capability.SourceCapabilityRegistry.canFeedStationFuelSnapshot(fp.source)) {
+                observations.add(
+                    FuelSourceObservation(
+                        stationId = station.id,
+                        fuelType = fp.type,
+                        availability = avail,
+                        price = fp.price.takeIf { it > 0.0 },
+                        observedAt = timestamp,
+                        source = fp.source,
+                        referenceId = station.ref
+                    )
                 )
-            )
+            }
 
             // If station has additional dataSources like RUSSIABASE alongside BENZONAVT, record observations
             if (station.dataSources.contains(FuelDataSource.RUSSIABASE) && fp.source != FuelDataSource.RUSSIABASE) {

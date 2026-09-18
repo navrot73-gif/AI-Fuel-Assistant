@@ -174,13 +174,13 @@ class RussiabaseMatcherTest {
                     type = "АИ-95",
                     price = 56.90,
                     available = true,
-                    source = FuelDataSource.BENZONAVT,
+                    source = FuelDataSource.USER_REPORT,
                     updatedAt = System.currentTimeMillis()
                 )
             ),
             queueTime = 0,
             reliability = 80,
-            dataSources = setOf(FuelDataSource.BENZONAVT)
+            dataSources = setOf(FuelDataSource.USER_REPORT)
         )
 
         val allStationsOnMap = listOf(redStation, greenStation)

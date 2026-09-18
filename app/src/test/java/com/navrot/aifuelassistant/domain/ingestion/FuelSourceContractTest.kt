@@ -33,10 +33,10 @@ class FuelSourceContractTest {
     @Test
     fun testDownstreamFuelSourceObservationMapping() {
         val rawObservations = listOf(
-            IngestionObservation(sourceId = FuelDataSource.BENZONAVT, externalStationId = "ext_1", fuelType = "АИ-95"),
-            IngestionObservation(sourceId = FuelDataSource.BENZONAVT, externalStationId = "ext_2", fuelType = "ron95"),
-            IngestionObservation(sourceId = FuelDataSource.BENZONAVT, externalStationId = "ext_3", fuelType = "AI95"),
-            IngestionObservation(sourceId = FuelDataSource.BENZONAVT, externalStationId = "ext_4", fuelType = "92")
+            IngestionObservation(sourceId = FuelDataSource.RUSSIABASE, externalStationId = "ext_1", fuelType = "АИ-95"),
+            IngestionObservation(sourceId = FuelDataSource.RUSSIABASE, externalStationId = "ext_2", fuelType = "ron95"),
+            IngestionObservation(sourceId = FuelDataSource.RUSSIABASE, externalStationId = "ext_3", fuelType = "AI95"),
+            IngestionObservation(sourceId = FuelDataSource.RUSSIABASE, externalStationId = "ext_4", fuelType = "92")
         )
 
         val downstream1 = rawObservations[0].toFuelSourceObservation(stationId = 101)
@@ -58,6 +58,16 @@ class FuelSourceContractTest {
 
         assertEquals(FuelAvailabilityStatus.UNKNOWN, downstream1.availability)
         assertNull(downstream1.price)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun testCityLevelBenzonavtCannotConvertToStationObservation() {
+        val cityObs = IngestionObservation(
+            sourceId = FuelDataSource.BENZONAVT,
+            externalStationId = "benzonavt:city:chelyabinsk:AI-95",
+            fuelType = "AI-95"
+        )
+        cityObs.toFuelSourceObservation(stationId = 101)
     }
 
     @Test
