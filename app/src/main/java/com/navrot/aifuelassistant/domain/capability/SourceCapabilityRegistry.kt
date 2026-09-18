@@ -3,10 +3,6 @@ package com.navrot.aifuelassistant.domain.capability
 import com.navrot.aifuelassistant.data.model.FuelDataSource
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * Central authoritative registry for source capabilities, granularity, physical identity models,
- * and domain eligibility rules.
- */
 object SourceCapabilityRegistry {
 
     private val registry = ConcurrentHashMap<FuelDataSource, SourceCapabilityDescriptor>()
@@ -15,13 +11,9 @@ object SourceCapabilityRegistry {
         resetToDefaults()
     }
 
-    /**
-     * Resets the registry to default baseline registrations for verified sources with code implementations.
-     */
     fun resetToDefaults() {
         registry.clear()
 
-        // 1. BENZONAVT — Real Source Adapter (City-level aggregate)
         registerInternal(
             SourceCapabilityDescriptor(
                 sourceId = FuelDataSource.BENZONAVT,
@@ -41,7 +33,6 @@ object SourceCapabilityRegistry {
             )
         )
 
-        // 2. RUSSIABASE — Real Source Provider/Matcher (Station-level)
         registerInternal(
             SourceCapabilityDescriptor(
                 sourceId = FuelDataSource.RUSSIABASE,
@@ -62,7 +53,6 @@ object SourceCapabilityRegistry {
             )
         )
 
-        // 3. OVERPASS — Real Source Provider (Station-level with coordinates)
         registerInternal(
             SourceCapabilityDescriptor(
                 sourceId = FuelDataSource.OVERPASS,
@@ -84,7 +74,6 @@ object SourceCapabilityRegistry {
             )
         )
 
-        // 4. USER_REPORT — Real In-App Price Override Repository (Station-level)
         registerInternal(
             SourceCapabilityDescriptor(
                 sourceId = FuelDataSource.USER_REPORT,
@@ -105,7 +94,6 @@ object SourceCapabilityRegistry {
             )
         )
 
-        // 5. DEMO — Baseline static station dataset
         registerInternal(
             SourceCapabilityDescriptor(
                 sourceId = FuelDataSource.DEMO,
@@ -127,9 +115,6 @@ object SourceCapabilityRegistry {
         )
     }
 
-    /**
-     * Registers or updates a source capability descriptor. Performs validation before registration.
-     */
     fun register(descriptor: SourceCapabilityDescriptor) {
         descriptor.validate()
         registerInternal(descriptor)
@@ -139,16 +124,20 @@ object SourceCapabilityRegistry {
         registry[descriptor.sourceId] = descriptor
     }
 
-    /**
-     * Returns the authoritative capability descriptor for the given [FuelDataSource].
-     * Unregistered/unverified sources return a conservative default descriptor with UNKNOWN granularity and NONE physical identity.
-     */
     fun getCapability(sourceId: FuelDataSource): SourceCapabilityDescriptor {
         return registry[sourceId] ?: createDefaultDescriptor(sourceId)
     }
 
+    fun getDescriptor(sourceId: FuelDataSource): SourceCapabilityDescriptor {
+        return getCapability(sourceId)
+    }
+
     fun canFeedStationFuelSnapshot(sourceId: FuelDataSource): Boolean {
         return getCapability(sourceId).eligibleForStationFuelSnapshot
+    }
+
+    fun canFeedBestStation(sourceId: FuelDataSource): Boolean {
+        return getCapability(sourceId).eligibleForBestStationRecommendation
     }
 
     fun canFeedBestStationRecommendation(sourceId: FuelDataSource): Boolean {
